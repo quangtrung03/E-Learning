@@ -1,0 +1,43 @@
+{
+  "name": "elearning-backend",
+  "version": "1.0.0",
+  "description": "E-Learning Platform Backend API",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "server": "nodemon src/server.js",
+    "frontend": "cd ../frontend && npm run dev -- --open",
+    "dev": "concurrently --kill-others --prefix-colors \"bgBlue.bold,bgMagenta.bold\" \"npm run server\" \"npm run frontend\"",
+    "dev-browser": "concurrently --kill-others \"npm run server\" \"npm run frontend\" \"npm run wait-and-open\"",
+    "wait-and-open": "wait-on http://localhost:5000 http://localhost:5173 && open-cli http://localhost:5173",
+    "swagger": "open-cli http://localhost:5000/api-docs",
+    "install-all": "npm install && cd ../frontend && npm install",
+    "build": "echo 'Backend build completed'"
+  },
+  "keywords": [
+    "elearning",
+    "education",
+    "api",
+    "nodejs",
+    "express"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-validator": "^7.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.5.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "nodemon": "^3.0.1",
+    "open-cli": "^8.0.0",
+    "wait-on": "^7.2.0"
+  }
+}
