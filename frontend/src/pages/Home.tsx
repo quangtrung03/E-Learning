@@ -3,9 +3,19 @@ import { Link } from 'react-router-dom';
 import { courseAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
+type Course = {
+  _id: string;
+  title: string;
+  description: string;
+  instructor: {
+    name: string;
+  };
+  price: number;
+};
+
 const Home = () => {
   const { isAuthenticated, user } = useAuth();
-  const [featuredCourses, setFeaturedCourses] = useState([]);
+  const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

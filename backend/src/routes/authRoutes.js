@@ -7,6 +7,7 @@ const {
   updateProfile
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -22,18 +23,18 @@ const registerValidation = [
   body('name')
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('Họ tên phải có từ 2-50 ký tự'),
+    .withMessage('Họ tên phải có từ 2-50 ký tự')
+    .matches(/^[a-zA-ZÀ-ỹ\s]+$/)
+    .withMessage('Họ tên chỉ được chứa chữ cái và khoảng trắng'),
   body('email')
     .isEmail()
     .normalizeEmail()
     .withMessage('Vui lòng nhập email hợp lệ'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Mật khẩu phải có ít nhất 6 ký tự'),
-  body('role')
-    .optional()
-    .isIn(['student', 'teacher'])
-    .withMessage('Role chỉ có thể là student hoặc teacher')
+    .isLength({ min: 8 })
+    .withMessage('Mật khẩu phải có ít nhất 8 ký tự')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ thường và 1 số')
 ];
 
 const loginValidation = [
@@ -200,6 +201,6 @@ router.get('/me', protect, getMe);
  *       401:
  *         description: Chưa xác thực
  */
-router.put('/update-profile', protect, updateProfile);
+router.put('/update-profile', protect, upload.single('avatar'), updateProfile);
 
 module.exports = router;

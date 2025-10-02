@@ -6,7 +6,6 @@ interface User {
   _id: string;
   name: string;
   email: string;
-  role: 'student' | 'teacher' | 'admin';
   avatar?: string;
   phone?: string;
   bio?: string;
@@ -33,7 +32,7 @@ interface AuthContextType extends AuthState {
   register: (userData: RegisterData) => Promise<{ success: boolean; message?: string }>;
   login: (credentials: LoginData) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
-  updateProfile: (userData: UpdateProfileData) => Promise<{ success: boolean; message?: string }>;
+  updateProfile: (userData: UpdateProfileData | UpdateProfileFormData) => Promise<{ success: boolean; message?: string }>;
   clearError: () => void;
 }
 
@@ -54,6 +53,9 @@ interface UpdateProfileData {
   phone?: string;
   bio?: string;
 }
+
+// For FormData updates
+type UpdateProfileFormData = FormData;
 
 // Initial state
 const initialState: AuthState = {
@@ -262,7 +264,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // Update profile function
-  const updateProfile = async (userData: UpdateProfileData): Promise<{ success: boolean; message?: string }> => {
+  const updateProfile = async (userData: UpdateProfileData | UpdateProfileFormData): Promise<{ success: boolean; message?: string }> => {
     try {
       const response = await authAPI.updateProfile(userData);
       const updatedUser = response.data.data.user;

@@ -21,11 +21,7 @@ const userSchema = new mongoose.Schema({
     minLength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
     select: false // Không trả về password khi query
   },
-  role: {
-    type: String,
-    enum: ['student', 'teacher', 'admin'],
-    default: 'student'
-  },
+  // No role system - every user can learn and teach
   avatar: {
     type: String,
     default: null
@@ -79,6 +75,8 @@ userSchema.pre('save', async function(next) {
 userSchema.methods.correctPassword = async function(candidatePassword, userPassword) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
+
+// Every user can learn and teach - no role restrictions
 
 // Remove password from JSON output
 userSchema.methods.toJSON = function() {

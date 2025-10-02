@@ -7,9 +7,7 @@
     "start": "node src/server.js",
     "server": "nodemon src/server.js",
     "frontend": "cd ../frontend && npm run dev -- --open",
-    "dev": "concurrently --kill-others --prefix-colors \"bgBlue.bold,bgMagenta.bold\" \"npm run server\" \"npm run frontend\"",
-    "dev-browser": "concurrently --kill-others \"npm run server\" \"npm run frontend\" \"npm run wait-and-open\"",
-    "wait-and-open": "wait-on http://localhost:5000 http://localhost:5173 && open-cli http://localhost:5173",
+    "dev": "node scripts/dev-control.js",
     "swagger": "open-cli http://localhost:5000/api-docs",
     "install-all": "npm install && cd ../frontend && npm install",
     "build": "echo 'Backend build completed'"
@@ -31,6 +29,7 @@
     "express-validator": "^7.0.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
+    "multer": "^2.0.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0"
   },

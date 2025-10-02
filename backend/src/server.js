@@ -25,15 +25,20 @@ app.use((req, res, next) => {
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files (uploads)
+app.use('/uploads', express.static('uploads'));
 
 // Swagger UI - chỉ chạy trên backend
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {

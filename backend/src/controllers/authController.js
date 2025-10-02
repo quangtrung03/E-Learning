@@ -44,9 +44,9 @@ const register = async (req, res, next) => {
       });
     }
     
-    const { name, email, password, role } = req.body;
+    const { name, email, password } = req.body;
     console.log('✅ Validation passed');
-    console.log('👤 User data:', { name, email, role: role || 'student' });
+    console.log('👤 User data:', { name, email });
     
     // Kiểm tra email đã tồn tại
     console.log('🔍 Checking if email exists...');
@@ -60,13 +60,12 @@ const register = async (req, res, next) => {
     }
     console.log('✅ Email available');
     
-    // Tạo user mới
+    // Tạo user mới (no role restrictions)
     console.log('🔨 Creating new user...');
     const user = await User.create({
       name,
       email,
-      password,
-      role: role || 'student'
+      password
     });
     
     console.log('✅ User created successfully:', user._id);
@@ -158,27 +157,43 @@ const updateProfile = async (req, res) => {
   try {
     const { name, phone, bio } = req.body;
     
+    // Prepare update object
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (phone) updateData.phone = phone;
+    if (bio) updateData.bio = bio;
+    
+    // If avatar file is uploaded, add to update data
+    if (req.file) {
+      updateData.avatar = `/uploads/avatars/${req.file.filename}`;
+    }
+    
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      {
-        name: name || req.user.name,
-        phone: phone || req.user.phone,
-        bio: bio || req.user.bio
-      },
+      updateData,
       {
         new: true,
         runValidators: true
       }
-    );
+    ).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
     
     res.status(200).json({
       success: true,
+      message: 'Cập nhật thông tin thành công',
       data: {
         user
       }
     });
     
   } catch (error) {
+    console.error('Update profile error:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi cập nhật thông tin',

@@ -1,7 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
+
+interface Course {
+  _id: string;
+  title: string;
+  instructor: {
+    name: string;
+  };
+  price: number;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -11,7 +20,7 @@ const Dashboard = () => {
     completedCourses: 0,
     createdCourses: 0
   });
-  const [recentCourses, setRecentCourses] = useState([]);
+  const [recentCourses, setRecentCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,7 +34,7 @@ const Dashboard = () => {
           }));
         }
 
-        if (user?.createdCourses && user.role === 'teacher') {
+        if (user?.createdCourses) {
           setStats(prev => ({
             ...prev,
             createdCourses: user.createdCourses.length
@@ -53,14 +62,7 @@ const Dashboard = () => {
     return 'Chào buổi tối';
   };
 
-  const getRoleText = (role) => {
-    switch (role) {
-      case 'student': return 'Học viên';
-      case 'teacher': return 'Giảng viên';
-      case 'admin': return 'Quản trị viên';
-      default: return 'Người dùng';
-    }
-  };
+
 
   if (loading) {
     return (
@@ -82,7 +84,7 @@ const Dashboard = () => {
             {getGreeting()}, {user?.name}! 👋
           </h1>
           <p className="text-gray-600">
-            Chào mừng trở lại với ELearn. Bạn đang đăng nhập với vai trò <span className="font-semibold text-primary-600">{getRoleText(user?.role)}</span>
+            Chào mừng trở lại với ELearn. Bạn có thể học tập và chia sẻ kiến thức tại đây! 🚀
           </p>
         </div>
 
@@ -116,21 +118,19 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {user?.role === 'teacher' && (
-            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Khóa học đã tạo</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.createdCourses}</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                </div>
+          <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Khóa học đã tạo</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.createdCourses}</p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                </svg>
               </div>
             </div>
-          )}
+          </div>
 
           <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-200">
             <div className="flex items-center justify-between">
@@ -167,22 +167,20 @@ const Dashboard = () => {
                 </div>
               </Link>
 
-              {user?.role === 'teacher' && (
-                <Link
-                  to="/teacher/create-course"
-                  className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                >
-                  <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mr-4">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-medium text-gray-900">Tạo khóa học mới</h3>
-                    <p className="text-sm text-gray-600">Chia sẻ kiến thức của bạn</p>
-                  </div>
-                </Link>
-              )}
+              <Link
+                to="/teacher/create-course"
+                className="flex items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+              >
+                <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center mr-4">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Tạo khóa học mới</h3>
+                  <p className="text-sm text-gray-600">Chia sẻ kiến thức của bạn</p>
+                </div>
+              </Link>
 
               <Link
                 to="/profile"

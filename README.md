@@ -1,6 +1,14 @@
-# 🎓 E-Learning Platform
+# 🎓 E-Learning Platform - Hybrid Learning System
 
-Hệ thống học trực tuyến được xây dựng với Node.js, Express, React và MongoDB.
+Hệ thống học trực tuyến hiện đại với khái niệm **Hybrid Roles** - Mỗi người dùng vừa có thể học vừa có thể dạy.
+
+## ✨ Điểm đặc biệt
+
+### 🎭 **Hybrid User System**
+- **Không cần chọn vai trò** khi đăng ký
+- **Mỗi tài khoản tự động** có cả quyền học viên và giảng viên
+- **Linh hoạt chuyển đổi** giữa vai trò học và dạy
+- **Mở rộng dễ dàng** với hệ thống multiple roles
 
 ## 🚀 Tính năng hiện tại
 

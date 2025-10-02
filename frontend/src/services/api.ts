@@ -74,8 +74,17 @@ export const authAPI = {
     api.post('/auth/login', credentials),
   getProfile: (): Promise<AxiosResponse<any>> => 
     api.get('/auth/me'),
-  updateProfile: (userData: UpdateProfileData): Promise<AxiosResponse<any>> => 
-    api.put('/auth/update-profile', userData),
+  updateProfile: (userData: UpdateProfileData | FormData): Promise<AxiosResponse<any>> => {
+    // Handle FormData differently
+    if (userData instanceof FormData) {
+      return api.put('/auth/update-profile', userData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+    return api.put('/auth/update-profile', userData);
+  },
 };
 
 // Course API calls
