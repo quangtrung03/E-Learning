@@ -4,7 +4,12 @@ const {
   register,
   login,
   getMe,
-  updateProfile
+  updateProfile,
+  verifyEmail,
+  resendVerification,
+  forgotPassword,
+  resetPassword,
+  verifyResetToken
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -45,6 +50,22 @@ const loginValidation = [
   body('password')
     .notEmpty()
     .withMessage('Vui lòng nhập mật khẩu')
+];
+
+const forgotPasswordValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Vui lòng nhập email hợp lệ')
+];
+
+const resetPasswordValidation = [
+  body('token')
+    .notEmpty()
+    .withMessage('Token là bắt buộc'),
+  body('newPassword')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu mới phải có ít nhất 6 ký tự')
 ];
 
 /**
@@ -202,5 +223,132 @@ router.get('/me', protect, getMe);
  *         description: Chưa xác thực
  */
 router.put('/update-profile', protect, upload.single('avatar'), updateProfile);
+
+/**
+ * @swagger
+ * /api/auth/verify-email:
+ *   post:
+ *     summary: Xác thực email bằng token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "a1b2c3d4e5f6789012345678901234567890abcd"
+ *     responses:
+ *       200:
+ *         description: Xác thực thành công
+ *       400:
+ *         description: Token không hợp lệ hoặc đã hết hạn
+ */
+router.post('/verify-email', verifyEmail);
+
+/**
+ * @swagger
+ * /api/auth/resend-verification:
+ *   post:
+ *     summary: Gửi lại email xác thực
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: Email xác thực đã được gửi lại
+ *       400:
+ *         description: Email đã được xác thực hoặc không tồn tại
+ */
+router.post('/resend-verification', resendVerification);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Quên mật khẩu - Gửi email đặt lại mật khẩu
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "user@example.com"
+ *     responses:
+ *       200:
+ *         description: Email đặt lại mật khẩu đã được gửi
+ *       400:
+ *         description: Email không hợp lệ
+ *       500:
+ *         description: Lỗi server
+ */
+router.post('/forgot-password', forgotPasswordValidation, forgotPassword);
+
+/**
+ * @swagger
+ * /api/auth/verify-reset-token/{token}:
+ *   get:
+ *     summary: Xác thực token đặt lại mật khẩu
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token đặt lại mật khẩu
+ *     responses:
+ *       200:
+ *         description: Token hợp lệ
+ *       400:
+ *         description: Token không hợp lệ hoặc đã hết hạn
+ */
+router.get('/verify-reset-token/:token', verifyResetToken);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Đặt lại mật khẩu với token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: "abc123def456ghi789"
+ *               newPassword:
+ *                 type: string
+ *                 minLength: 6
+ *                 example: "newpassword123"
+ *     responses:
+ *       200:
+ *         description: Mật khẩu đã được đặt lại thành công
+ *       400:
+ *         description: Token không hợp lệ hoặc mật khẩu không đủ mạnh
+ *       500:
+ *         description: Lỗi server
+ */
+router.post('/reset-password', resetPasswordValidation, resetPassword);
 
 module.exports = router;

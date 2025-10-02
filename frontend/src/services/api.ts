@@ -85,6 +85,10 @@ export const authAPI = {
     }
     return api.put('/auth/update-profile', userData);
   },
+  verifyEmail: (data: { token: string }): Promise<AxiosResponse<any>> =>
+    api.post('/auth/verify-email', data),
+  resendVerification: (data: { email: string }): Promise<AxiosResponse<any>> =>
+    api.post('/auth/resend-verification', data),
 };
 
 // Course API calls

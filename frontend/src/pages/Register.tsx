@@ -31,6 +31,8 @@ const Register = () => {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [registrationSuccess, setRegistrationSuccess] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -112,8 +114,9 @@ const Register = () => {
       console.log('📊 Registration result:', result);
       
       if (result.success) {
-        console.log('🎉 Registration successful, redirecting to dashboard');
-        navigate('/dashboard');
+        console.log('🎉 Registration successful, showing email verification message');
+        setRegistrationSuccess(true);
+        setSuccessMessage(result.message || 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.');
       } else {
         console.log('❌ Registration failed:', result.message);
         setError(result.message || 'Đăng ký thất bại');
@@ -145,7 +148,31 @@ const Register = () => {
         {/* Form */}
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <form className="space-y-6" onSubmit={handleSubmit}>
-            {error && (
+            {registrationSuccess ? (
+              <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm text-green-700">{successMessage}</p>
+                    <div className="mt-3 space-y-2">
+                      <Link 
+                        to="/verify-email" 
+                        className="inline-flex items-center text-sm font-medium text-green-700 hover:text-green-600"
+                      >
+                        Xác thực email ngay →
+                      </Link>
+                      <p className="text-xs text-green-600">
+                        Kiểm tra hộp thư (kể cả thư mục spam) để nhận email xác thực
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : error && (
               <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg">
                 <div className="flex">
                   <div className="flex-shrink-0">
