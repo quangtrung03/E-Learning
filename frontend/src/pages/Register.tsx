@@ -7,6 +7,7 @@ interface FormData {
   email: string;
   password: string;
   confirmPassword: string;
+  requestAdmin: boolean;
 }
 
 interface ValidationErrors {
@@ -24,13 +25,13 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    requestAdmin: false
   });
 
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [registrationSuccess, setRegistrationSuccess] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
 
@@ -112,7 +113,8 @@ const Register = () => {
           name: '',
           email: '',
           password: '',
-          confirmPassword: ''
+          confirmPassword: '',
+          requestAdmin: false
         });
 
         // Redirect to email verification page after 2 seconds
@@ -235,7 +237,7 @@ const Register = () => {
                     <input
                       id="password"
                       name="password"
-                      type={showPassword ? "text" : "password"}
+                      type="password"
                       required
                       className={`input-field pr-12 ${validationErrors.password ? 'input-error' : ''}`}
                       placeholder="••••••••"
@@ -258,7 +260,7 @@ const Register = () => {
                   <input
                     id="confirmPassword"
                     name="confirmPassword"
-                    type={showPassword ? "text" : "password"}
+                    type="password"
                     required
                     className={`input-field ${validationErrors.confirmPassword ? 'input-error' : ''}`}
                     placeholder="••••••••"
@@ -269,6 +271,31 @@ const Register = () => {
                   {validationErrors.confirmPassword && (
                     <p className="text-red-600 text-sm mt-1">{validationErrors.confirmPassword}</p>
                   )}
+                </div>
+
+                {/* Admin Request Checkbox */}
+                <div className="form-group">
+                  <div className="flex items-start">
+                    <div className="flex items-center h-5">
+                      <input
+                        id="requestAdmin"
+                        name="requestAdmin"
+                        type="checkbox"
+                        className="w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 focus:ring-2"
+                        checked={formData.requestAdmin}
+                        onChange={handleChange}
+                        disabled={loading}
+                      />
+                    </div>
+                    <div className="ml-3 text-sm">
+                      <label htmlFor="requestAdmin" className="text-gray-700">
+                        Đăng ký làm Admin
+                      </label>
+                      <p className="text-xs text-blue-600">
+                        Yêu cầu quyền quản trị viên (cần được phê duyệt qua email)
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 

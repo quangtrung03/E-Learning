@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const AdminRequest = require('../models/AdminRequest');
 
 // @desc    Lấy danh sách khóa học cần duyệt
 // @route   GET /api/admin/courses/pending
@@ -300,11 +301,154 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+// @desc    Lấy danh sách admin requests
+// @route   GET /api/admin/admin-requests
+// @access  Private (Admin only)
+const getAdminRequests = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status = 'pending' } = req.query;
+    const skip = (page - 1) * limit;
+
+    const requests = await AdminRequest.find({ status })
+      .populate('user', 'name email avatar createdAt')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await AdminRequest.countDocuments({ status });
+
+    res.status(200).json({
+      success: true,
+      count: requests.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: {
+        requests
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách admin requests',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Duyệt admin request
+// @route   PUT /api/admin/admin-requests/:id/approve
+// @access  Private (Admin only)
+const approveAdminRequest = async (req, res) => {
+  try {
+    const request = await AdminRequest.findById(req.params.id).populate('user');
+    
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy admin request'
+      });
+    }
+
+    if (request.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin request này đã được xử lý'
+      });
+    }
+
+    // Cập nhật user thành admin
+    await User.findByIdAndUpdate(request.user._id, {
+      isAdmin: true,
+      adminRequestPending: false
+    });
+
+    // Cập nhật request status
+    request.status = 'approved';
+    request.processedBy = req.user.id;
+    request.processedAt = new Date();
+    await request.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã duyệt thành công. User này giờ là admin.',
+      data: {
+        request
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi duyệt admin request',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Từ chối admin request
+// @route   PUT /api/admin/admin-requests/:id/reject
+// @access  Private (Admin only)
+const rejectAdminRequest = async (req, res) => {
+  try {
+    const { reason } = req.body;
+    
+    const request = await AdminRequest.findById(req.params.id).populate('user');
+    
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy admin request'
+      });
+    }
+
+    if (request.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin request này đã được xử lý'
+      });
+    }
+
+    // Cập nhật user
+    await User.findByIdAndUpdate(request.user._id, {
+      adminRequestPending: false
+    });
+
+    // Cập nhật request status
+    request.status = 'rejected';
+    request.processedBy = req.user.id;
+    request.processedAt = new Date();
+    request.rejectionReason = reason || 'Không đủ điều kiện';
+    await request.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã từ chối admin request',
+      data: {
+        request
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi từ chối admin request',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getPendingCourses,
   approveCourse,
   rejectCourse,
   getAdminStats,
   toggleUserBan,
-  getAllUsers
+  getAllUsers,
+  getAdminRequests,
+  approveAdminRequest,
+  rejectAdminRequest
 };

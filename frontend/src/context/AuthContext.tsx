@@ -10,6 +10,7 @@ interface User {
   phone?: string;
   bio?: string;
   isActive: boolean;
+  isAdmin?: boolean;
   enrolledCourses: Array<{
     course: string;
     enrolledAt: Date;

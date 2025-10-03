@@ -4,7 +4,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const EmailVerification = require('../models/EmailVerification');
 const PasswordReset = require('../models/PasswordReset');
-const emailService = require('../config/email');
+const AdminRequest = require('../models/AdminRequest');
+const emailService = require('../config/email-new');
 
 // Tạo JWT token
 const signToken = (id) => {
@@ -48,9 +49,9 @@ const register = async (req, res, next) => {
       });
     }
     
-    const { name, email, password } = req.body;
+    const { name, email, password, requestAdmin } = req.body;
     console.log('✅ Validation passed');
-    console.log('👤 User data:', { name, email });
+    console.log('👤 User data:', { name, email, requestAdmin });
     
     // Kiểm tra email đã tồn tại
     console.log('🔍 Checking if email exists...');
@@ -70,7 +71,8 @@ const register = async (req, res, next) => {
       name,
       email,
       password,
-      emailVerified: false
+      emailVerified: false,
+      adminRequestPending: requestAdmin || false
     });
     
     console.log('✅ User created successfully:', user._id);
@@ -100,15 +102,44 @@ const register = async (req, res, next) => {
     
     if (emailResult.success) {
       console.log('✅ Verification email sent successfully');
+      
+      // Nếu user yêu cầu làm admin, tạo admin request và gửi email
+      if (requestAdmin) {
+        console.log('👑 Processing admin request...');
+        
+        const adminRequest = await AdminRequest.create({
+          user: user._id,
+          name,
+          email,
+          reason: 'Yêu cầu quyền quản trị viên khi đăng ký'
+        });
+        
+        // Gửi email thông báo admin request tới admin
+        const adminEmailResult = await emailService.sendAdminRequestNotification({
+          userName: name,
+          userEmail: email,
+          requestId: adminRequest._id
+        });
+        
+        if (adminEmailResult.success) {
+          console.log('✅ Admin notification email sent successfully');
+        } else {
+          console.log('❌ Failed to send admin notification email:', adminEmailResult.error);
+        }
+      }
+      
       res.status(201).json({
         success: true,
-        message: 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
+        message: requestAdmin 
+          ? 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản. Yêu cầu quyền admin đã được gửi để xem xét.'
+          : 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
         data: {
           user: {
             _id: user._id,
             name: user.name,
             email: user.email,
-            emailVerified: user.emailVerified
+            emailVerified: user.emailVerified,
+            adminRequestPending: user.adminRequestPending
           },
           emailSent: true
         }

@@ -13,19 +13,25 @@ connectDB();
 
 const app = express();
 
-// Middleware for detailed logging
+// Middleware for logging
 app.use((req, res, next) => {
-  console.log(`\n🌐 ${new Date().toISOString()} - ${req.method} ${req.path}`);
-  console.log('📋 Headers:', req.headers);
-  if (req.body && Object.keys(req.body).length > 0) {
-    console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`\n🌐 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    console.log('📋 Headers:', req.headers);
+    if (req.body && Object.keys(req.body).length > 0) {
+      console.log('📦 Body:', JSON.stringify(req.body, null, 2));
+    }
+  } else {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   }
   next();
 });
 
 // CORS configuration
 const corsOptions = {
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.CORS_ORIGIN] 
+    : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -40,11 +46,13 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files (uploads)
 app.use('/uploads', express.static('uploads'));
 
-// Swagger UI - chỉ chạy trên backend
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: "E-Learning API Documentation"
-}));
+// Swagger UI - chỉ trong development
+if (process.env.NODE_ENV === 'development') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: "E-Learning API Documentation"
+  }));
+}
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -61,6 +69,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api', require('./routes/lessonRoutes'));
 
 // 404 Handler
 app.use('*', (req, res) => {

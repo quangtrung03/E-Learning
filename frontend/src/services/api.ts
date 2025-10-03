@@ -32,7 +32,7 @@ interface CourseParams {
 
 // Create axios instance
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -105,6 +105,26 @@ export const courseAPI = {
     api.delete(`/courses/${id}`),
   enrollCourse: (id: string): Promise<AxiosResponse<any>> => 
     api.post(`/courses/${id}/enroll`),
+  getMyCourses: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/courses/my-courses', { params }),
+};
+
+// Lesson API calls
+export const lessonAPI = {
+  getLessonsByCourse: (courseId: string, params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get(`/courses/${courseId}/lessons`, { params }),
+  getLesson: (id: string): Promise<AxiosResponse<any>> =>
+    api.get(`/lessons/${id}`),
+  createLesson: (courseId: string, lessonData: any): Promise<AxiosResponse<any>> =>
+    api.post(`/courses/${courseId}/lessons`, lessonData),
+  updateLesson: (id: string, lessonData: any): Promise<AxiosResponse<any>> =>
+    api.put(`/lessons/${id}`, lessonData),
+  deleteLesson: (id: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/lessons/${id}`),
+  completeLesson: (id: string): Promise<AxiosResponse<any>> =>
+    api.post(`/lessons/${id}/complete`),
+  uncompleteLesson: (id: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/lessons/${id}/complete`),
 };
 
 // Health check

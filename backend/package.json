@@ -5,12 +5,16 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "dev": "node scripts/dev-control.js",
     "server": "nodemon src/server.js",
     "frontend": "cd ../frontend && npm run dev -- --open",
-    "dev": "node scripts/dev-control.js",
     "swagger": "open-cli http://localhost:5000/api-docs",
     "install-all": "npm install && cd ../frontend && npm install",
-    "build": "echo 'Backend build completed'"
+    "build": "echo 'Backend ready for production'",
+    "test": "jest tests/",
+    "production-check": "node scripts/production-check.js",
+    "make-admin": "node scripts/make-admin.js",
+    "test-admin": "node scripts/test-admin-flow.js"
   },
   "keywords": [
     "elearning",

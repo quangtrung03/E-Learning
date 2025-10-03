@@ -1,6 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import Logo from "../../assets/Elearn.png";
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -22,14 +21,16 @@ const Header = () => {
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-6">
+            {isAuthenticated && (
+              <Link
+                to="/courses"
+                className="text-gray-700 hover:text-primary-600 transition-colors"
+              >
+                Khóa học
+              </Link>
+            )}
             <Link
-              to="/courses"
-              className="text-gray-700 hover:text-primary-600 transition-colors"
-            >
-              Khóa học
-            </Link>
-            <Link
-              to="/about"
+              to="/#about"
               className="text-gray-700 hover:text-primary-600 transition-colors"
             >
               Giới thiệu
@@ -71,6 +72,17 @@ const Header = () => {
                   >
                     Khóa học của tôi
                   </Link>
+                  {user?.isAdmin && (
+                    <>
+                      <hr className="my-1" />
+                      <Link
+                        to="/admin"
+                        className="block px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 font-medium"
+                      >
+                        🛡️ Admin Dashboard
+                      </Link>
+                    </>
+                  )}
                   <hr className="my-1" />
                   <button
                     onClick={handleLogout}

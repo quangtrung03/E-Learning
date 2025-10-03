@@ -6,7 +6,10 @@ const {
   rejectCourse,
   getAdminStats,
   toggleUserBan,
-  getAllUsers
+  getAllUsers,
+  getAdminRequests,
+  approveAdminRequest,
+  rejectAdminRequest
 } = require('../controllers/adminController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -184,5 +187,12 @@ router.get('/users', getAllUsers);
  *         description: Không tìm thấy người dùng
  */
 router.put('/users/:id/toggle-ban', toggleUserBan);
+
+// Admin Request routes
+router.get('/admin-requests', getAdminRequests);
+router.put('/admin-requests/:id/approve', approveAdminRequest);
+router.put('/admin-requests/:id/reject', [
+  body('reason').optional().isLength({ max: 500 }).withMessage('Lý do không được quá 500 ký tự')
+], rejectAdminRequest);
 
 module.exports = router;

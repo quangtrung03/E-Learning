@@ -5,10 +5,15 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
+import CourseDetail from './pages/CourseDetail';
 import Profile from './pages/Profile';
 import EmailVerification from './pages/EmailVerification';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+
+import MyCourses from './pages/MyCourses';
+import LessonManagement from './pages/LessonManagement';
+import AdminDashboard from './pages/AdminDashboard';
 import { useAuth } from './context/AuthContext';
 import React from 'react';
 
@@ -47,7 +52,15 @@ function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/courses" element={<Courses />} />
+        <Route 
+          path="/courses" 
+          element={
+            <ProtectedRoute>
+              <Courses />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="/courses/:id" element={<CourseDetail />} />
         <Route 
           path="/login" 
           element={
@@ -77,6 +90,31 @@ function App() {
           element={
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          } 
+        />
+
+        <Route 
+          path="/my-courses" 
+          element={
+            <ProtectedRoute>
+              <MyCourses />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/courses/:courseId/lessons" 
+          element={
+            <ProtectedRoute>
+              <LessonManagement />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/admin" 
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
             </ProtectedRoute>
           } 
         />

@@ -256,6 +256,102 @@ const swaggerDefinition = {
             }
           }
         }
+      },
+      Lesson: {
+        type: 'object',
+        required: ['title', 'content', 'duration', 'course', 'order'],
+        properties: {
+          _id: {
+            type: 'string',
+            description: 'Lesson ID'
+          },
+          title: {
+            type: 'string',
+            maxLength: 200,
+            description: 'Tiêu đề bài học',
+            example: 'Giới thiệu về React'
+          },
+          description: {
+            type: 'string',
+            maxLength: 500,
+            description: 'Mô tả bài học',
+            example: 'Tìm hiểu cơ bản về React framework'
+          },
+          content: {
+            type: 'string',
+            description: 'Nội dung bài học',
+            example: 'React là một thư viện JavaScript...'
+          },
+          contentType: {
+            type: 'string',
+            enum: ['text', 'video', 'pdf', 'quiz'],
+            description: 'Loại nội dung',
+            example: 'text'
+          },
+          videoUrl: {
+            type: 'string',
+            description: 'URL video',
+            example: 'https://youtube.com/watch?v=...'
+          },
+          duration: {
+            type: 'number',
+            minimum: 1,
+            description: 'Thời lượng (phút)',
+            example: 30
+          },
+          order: {
+            type: 'number',
+            minimum: 1,
+            description: 'Thứ tự bài học',
+            example: 1
+          },
+          isPreview: {
+            type: 'boolean',
+            description: 'Có thể xem trước miễn phí',
+            example: true
+          },
+          isPublished: {
+            type: 'boolean',
+            description: 'Đã xuất bản',
+            example: true
+          },
+          resources: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                url: { type: 'string' },
+                type: { 
+                  type: 'string',
+                  enum: ['pdf', 'doc', 'image', 'link', 'other']
+                }
+              }
+            }
+          },
+          completedBy: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                student: { type: 'string' },
+                completedAt: { type: 'string', format: 'date-time' }
+              }
+            }
+          },
+          course: {
+            type: 'string',
+            description: 'Course ID'
+          },
+          createdAt: {
+            type: 'string',
+            format: 'date-time'
+          },
+          updatedAt: {
+            type: 'string',
+            format: 'date-time'
+          }
+        }
       }
     }
   },
