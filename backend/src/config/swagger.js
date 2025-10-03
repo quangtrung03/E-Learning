@@ -60,11 +60,10 @@ const swaggerDefinition = {
             description: 'Mật khẩu (min 6 ký tự)',
             example: '123456'
           },
-          role: {
-            type: 'string',
-            enum: ['student', 'teacher', 'admin'],
-            description: 'Vai trò người dùng',
-            example: 'student'
+          isAdmin: {
+            type: 'boolean',
+            description: 'Người dùng có phải admin không',
+            example: false
           },
           avatar: {
             type: 'string',

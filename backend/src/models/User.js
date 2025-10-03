@@ -21,7 +21,11 @@ const userSchema = new mongoose.Schema({
     minLength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
     select: false // Không trả về password khi query
   },
-  // No role system - every user can learn and teach
+  // Simple role system: user (default) or admin
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
   avatar: {
     type: String,
     default: null

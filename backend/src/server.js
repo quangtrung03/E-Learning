@@ -60,6 +60,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // 404 Handler
 app.use('*', (req, res) => {
@@ -145,3 +146,6 @@ process.on('unhandledRejection', (err, promise) => {
     process.exit(1);
   });
 });
+
+// Export app for testing
+module.exports = app;

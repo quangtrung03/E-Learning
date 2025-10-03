@@ -1,9 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { courseAPI } from '../services/api';
+import { Button } from '../components/ui/Button';
+
+interface Course {
+  _id: string;
+  title: string;
+  description: string;
+  category: string;
+  level: string;
+  price: number;
+  finalPrice: number;
+  discount: number;
+  duration: number;
+  rating: {
+    average: number;
+    count: number;
+  };
+  instructor: {
+    _id: string;
+    name: string;
+  };
+  students: string[];
+}
 
 const Courses = () => {
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: '',
@@ -74,22 +96,22 @@ const Courses = () => {
     }
   };
 
-  const handleFilterChange = (key, value) => {
+  const handleFilterChange = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
-  const handlePageChange = (newPage) => {
+  const handlePageChange = (newPage: number) => {
     setPagination(prev => ({ ...prev, page: newPage }));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const getCategoryLabel = (category) => {
+  const getCategoryLabel = (category: string) => {
     const cat = categories.find(c => c.value === category);
     return cat ? cat.label : category;
   };
 
-  const getLevelLabel = (level) => {
+  const getLevelLabel = (level: string) => {
     const lev = levels.find(l => l.value === level);
     return lev ? lev.label : level;
   };
@@ -97,10 +119,10 @@ const Courses = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b">
-        <div className="container-custom py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Khóa học</h1>
-          <p className="text-gray-600">
+      <div className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white border-b">
+        <div className="container-custom py-12">
+          <h1 className="text-4xl font-bold mb-4">Khóa học</h1>
+          <p className="text-primary-100 text-lg">
             Khám phá hàng ngàn khóa học chất lượng cao từ các chuyên gia hàng đầu
           </p>
         </div>
@@ -108,7 +130,7 @@ const Courses = () => {
 
       <div className="container-custom py-8">
         {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8 border border-gray-200">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-gray-200">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -116,7 +138,7 @@ const Courses = () => {
               </label>
               <input
                 type="text"
-                className="input-field"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 placeholder="Tìm khóa học..."
                 value={filters.search}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
@@ -128,7 +150,7 @@ const Courses = () => {
                 Danh mục
               </label>
               <select
-                className="input-field"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 value={filters.category}
                 onChange={(e) => handleFilterChange('category', e.target.value)}
               >
@@ -145,7 +167,7 @@ const Courses = () => {
                 Cấp độ
               </label>
               <select
-                className="input-field"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 value={filters.level}
                 onChange={(e) => handleFilterChange('level', e.target.value)}
               >
@@ -162,7 +184,7 @@ const Courses = () => {
                 Sắp xếp
               </label>
               <select
-                className="input-field"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 value={filters.sort}
                 onChange={(e) => handleFilterChange('sort', e.target.value)}
               >
@@ -175,15 +197,16 @@ const Courses = () => {
             </div>
 
             <div className="flex items-end">
-              <button
+              <Button
+                variant="outline"
                 onClick={() => {
                   setFilters({ search: '', category: '', level: '', sort: 'newest' });
                   setPagination(prev => ({ ...prev, page: 1 }));
                 }}
-                className="btn-secondary w-full"
+                className="w-full"
               >
                 Xóa bộ lọc
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -222,15 +245,14 @@ const Courses = () => {
             </svg>
             <h3 className="text-xl font-medium text-gray-900 mb-2">Không tìm thấy khóa học</h3>
             <p className="text-gray-600 mb-6">Thử thay đổi bộ lọc để tìm kiếm khóa học phù hợp</p>
-            <button
+            <Button
               onClick={() => {
                 setFilters({ search: '', category: '', level: '', sort: 'newest' });
                 setPagination(prev => ({ ...prev, page: 1 }));
               }}
-              className="btn-primary"
             >
               Xóa bộ lọc
-            </button>
+            </Button>
           </div>
         ) : (
           <>
@@ -239,9 +261,9 @@ const Courses = () => {
                 <Link
                   key={course._id}
                   to={`/courses/${course._id}`}
-                  className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-lg transition-shadow duration-300"
+                  className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
                 >
-                  <div className="h-48 bg-gradient-to-r from-primary-400 to-primary-600 rounded-t-lg flex items-center justify-center">
+                  <div className="h-48 bg-gradient-to-r from-primary-400 to-primary-600 rounded-t-xl flex items-center justify-center">
                     <span className="text-white text-2xl font-bold">
                       {course.title.charAt(0)}
                     </span>
@@ -309,38 +331,37 @@ const Courses = () => {
             {pagination.pages > 1 && (
               <div className="flex justify-center">
                 <nav className="flex items-center space-x-2">
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => handlePageChange(pagination.page - 1)}
                     disabled={pagination.page === 1}
-                    className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    size="sm"
                   >
                     Trước
-                  </button>
+                  </Button>
                   
                   {[...Array(pagination.pages)].map((_, index) => {
                     const page = index + 1;
                     return (
-                      <button
+                      <Button
                         key={page}
+                        variant={page === pagination.page ? 'primary' : 'ghost'}
                         onClick={() => handlePageChange(page)}
-                        className={`px-3 py-2 text-sm font-medium rounded-md ${
-                          page === pagination.page
-                            ? 'text-white bg-primary-600 border border-primary-600'
-                            : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
-                        }`}
+                        size="sm"
                       >
                         {page}
-                      </button>
+                      </Button>
                     );
                   })}
                   
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => handlePageChange(pagination.page + 1)}
                     disabled={pagination.page === pagination.pages}
-                    className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    size="sm"
                   >
                     Sau
-                  </button>
+                  </Button>
                 </nav>
               </div>
             )}

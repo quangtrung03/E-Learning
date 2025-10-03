@@ -82,6 +82,26 @@ const courseSchema = new mongoose.Schema({
       default: 0
     }
   },
+  // Course Approval System
+  status: {
+    type: String,
+    enum: ['draft', 'pending', 'approved', 'rejected'],
+    default: 'draft'
+  },
+  approvedBy: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  approvedAt: {
+    type: Date,
+    default: null
+  },
+  rejectionReason: {
+    type: String,
+    maxLength: [500, 'Lý do từ chối không được quá 500 ký tự'],
+    default: null
+  },
   isPublished: {
     type: Boolean,
     default: false

@@ -65,20 +65,41 @@ const protect = async (req, res, next) => {
   }
 };
 
-// Phân quyền theo role
-const authorize = (...roles) => {
+// Kiểm tra quyền admin (chỉ admin mới có thể thực hiện một số hành động đặc biệt)
+const requireAdmin = (req, res, next) => {
+  if (req.user.isAdmin !== true) {
+    return res.status(403).json({
+      success: false,
+      message: 'Chỉ admin mới có quyền thực hiện hành động này'
+    });
+  }
+  next();
+};
+
+// Kiểm tra ownership hoặc admin (cho các tài nguyên cá nhân)
+const requireOwnershipOrAdmin = (resourceUserIdField = 'userId') => {
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    const resourceUserId = req.body[resourceUserIdField] || req.params[resourceUserIdField] || req.resource?.userId;
+    
+    // Admin có thể làm mọi thứ
+    if (req.user.isAdmin) {
+      return next();
+    }
+    
+    // User chỉ có thể làm với tài nguyên của mình
+    if (!resourceUserId || resourceUserId.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: `Vai trò ${req.user.role} không có quyền thực hiện hành động này`
+        message: 'Bạn không có quyền thực hiện hành động này'
       });
     }
+    
     next();
   };
 };
 
 module.exports = {
   protect,
-  authorize
+  requireAdmin,
+  requireOwnershipOrAdmin
 };

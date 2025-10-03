@@ -1,6 +1,7 @@
 import React, { useState, useContext, useRef } from 'react';
 import AuthContext from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/Button';
 
 const Profile: React.FC = () => {
   const authContext = useContext(AuthContext);
@@ -103,11 +104,11 @@ const Profile: React.FC = () => {
       <div className="max-w-2xl mx-auto">
         <div className="bg-white shadow-xl rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-8">
+          <div className="bg-gradient-to-r from-primary-500 to-secondary-500 px-6 py-8">
             <h1 className="text-3xl font-bold text-white text-center">
               Thông tin cá nhân
             </h1>
-            <p className="text-blue-100 text-center mt-2">
+            <p className="text-primary-100 text-center mt-2">
               Cập nhật thông tin của bạn
             </p>
           </div>
@@ -135,7 +136,7 @@ const Profile: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 bg-blue-500 text-white p-2 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+                  className="absolute bottom-0 right-0 bg-primary-500 text-white p-2 rounded-full shadow-lg hover:bg-primary-600 transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -168,7 +169,7 @@ const Profile: React.FC = () => {
                   value={formData.name}
                   onChange={handleInputChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Nhập họ và tên"
                 />
               </div>
@@ -199,7 +200,7 @@ const Profile: React.FC = () => {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Nhập số điện thoại"
                 />
               </div>
@@ -215,7 +216,7 @@ const Profile: React.FC = () => {
                   rows={4}
                   value={formData.bio}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   placeholder="Viết một chút về bản thân..."
                 />
               </div>
@@ -233,14 +234,10 @@ const Profile: React.FC = () => {
 
             {/* Submit Button */}
             <div className="flex space-x-4">
-              <button
+              <Button
                 type="submit"
                 disabled={isUpdating}
-                className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-                  isUpdating
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-blue-500 hover:bg-blue-600 text-white'
-                }`}
+                className="flex-1"
               >
                 {isUpdating ? (
                   <span className="flex items-center justify-center">
@@ -253,15 +250,15 @@ const Profile: React.FC = () => {
                 ) : (
                   'Cập nhật thông tin'
                 )}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => navigate('/dashboard')}
-                className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Hủy
-              </button>
+              </Button>
             </div>
           </form>
         </div>

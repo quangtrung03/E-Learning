@@ -13,7 +13,10 @@ const getAllCourses = async (req, res) => {
     const skip = (page - 1) * limit;
     
     // Filtering
-    let query = { isPublished: true };
+    let query = { 
+      isPublished: true,
+      status: 'approved'
+    };
     
     if (req.query.category) {
       query.category = req.query.category;
@@ -141,6 +144,9 @@ const createCourse = async (req, res) => {
     // Gán instructor là user hiện tại
     req.body.instructor = req.user.id;
     
+    // Khóa học mới tạo sẽ ở trạng thái draft
+    req.body.status = 'draft';
+    
     const course = await Course.create(req.body);
     
     // Thêm course vào danh sách createdCourses của user
@@ -178,11 +184,11 @@ const updateCourse = async (req, res) => {
       });
     }
     
-    // Kiểm tra quyền sở hữu
-    if (course.instructor.toString() !== req.user.id && req.user.role !== 'admin') {
+    // Kiểm tra quyền sở hữu (chỉ người tạo khóa học hoặc admin mới được cập nhật)
+    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Không có quyền cập nhật khóa học này'
+        message: 'Bạn chỉ có thể cập nhật khóa học do mình tạo'
       });
     }
     
@@ -221,11 +227,11 @@ const deleteCourse = async (req, res) => {
       });
     }
     
-    // Kiểm tra quyền sở hữu
-    if (course.instructor.toString() !== req.user.id && req.user.role !== 'admin') {
+    // Kiểm tra quyền sở hữu (chỉ người tạo khóa học hoặc admin mới được xóa)
+    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
-        message: 'Không có quyền xóa khóa học này'
+        message: 'Bạn chỉ có thể xóa khóa học do mình tạo'
       });
     }
     
@@ -320,11 +326,107 @@ const enrollCourse = async (req, res) => {
   }
 };
 
+// @desc    Gửi khóa học để admin duyệt
+// @route   PUT /api/courses/:id/submit
+// @access  Private (Course Owner)
+const submitCourseForApproval = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khóa học'
+      });
+    }
+    
+    // Kiểm tra quyền sở hữu
+    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn chỉ có thể gửi duyệt khóa học do mình tạo'
+      });
+    }
+    
+    if (course.status !== 'draft' && course.status !== 'rejected') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể gửi duyệt khóa học đang ở trạng thái draft hoặc bị từ chối'
+      });
+    }
+    
+    course.status = 'pending';
+    course.rejectionReason = null; // Clear rejection reason khi resubmit
+    await course.save();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Đã gửi khóa học để admin duyệt',
+      data: {
+        course
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi gửi khóa học để duyệt',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy khóa học của instructor
+// @route   GET /api/courses/my-courses
+// @access  Private (Authenticated User)
+const getMyCourses = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status = '' } = req.query;
+    const skip = (page - 1) * limit;
+    
+    const query = { instructor: req.user.id };
+    
+    if (status) {
+      query.status = status;
+    }
+    
+    const courses = await Course.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    
+    const total = await Course.countDocuments(query);
+    
+    res.status(200).json({
+      success: true,
+      count: courses.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: {
+        courses
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy khóa học của bạn',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllCourses,
   getCourse,
   createCourse,
   updateCourse,
   deleteCourse,
-  enrollCourse
+  enrollCourse,
+  submitCourseForApproval,
+  getMyCourses
 };

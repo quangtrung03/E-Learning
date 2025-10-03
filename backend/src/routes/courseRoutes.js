@@ -6,9 +6,11 @@ const {
   createCourse,
   updateCourse,
   deleteCourse,
-  enrollCourse
+  enrollCourse,
+  submitCourseForApproval,
+  getMyCourses
 } = require('../controllers/courseController');
-const { protect, authorize } = require('../middleware/auth');
+const { protect, requireAdmin, requireOwnershipOrAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -146,7 +148,7 @@ router.use(protect); // Tất cả routes dưới đây cần authentication
  * @swagger
  * /courses:
  *   post:
- *     summary: Tạo khóa học mới (Teacher/Admin)
+ *     summary: Tạo khóa học mới (Authenticated User)
  *     tags: [Courses]
  *     security:
  *       - BearerAuth: []
@@ -206,13 +208,13 @@ router.use(protect); // Tất cả routes dưới đây cần authentication
  *       403:
  *         description: Không có quyền
  */
-router.post('/', authorize('teacher', 'admin'), courseValidation, createCourse);
+router.post('/', protect, courseValidation, createCourse);
 
 /**
  * @swagger
  * /courses/{id}:
  *   put:
- *     summary: Cập nhật khóa học (Teacher/Admin)
+ *     summary: Cập nhật khóa học (Course Owner/Admin)
  *     tags: [Courses]
  *     security:
  *       - BearerAuth: []
@@ -241,7 +243,7 @@ router.post('/', authorize('teacher', 'admin'), courseValidation, createCourse);
  *       404:
  *         description: Không tìm thấy khóa học
  *   delete:
- *     summary: Xóa khóa học (Teacher/Admin)
+ *     summary: Xóa khóa học (Course Owner/Admin)
  *     tags: [Courses]
  *     security:
  *       - BearerAuth: []
@@ -262,8 +264,8 @@ router.post('/', authorize('teacher', 'admin'), courseValidation, createCourse);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.put('/:id', authorize('teacher', 'admin'), updateCourse);
-router.delete('/:id', authorize('teacher', 'admin'), deleteCourse);
+router.put('/:id', protect, updateCourse);
+router.delete('/:id', protect, deleteCourse);
 
 /**
  * @swagger
@@ -291,5 +293,59 @@ router.delete('/:id', authorize('teacher', 'admin'), deleteCourse);
  *         description: Không tìm thấy khóa học
  */
 router.post('/:id/enroll', enrollCourse);
+
+/**
+ * @swagger
+ * /courses/{id}/submit:
+ *   put:
+ *     summary: Gửi khóa học để admin duyệt
+ *     tags: [Courses]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Gửi duyệt thành công
+ *       403:
+ *         description: Không có quyền
+ *       404:
+ *         description: Không tìm thấy khóa học
+ */
+router.put('/:id/submit', protect, submitCourseForApproval);
+
+/**
+ * @swagger
+ * /courses/my-courses:
+ *   get:
+ *     summary: Lấy khóa học của tôi
+ *     tags: [Courses]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [draft, pending, approved, rejected]
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ */
+router.get('/my-courses', protect, getMyCourses);
 
 module.exports = router;
