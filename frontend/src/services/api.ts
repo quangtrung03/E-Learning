@@ -6,6 +6,7 @@ interface RegisterData {
   email: string;
   password: string;
   role?: 'student' | 'teacher';
+  requestAdmin?: boolean;
 }
 
 interface LoginData {
@@ -37,6 +38,11 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// Debug API configuration
+console.log('🔧 API Configuration:');
+console.log('🌐 VITE_API_URL:', import.meta.env.VITE_API_URL);
+console.log('🔗 Final baseURL:', `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api`);
 
 // Request interceptor to add auth token
 api.interceptors.request.use(
@@ -105,6 +111,8 @@ export const courseAPI = {
     api.delete(`/courses/${id}`),
   enrollCourse: (id: string): Promise<AxiosResponse<any>> => 
     api.post(`/courses/${id}/enroll`),
+  submitCourseForApproval: (id: string): Promise<AxiosResponse<any>> =>
+    api.put(`/courses/${id}/submit`),
   getMyCourses: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
     api.get('/courses/my-courses', { params }),
 };

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { courseAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 
 interface Course {
   _id: string;
@@ -220,7 +221,7 @@ const Courses = () => {
   const renderBrowseTab = () => (
     <div className="space-y-8">
       {/* Featured Courses Section */}
-      <section className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+      <Card className="p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">🌟 Khóa học nổi bật</h2>
@@ -243,7 +244,7 @@ const Courses = () => {
           <div className="grid md:grid-cols-3 gap-6">
             {featuredCourses.map((course) => (
               <Link key={course._id} to={`/courses/${course._id}`}>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
+                <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
                   <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center relative">
                     <span className="text-white text-4xl font-bold">
                       {course.title.charAt(0)}
@@ -276,20 +277,20 @@ const Courses = () => {
                       </div>
                       <div className="text-right">
                         <span className="text-lg font-bold text-primary-600">
-                          {course.finalPrice.toLocaleString('vi-VN')}đ
+                          {(course.finalPrice || course.price || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                     </div>
                   </div>
-                </div>
+                </Card>
               </Link>
             ))}
           </div>
         )}
-      </section>
+      </Card>
 
       {/* Filters */}
-      <section className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <Card className="p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">🔍 Tìm kiếm nâng cao</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
@@ -369,7 +370,7 @@ const Courses = () => {
             </Button>
           </div>
         </div>
-      </section>
+      </Card>
 
       {/* Results */}
       <section>
@@ -385,7 +386,7 @@ const Courses = () => {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((item) => (
-              <div key={item} className="bg-white rounded-xl shadow-sm border border-gray-200 animate-pulse">
+              <Card key={item} className="animate-pulse">
                 <div className="h-48 bg-gray-200 rounded-t-xl"></div>
                 <div className="p-6">
                   <div className="h-4 bg-gray-200 rounded mb-4"></div>
@@ -396,7 +397,7 @@ const Courses = () => {
                     <div className="h-6 bg-gray-200 rounded w-24"></div>
                   </div>
                 </div>
-              </div>
+              </Card>
             ))}
           </div>
         ) : courses.length > 0 ? (
@@ -404,7 +405,7 @@ const Courses = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {courses.map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
+                  <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center">
                       <span className="text-white text-4xl font-bold">
                         {course.title.charAt(0)}
@@ -456,16 +457,16 @@ const Courses = () => {
                         <div className="text-right">
                           {course.discount > 0 && (
                             <span className="text-sm text-gray-500 line-through mr-2">
-                              {course.price.toLocaleString('vi-VN')}đ
+                              {(course.price || 0).toLocaleString('vi-VN')}đ
                             </span>
                           )}
                           <span className="text-lg font-bold text-primary-600">
-                            {course.finalPrice.toLocaleString('vi-VN')}đ
+                            {(course.finalPrice || course.price || 0).toLocaleString('vi-VN')}đ
                           </span>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 </Link>
               ))}
             </div>
@@ -506,7 +507,7 @@ const Courses = () => {
             )}
           </>
         ) : (
-          <div className="text-center py-16 bg-white rounded-xl">
+          <Card className="text-center py-16">
             <div className="text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-gray-800 mb-2">
               Không tìm thấy khóa học
@@ -522,7 +523,7 @@ const Courses = () => {
             >
               Xóa bộ lọc
             </Button>
-          </div>
+          </Card>
         )}
       </section>
     </div>
@@ -530,7 +531,7 @@ const Courses = () => {
 
   const renderCreateTab = () => (
     <div className="max-w-4xl mx-auto">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+      <Card className="p-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
             ✨ Tạo khóa học mới
@@ -770,7 +771,7 @@ const Courses = () => {
             </Button>
           </div>
         </form>
-      </div>
+      </Card>
     </div>
   );
 

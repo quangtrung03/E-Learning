@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 const EmailVerification: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'manual'>('loading');
   const [message, setMessage] = useState('');
   const [token, setToken] = useState('');
@@ -25,11 +27,26 @@ const EmailVerification: React.FC = () => {
   const verifyEmailToken = async (verificationToken: string) => {
     try {
       setIsVerifying(true);
+      
+      showToast({
+        type: 'info',
+        title: 'Đang xác thực...',
+        message: 'Vui lòng chờ giây lát',
+        duration: 2000
+      });
+
       const response = await authAPI.verifyEmail({ token: verificationToken });
       
       if (response.data.success) {
         setStatus('success');
         setMessage(response.data.message);
+        
+        showToast({
+          type: 'success',
+          title: 'Xác thực thành công!',
+          message: 'Tài khoản của bạn đã được kích hoạt',
+          duration: 5000
+        });
         
         // Save token to localStorage and redirect to dashboard after 3 seconds
         if (response.data.data.token) {
@@ -43,13 +60,25 @@ const EmailVerification: React.FC = () => {
       } else {
         setStatus('error');
         setMessage(response.data.message || 'Xác thực không thành công');
+        
+        showToast({
+          type: 'error',
+          title: 'Xác thực thất bại!',
+          message: response.data.message || 'Token không hợp lệ hoặc đã hết hạn',
+          duration: 6000
+        });
       }
     } catch (error: any) {
       setStatus('error');
-      setMessage(
-        error.response?.data?.message || 
-        'Có lỗi xảy ra khi xác thực email. Vui lòng thử lại.'
-      );
+      const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xác thực email. Vui lòng thử lại.';
+      setMessage(errorMessage);
+      
+      showToast({
+        type: 'error',
+        title: 'Lỗi xác thực!',
+        message: errorMessage,
+        duration: 6000
+      });
     } finally {
       setIsVerifying(false);
     }
@@ -70,18 +99,38 @@ const EmailVerification: React.FC = () => {
 
     try {
       setIsVerifying(true);
+      
+      showToast({
+        type: 'info',
+        title: 'Đang gửi email...',
+        message: 'Vui lòng chờ giây lát',
+        duration: 2000
+      });
+
       const response = await authAPI.resendVerification({ email });
       
       if (response.data.success) {
-        alert('Email xác thực đã được gửi lại. Vui lòng kiểm tra hộp thư của bạn.');
+        showToast({
+          type: 'success',
+          title: 'Gửi email thành công!',
+          message: 'Email xác thực đã được gửi lại. Vui lòng kiểm tra hộp thư của bạn.',
+          duration: 6000
+        });
       } else {
-        alert(response.data.message || 'Không thể gửi lại email xác thực');
+        showToast({
+          type: 'error',
+          title: 'Gửi email thất bại!',
+          message: response.data.message || 'Không thể gửi lại email xác thực',
+          duration: 5000
+        });
       }
     } catch (error: any) {
-      alert(
-        error.response?.data?.message || 
-        'Có lỗi xảy ra khi gửi lại email xác thực'
-      );
+      showToast({
+        type: 'error',
+        title: 'Lỗi gửi email!',
+        message: error.response?.data?.message || 'Có lỗi xảy ra khi gửi lại email xác thực',
+        duration: 6000
+      });
     } finally {
       setIsVerifying(false);
     }

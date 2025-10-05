@@ -4,7 +4,7 @@ const nodemailer = require('nodemailer');
 const createTransporter = () => {
   // For Gmail, you need to use App Password (not regular password)
   // Go to Google Account > Security > 2-Step Verification > App passwords
-  return nodemailer.createTransporter({
+  return nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER || 'elearnplatform1534@gmail.com',
@@ -74,6 +74,88 @@ const emailTemplates = {
           </div>
           <div class="footer">
             <p>© 2025 E-Learning Platform. Nếu bạn không đăng ký tài khoản này, vui lòng bỏ qua email.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
+  // Welcome email template
+  welcome: (data) => ({
+    subject: '🎉 Chào mừng bạn đến với E-Learning Platform!',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Chào mừng bạn!</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; background: white; }
+          .header { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 30px; text-align: center; }
+          .content { padding: 30px; }
+          .welcome-box { background: #f0f8ff; border: 2px solid #4facfe; padding: 25px; border-radius: 10px; text-align: center; margin: 20px 0; }
+          .feature-list { background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .feature-item { display: flex; align-items: center; margin: 10px 0; }
+          .feature-icon { width: 30px; height: 30px; background: #4facfe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; color: white; font-weight: bold; }
+          .button { display: inline-block; background: #4facfe; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; border-top: 1px solid #eee; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎓 E-Learning Platform</h1>
+            <p>Chào mừng bạn đến với cộng đồng học tập!</p>
+          </div>
+          <div class="content">
+            <div class="welcome-box">
+              <h2>🎉 Chào mừng ${data.userName}!</h2>
+              <p>Tài khoản của bạn đã được kích hoạt thành công. Bạn có thể bắt đầu khám phá hàng ngàn khóa học chất lượng ngay bây giờ!</p>
+            </div>
+
+            <h3>🚀 Bạn có thể làm gì tại E-Learning Platform?</h3>
+            <div class="feature-list">
+              <div class="feature-item">
+                <div class="feature-icon">📚</div>
+                <div>
+                  <strong>Học tập không giới hạn:</strong> Truy cập hàng ngàn khóa học từ cơ bản đến nâng cao
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">👨‍🏫</div>
+                <div>
+                  <strong>Tạo khóa học:</strong> Chia sẻ kiến thức của bạn và kiếm thu nhập
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">🏆</div>
+                <div>
+                  <strong>Theo dõi tiến độ:</strong> Xem chi tiết quá trình học tập của bạn
+                </div>
+              </div>
+              <div class="feature-item">
+                <div class="feature-icon">💬</div>
+                <div>
+                  <strong>Cộng đồng học tập:</strong> Kết nối với hàng nghìn học viên khác
+                </div>
+              </div>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${getFrontendUrl()}/dashboard" class="button">🚀 Bắt đầu học ngay</a>
+              <a href="${getFrontendUrl()}/courses" class="button">📖 Khám phá khóa học</a>
+            </div>
+
+            <p><strong>💡 Mẹo:</strong> Hãy hoàn thiện hồ sơ cá nhân để có trải nghiệm tốt nhất!</p>
+            
+            <p>Chúc bạn có những trải nghiệm học tập thú vị!</p>
+            <p><strong>Đội ngũ E-Learning Platform</strong></p>
+          </div>
+          <div class="footer">
+            <p>© 2024 E-Learning Platform. Tất cả quyền được bảo lưu.</p>
+            <p>Nếu bạn có thắc mắc, hãy liên hệ: <a href="mailto:elearnplatform1534@gmail.com">elearnplatform1534@gmail.com</a></p>
           </div>
         </div>
       </body>
@@ -189,16 +271,15 @@ const emailTemplates = {
 };
 
 // Send email function
-const sendEmail = async (to, template, data) => {
+const sendEmail = async (to, subject, html) => {
   try {
     const transporter = createTransporter();
-    const emailContent = emailTemplates[template](data);
     
     const mailOptions = {
       from: `"E-Learning Platform" <${process.env.EMAIL_USER}>`,
       to: to,
-      subject: emailContent.subject,
-      html: emailContent.html
+      subject: subject,
+      html: html
     };
 
     const result = await transporter.sendMail(mailOptions);
@@ -210,8 +291,73 @@ const sendEmail = async (to, template, data) => {
   }
 };
 
+// Send verification email
+const sendVerificationEmail = async (email, token, name) => {
+  try {
+    console.log('📧 Preparing verification email...');
+    console.log('📧 Email:', email);
+    console.log('🎫 Token:', token);
+    console.log('👤 Name:', name);
+
+    const frontendUrl = getFrontendUrl();
+    const verificationUrl = `${frontendUrl}/verify-email?token=${token}`;
+
+    const emailContent = emailTemplates.verification({
+      name,
+      verificationUrl,
+      token
+    });
+
+    console.log('🔗 Verification URL:', verificationUrl);
+
+    return await sendEmail(email, emailContent.subject, emailContent.html);
+  } catch (error) {
+    console.error('❌ Failed to send verification email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send admin request notification
+const sendAdminRequestNotification = async (data) => {
+  try {
+    console.log('📧 Preparing admin request notification...');
+
+    const emailContent = emailTemplates.adminRequest(data);
+
+    // Send to admin email
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+
+    return await sendEmail(adminEmail, emailContent.subject, emailContent.html);
+  } catch (error) {
+    console.error('❌ Failed to send admin request notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send welcome email
+const sendWelcomeEmail = async (userData) => {
+  try {
+    console.log('📧 Preparing welcome email...');
+    console.log('👤 User:', userData.name || userData.userName);
+    console.log('📧 Email:', userData.email);
+
+    const emailContent = emailTemplates.welcome({
+      userName: userData.name || userData.userName,
+      email: userData.email
+    });
+
+    return await sendEmail(userData.email, emailContent.subject, emailContent.html);
+  } catch (error) {
+    console.error('❌ Failed to send welcome email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendEmail,
+  sendVerificationEmail,
+  sendAdminRequestNotification,
+  sendWelcomeEmail,
   emailTemplates,
   getFrontendUrl
 };

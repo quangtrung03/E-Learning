@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Button } from '../components/ui/Button';
+import { Card, Button, Input, LoadingSpinner } from '../components/ui';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -31,21 +31,27 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-secondary-50">
-      <div className="max-w-md w-full mx-auto px-6 py-12">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+      <div className="container mx-auto px-4 py-12">
+        <Card className="max-w-md mx-auto">
+          <Card.Body className="space-y-6">
             {/* Header */}
-              <div className="text-center">
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Chào mừng trở lại!
-              </h1>
-              <p className="text-gray-600">
+            <div className="text-center">
+              <Card.Title size="xl">Chào mừng trở lại!</Card.Title>
+              <p className="text-gray-600 mt-2">
                 Đăng nhập để tiếp tục hành trình học tập của bạn
               </p>
             </div>
 
+            {/* Loading State */}
+            {isLoading && (
+              <div className="flex justify-center py-4">
+                <LoadingSpinner size="md" text="Đang đăng nhập..." />
+              </div>
+            )}
+
             {/* Form */}
-            <form className="space-y-6 mt-8" onSubmit={handleSubmit}>
+            <form className="space-y-6" onSubmit={handleSubmit}>
               {error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
                   <svg className="w-4 h-4 inline mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -55,41 +61,29 @@ const Login = () => {
                 </div>
               )}
 
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Địa chỉ email
-                  </label>
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="your.email@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
+              {/* Email Field */}
+              <Input
+                label="Địa chỉ email"
+                name="email"
+                type="email"
+                required
+                placeholder="your.email@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
 
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    Mật khẩu
-                  </label>
-                  <input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
+              {/* Password Field */}
+              <Input
+                label="Mật khẩu"
+                name="password"
+                type="password"
+                required
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                disabled={isLoading}
+              />
 
               {/* Remember & Forgot */}
               <div className="flex items-center justify-between">
@@ -135,13 +129,14 @@ const Login = () => {
             </form>
             
             {/* Footer */}
-            <div className="text-center text-sm text-gray-600 mt-6">
+            <div className="text-center text-sm text-gray-600">
               Chưa có tài khoản?{' '}
-              <Link to="/register" className="font-medium text-primary-600 hover:text-primary-500 transition-colors">
+              <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500 transition-colors">
                 Đăng ký ngay
               </Link>
             </div>
-        </div>
+          </Card.Body>
+        </Card>
       </div>
     </div>
   );

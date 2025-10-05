@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 
 interface Course {
   _id: string;
@@ -57,30 +58,101 @@ const Dashboard = () => {
       setLoading(true);
 
       // Fetch recent courses for discovery
+      console.log('Fetching recent courses...');
       const recentResponse = await courseAPI.getAllCourses({ limit: 6, sort: 'newest' });
-      setRecentCourses(recentResponse.data.data.courses || []);
+      console.log('Recent courses response:', recentResponse.data);
+      
+      if (recentResponse.data.success && recentResponse.data.data && recentResponse.data.data.courses) {
+        const courses = Array.isArray(recentResponse.data.data.courses) 
+          ? recentResponse.data.data.courses 
+          : [];
+        setRecentCourses(courses);
+      } else {
+        setRecentCourses([]);
+      }
 
       // If user is logged in, fetch their specific data
       if (user) {
-        // Fetch user's created courses
-        const myCoursesResponse = await courseAPI.getMyCourses({ limit: 4 });
-        setMyCourses(myCoursesResponse.data.data.courses || []);
+        console.log('Fetching user courses...');
+        try {
+          const myCoursesResponse = await courseAPI.getMyCourses({ limit: 10 });
+          console.log('My courses response:', myCoursesResponse.data);
+          
+          let userCourses: any[] = [];
+          if (myCoursesResponse.data.success && myCoursesResponse.data.data) {
+            if (Array.isArray(myCoursesResponse.data.data.courses)) {
+              userCourses = myCoursesResponse.data.data.courses;
+            } else if (Array.isArray(myCoursesResponse.data.data)) {
+              userCourses = myCoursesResponse.data.data;
+            }
+          }
+          
+          setMyCourses(userCourses.slice(0, 4)); // Chỉ hiển thị 4 khóa học đầu
 
-        // Calculate stats from user data
-        const userStats = {
-          enrolledCourses: user.enrolledCourses?.length || 0,
-          createdCourses: myCoursesResponse.data.data.courses?.length || 0,
-          completedCourses: user.enrolledCourses?.filter((enrollment: any) => enrollment.progress >= 100).length || 0,
+          // Calculate stats from user data and backend response
+          const enrolledCount = user.enrolledCourses?.length || 0;
+          const createdCount = userCourses.length || 0;
+          const completedCount = user.enrolledCourses?.filter((enrollment: any) => enrollment.progress >= 100).length || 0;
+          const totalStudents = userCourses.reduce((sum: number, course: any) => {
+            const students = course.students || [];
+            return sum + (Array.isArray(students) ? students.length : 0);
+          }, 0);
+          
+          const totalRevenue = userCourses.reduce((sum: number, course: any) => {
+            const price = course.finalPrice || course.price || 0;
+            const studentCount = course.students?.length || 0;
+            return sum + (price * studentCount);
+          }, 0);
+
+          const userStats = {
+            enrolledCourses: enrolledCount,
+            createdCourses: createdCount, 
+            completedCourses: completedCount,
+            totalCourses: recentResponse.data.pagination?.total || 0,
+            totalStudents: totalStudents,
+            totalRevenue: totalRevenue
+          };
+          
+          console.log('Calculated stats:', userStats);
+          setStats(userStats);
+        } catch (userError) {
+          console.error('Error fetching user data:', userError);
+          // Set default stats if user data fails
+          setStats({
+            enrolledCourses: user.enrolledCourses?.length || 0,
+            createdCourses: 0,
+            completedCourses: 0,
+            totalCourses: 0,
+            totalStudents: 0,
+            totalRevenue: 0
+          });
+          setMyCourses([]);
+        }
+      } else {
+        // Not logged in, show basic stats
+        setStats({
+          enrolledCourses: 0,
+          createdCourses: 0,
+          completedCourses: 0,
           totalCourses: recentResponse.data.pagination?.total || 0,
-          totalStudents: myCoursesResponse.data.data.courses?.reduce((sum: number, course: any) => sum + (course.students?.length || 0), 0) || 0,
-          totalRevenue: myCoursesResponse.data.data.courses?.reduce((sum: number, course: any) => sum + (course.finalPrice * (course.students?.length || 0)), 0) || 0
-        };
-        
-        setStats(userStats);
+          totalStudents: 0,
+          totalRevenue: 0
+        });
       }
 
     } catch (error) {
       console.error('Lỗi khi lấy dữ liệu dashboard:', error);
+      // Set fallback data
+      setRecentCourses([]);
+      setMyCourses([]);
+      setStats({
+        enrolledCourses: 0,
+        createdCourses: 0,
+        completedCourses: 0,
+        totalCourses: 0,
+        totalStudents: 0,
+        totalRevenue: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -156,7 +228,7 @@ const Dashboard = () => {
             <section className="mb-12">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Thống kê của bạn</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <Card>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Khóa học đã đăng ký</p>
@@ -166,9 +238,9 @@ const Dashboard = () => {
                       <span className="text-2xl">📖</span>
                     </div>
                   </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <Card>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Khóa học đã tạo</p>
@@ -178,9 +250,9 @@ const Dashboard = () => {
                       <span className="text-2xl">✨</span>
                     </div>
                   </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <Card>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Tổng học viên</p>
@@ -190,19 +262,19 @@ const Dashboard = () => {
                       <span className="text-2xl">👥</span>
                     </div>
                   </div>
-                </div>
+                </Card>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <Card>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Doanh thu</p>
-                      <p className="text-3xl font-bold text-orange-600">{stats.totalRevenue.toLocaleString('vi-VN')}đ</p>
+                      <p className="text-3xl font-bold text-orange-600">{(stats.totalRevenue || 0).toLocaleString('vi-VN')}đ</p>
                     </div>
                     <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                       <span className="text-2xl">💰</span>
                     </div>
                   </div>
-                </div>
+                </Card>
               </div>
             </section>
 
@@ -217,7 +289,7 @@ const Dashboard = () => {
                 </div>
                 <div className="grid md:grid-cols-2 gap-6">
                   {myCourses.slice(0, 4).map((course) => (
-                    <div key={course._id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <Card key={course._id} className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-gray-900 mb-2">{course.title}</h3>
@@ -240,7 +312,7 @@ const Dashboard = () => {
                           <Button size="sm">Quản lý bài học</Button>
                         </Link>
                       </div>
-                    </div>
+                    </Card>
                   ))}
                 </div>
               </section>
@@ -255,7 +327,7 @@ const Dashboard = () => {
             <div className="grid md:grid-cols-3 gap-6">
               {recentCourses.map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 hover:scale-105">
+                  <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center relative">
                       <span className="text-white text-4xl font-bold">
                         {course.title.charAt(0)}
@@ -288,17 +360,17 @@ const Dashboard = () => {
                         </div>
                         <div className="text-right">
                           <span className="text-lg font-bold text-primary-600">
-                            {course.finalPrice.toLocaleString('vi-VN')}đ
+                            {(course.finalPrice || course.price || 0).toLocaleString('vi-VN')}đ
                           </span>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </Card>
                 </Link>
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 bg-white rounded-xl">
+            <Card className="text-center py-12">
               <div className="text-6xl mb-4">📚</div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
                 Chưa có khóa học nào
@@ -311,7 +383,7 @@ const Dashboard = () => {
                   <Button>Bắt đầu tạo khóa học đầu tiên</Button>
                 </Link>
               )}
-            </div>
+            </Card>
           )}
         </section>
 
@@ -321,27 +393,27 @@ const Dashboard = () => {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">🚀 Hành động nhanh</h2>
             <div className="grid md:grid-cols-3 gap-6">
               <Link to="/courses" className="group">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all group-hover:scale-105">
+                <Card className="hover:shadow-lg transition-all group-hover:scale-105">
                   <div className="text-4xl mb-4">🔍</div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Tìm khóa học</h3>
                   <p className="text-gray-600">Khám phá hàng ngàn khóa học chất lượng</p>
-                </div>
+                </Card>
               </Link>
 
               <Link to="/courses" className="group">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all group-hover:scale-105">
+                <Card className="hover:shadow-lg transition-all group-hover:scale-105">
                   <div className="text-4xl mb-4">✨</div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Tạo khóa học</h3>
                   <p className="text-gray-600">Chia sẻ kiến thức với cộng đồng</p>
-                </div>
+                </Card>
               </Link>
 
               <Link to="/profile" className="group">
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all group-hover:scale-105">
+                <Card className="hover:shadow-lg transition-all group-hover:scale-105">
                   <div className="text-4xl mb-4">👤</div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Cập nhật hồ sơ</h3>
                   <p className="text-gray-600">Chỉnh sửa thông tin cá nhân</p>
-                </div>
+                </Card>
               </Link>
             </div>
           </section>

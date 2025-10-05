@@ -28,18 +28,14 @@ const registerValidation = [
   body('name')
     .trim()
     .isLength({ min: 2, max: 50 })
-    .withMessage('Họ tên phải có từ 2-50 ký tự')
-    .matches(/^[a-zA-ZÀ-ỹ\s]+$/)
-    .withMessage('Họ tên chỉ được chứa chữ cái và khoảng trắng'),
+    .withMessage('Họ tên phải có từ 2-50 ký tự'),
   body('email')
     .isEmail()
     .normalizeEmail()
     .withMessage('Vui lòng nhập email hợp lệ'),
   body('password')
-    .isLength({ min: 8 })
-    .withMessage('Mật khẩu phải có ít nhất 8 ký tự')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Mật khẩu phải có ít nhất 1 chữ hoa, 1 chữ thường và 1 số')
+    .isLength({ min: 6 })
+    .withMessage('Mật khẩu phải có ít nhất 6 ký tự')
 ];
 
 const loginValidation = [

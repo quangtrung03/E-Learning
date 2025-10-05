@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/api';
+import { useToast } from './ToastContext';
 
 // Types
 interface User {
@@ -42,6 +43,7 @@ interface RegisterData {
   email: string;
   password: string;
   role?: 'student' | 'teacher';
+  requestAdmin?: boolean;
 }
 
 interface LoginData {
@@ -77,15 +79,20 @@ const AUTH_ACTIONS = {
   REGISTER_FAILURE: 'REGISTER_FAILURE',
   LOGOUT: 'LOGOUT',
   LOAD_USER: 'LOAD_USER',
+  LOAD_USER_SUCCESS: 'LOAD_USER_SUCCESS',
+  LOAD_USER_FAILURE: 'LOAD_USER_FAILURE',
   CLEAR_ERROR: 'CLEAR_ERROR',
   UPDATE_PROFILE: 'UPDATE_PROFILE',
 } as const;
 
 type AuthAction = 
   | { type: 'LOGIN_START' | 'REGISTER_START' }
-  | { type: 'LOGIN_SUCCESS' | 'REGISTER_SUCCESS'; payload: { user: User; token: string } }
+  | { type: 'LOGIN_SUCCESS'; payload: { user: User; token: string } }
+  | { type: 'REGISTER_SUCCESS' }
   | { type: 'LOGIN_FAILURE' | 'REGISTER_FAILURE'; payload: string }
   | { type: 'LOAD_USER' }
+  | { type: 'LOAD_USER_SUCCESS'; payload: User }
+  | { type: 'LOAD_USER_FAILURE'; payload: string }
   | { type: 'UPDATE_PROFILE'; payload: User }
   | { type: 'LOGOUT' }
   | { type: 'CLEAR_ERROR' };
@@ -102,12 +109,18 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       };
 
     case AUTH_ACTIONS.LOGIN_SUCCESS:
-    case AUTH_ACTIONS.REGISTER_SUCCESS:
       return {
         ...state,
         user: action.payload.user,
         token: action.payload.token,
         isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      };
+
+    case AUTH_ACTIONS.REGISTER_SUCCESS:
+      return {
+        ...state,
         isLoading: false,
         error: null,
       };
@@ -148,6 +161,28 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         isLoading: false,
       };
 
+    case AUTH_ACTIONS.LOAD_USER_SUCCESS:
+      localStorage.setItem('user', JSON.stringify(action.payload));
+      return {
+        ...state,
+        user: action.payload,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      };
+
+    case AUTH_ACTIONS.LOAD_USER_FAILURE:
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      return {
+        ...state,
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: action.payload,
+      };
+
     case AUTH_ACTIONS.UPDATE_PROFILE:
       return {
         ...state,
@@ -181,10 +216,39 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const { showToast } = useToast();
 
-  // Load user from localStorage on app start
+  // Load user data on app start
   useEffect(() => {
-    dispatch({ type: AUTH_ACTIONS.LOAD_USER });
+    const loadUserData = async () => {
+      const token = localStorage.getItem('token');
+      
+      if (token) {
+        try {
+          // Call API to get fresh user data
+          const response = await authAPI.getProfile();
+          if (response.data.success) {
+            localStorage.setItem('token', token);
+            dispatch({ 
+              type: AUTH_ACTIONS.LOAD_USER_SUCCESS, 
+              payload: response.data.data.user 
+            });
+          } else {
+            dispatch({ type: AUTH_ACTIONS.LOAD_USER_FAILURE, payload: 'Failed to load user data' });
+          }
+        } catch (error: any) {
+          console.error('Error loading user data:', error);
+          dispatch({ 
+            type: AUTH_ACTIONS.LOAD_USER_FAILURE, 
+            payload: error.response?.data?.message || 'Failed to load user data' 
+          });
+        }
+      } else {
+        dispatch({ type: AUTH_ACTIONS.LOAD_USER });
+      }
+    };
+
+    loadUserData();
   }, []);
 
   // Register function
@@ -193,23 +257,34 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🚀 Frontend: Starting registration...');
       console.log('📦 User data:', { ...userData, password: '***' });
       
+      // Show loading toast
+      showToast({
+        type: 'info',
+        title: 'Đang xử lý...',
+        message: 'Đang tạo tài khoản và gửi email xác thực',
+        duration: 2000
+      });
+      
       dispatch({ type: AUTH_ACTIONS.REGISTER_START });
       
       const response = await authAPI.register(userData);
       console.log('✅ Registration successful:', response.data);
       
-      const { token, data } = response.data;
+      // Register success but user needs email verification
+      dispatch({ type: AUTH_ACTIONS.REGISTER_SUCCESS });
       
-      // Store in localStorage
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      
-      dispatch({
-        type: AUTH_ACTIONS.REGISTER_SUCCESS,
-        payload: { user: data.user, token },
+      // Show success toast
+      showToast({
+        type: 'success',
+        title: 'Đăng ký thành công!',
+        message: response.data.message || 'Vui lòng kiểm tra email để xác thực tài khoản',
+        duration: 7000
       });
       
-      return { success: true };
+      return { 
+        success: true, 
+        message: response.data.message 
+      };
     } catch (error: any) {
       console.error('❌ Frontend: Registration failed');
       console.error('🔍 Error details:', error);
@@ -220,6 +295,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                      error.response?.data?.errors?.[0]?.msg || 
                      error.message || 
                      'Đăng ký thất bại';
+      
+      // Show error toast
+      showToast({
+        type: 'error',
+        title: 'Đăng ký thất bại!',
+        message: message,
+        duration: 6000
+      });
       
       dispatch({
         type: AUTH_ACTIONS.REGISTER_FAILURE,
@@ -232,6 +315,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Login function
   const login = async (credentials: LoginData): Promise<{ success: boolean; message?: string }> => {
     try {
+      showToast({
+        type: 'info',
+        title: 'Đang đăng nhập...',
+        message: 'Vui lòng chờ giây lát',
+        duration: 2000
+      });
+
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       
       const response = await authAPI.login(credentials);
@@ -245,10 +335,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: { user: data.user, token },
       });
+
+      showToast({
+        type: 'success',
+        title: 'Đăng nhập thành công!',
+        message: `Chào mừng ${data.user.name} trở lại`,
+        duration: 3000
+      });
       
       return { success: true };
     } catch (error: any) {
       const message = error.response?.data?.message || 'Đăng nhập thất bại';
+      
+      showToast({
+        type: 'error',
+        title: 'Đăng nhập thất bại!',
+        message: message,
+        duration: 5000
+      });
+
       dispatch({
         type: AUTH_ACTIONS.LOGIN_FAILURE,
         payload: message,

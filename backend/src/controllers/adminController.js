@@ -441,6 +441,204 @@ const rejectAdminRequest = async (req, res) => {
   }
 };
 
+// @desc    Lấy tất cả khóa học (bao gồm draft) - Admin only
+// @route   GET /api/admin/courses/all
+// @access  Private (Admin only)
+const getAllCourses = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = '', status = '', category = '', sort = 'newest' } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build query - Admin có thể xem tất cả courses
+    const query = {};
+    
+    if (search) {
+      query.$text = { $search: search };
+    }
+    
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    
+    if (category) {
+      query.category = category;
+    }
+
+    // Sorting
+    let sortOption = {};
+    switch (sort) {
+      case 'newest':
+        sortOption = { createdAt: -1 };
+        break;
+      case 'oldest':
+        sortOption = { createdAt: 1 };
+        break;
+      case 'price-high':
+        sortOption = { price: -1 };
+        break;
+      case 'price-low':
+        sortOption = { price: 1 };
+        break;
+      case 'rating':
+        sortOption = { 'rating.average': -1 };
+        break;
+      default:
+        sortOption = { createdAt: -1 };
+    }
+
+    const courses = await Course.find(query)
+      .populate('instructor', 'name email avatar')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Course.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: courses.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: {
+        courses
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách khóa học',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy chi tiết khóa học cho admin
+// @route   GET /api/admin/courses/:id
+// @access  Private (Admin only)
+const getCourseDetail = async (req, res) => {
+  try {
+    const course = await Course.findById(req.params.id)
+      .populate('instructor', 'name email avatar')
+      .populate('students', 'name email avatar enrolledAt progress')
+      .populate('lessons');
+
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khóa học'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        course
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy chi tiết khóa học:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy chi tiết khóa học',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy chi tiết người dùng cho admin
+// @route   GET /api/admin/users/:id
+// @access  Private (Admin only)
+const getUserDetail = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id)
+      .select('-password')
+      .populate({
+        path: 'enrolledCourses.course',
+        select: 'title category status'
+      })
+      .populate({
+        path: 'createdCourses',
+        select: 'title category status students createdAt',
+        populate: {
+          path: 'students',
+          select: 'name'
+        }
+      });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi lấy chi tiết người dùng:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy chi tiết người dùng',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Cấp quyền admin cho user
+// @route   PUT /api/admin/users/:id/make-admin
+// @access  Private (Admin only)
+const makeUserAdmin = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+
+    if (user.isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Người dùng đã là admin'
+      });
+    }
+
+    user.isAdmin = true;
+    user.adminRequestPending = false;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã cấp quyền admin thành công',
+      data: {
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          isAdmin: user.isAdmin
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Lỗi khi cấp quyền admin:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cấp quyền admin',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getPendingCourses,
   approveCourse,
@@ -448,7 +646,11 @@ module.exports = {
   getAdminStats,
   toggleUserBan,
   getAllUsers,
+  getAllCourses,
   getAdminRequests,
   approveAdminRequest,
-  rejectAdminRequest
+  rejectAdminRequest,
+  getCourseDetail,
+  getUserDetail,
+  makeUserAdmin
 };

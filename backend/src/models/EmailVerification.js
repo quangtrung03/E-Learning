@@ -22,7 +22,7 @@ const emailVerificationSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 86400 // 24 hours in seconds
+    expires: 600 // 10 minutes in seconds
   },
   verified: {
     type: Boolean,

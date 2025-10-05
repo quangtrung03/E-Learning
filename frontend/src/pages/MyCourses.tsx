@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 
 interface Course {
   _id: string;
@@ -51,6 +52,17 @@ const MyCourses = () => {
     }
   };
 
+  const handleSubmitForApproval = async (courseId: string) => {
+    try {
+      await courseAPI.submitCourseForApproval(courseId);
+      alert('Đã gửi khóa học để admin duyệt!');
+      fetchMyCourses(); // Refresh danh sách
+    } catch (error: any) {
+      console.error('Lỗi khi gửi khóa học để duyệt:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi gửi khóa học để duyệt');
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       draft: { color: 'bg-gray-100 text-gray-800', label: 'Nháp' },
@@ -81,7 +93,7 @@ const MyCourses = () => {
           <p className="text-gray-600 mb-6">
             Bắt đầu chia sẻ kiến thức của bạn bằng cách tạo khóa học đầu tiên
           </p>
-          <Link to="/create-course">
+          <Link to="/courses">
             <Button>
               Tạo khóa học mới
             </Button>
@@ -93,7 +105,7 @@ const MyCourses = () => {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {createdCourses.map((course) => (
-          <div key={course._id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-shadow">
+          <Card key={course._id} className="hover:shadow-lg transition-shadow">
             <div className="h-32 bg-gradient-to-r from-primary-400 to-primary-600 rounded-t-xl flex items-center justify-center">
               <span className="text-white text-xl font-bold">
                 {course.title.charAt(0)}
@@ -137,14 +149,17 @@ const MyCourses = () => {
                     </Button>
                   </Link>
                   {course.status === 'draft' && (
-                    <Button size="sm">
+                    <Button 
+                      size="sm"
+                      onClick={() => handleSubmitForApproval(course._id)}
+                    >
                       Gửi duyệt
                     </Button>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     );
@@ -194,7 +209,7 @@ const MyCourses = () => {
 
       <div className="container-custom py-8">
         {/* Tabs */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+        <Card className="mb-8">
           <div className="flex">
             <button
               className={`px-6 py-4 font-medium rounded-tl-xl ${
@@ -217,7 +232,7 @@ const MyCourses = () => {
               Khóa học đã đăng ký ({user?.enrolledCourses?.length || 0})
             </button>
           </div>
-        </div>
+        </Card>
 
         {/* Content */}
         {loading ? (

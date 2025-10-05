@@ -38,8 +38,17 @@ const protect = async (req, res, next) => {
         message: 'Tài khoản đã bị khóa'
       });
     }
+
+    // 5. Kiểm tra email đã được xác thực chưa
+    if (!currentUser.emailVerified) {
+      return res.status(401).json({
+        success: false,
+        message: 'Vui lòng xác thực email trước khi sử dụng',
+        requireEmailVerification: true
+      });
+    }
     
-    // 5. Gán user vào request
+    // 6. Gán user vào request
     req.user = currentUser;
     next();
     

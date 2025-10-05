@@ -51,7 +51,10 @@ const register = async (req, res, next) => {
     
     const { name, email, password, requestAdmin } = req.body;
     console.log('✅ Validation passed');
-    console.log('👤 User data:', { name, email, requestAdmin });
+    
+    // Convert requestAdmin from "on" string to boolean
+    const isRequestAdmin = requestAdmin === 'on' || requestAdmin === true || requestAdmin === 'true';
+    console.log('👤 User data:', { name, email, requestAdmin, isRequestAdmin });
     
     // Kiểm tra email đã tồn tại
     console.log('🔍 Checking if email exists...');
@@ -72,7 +75,7 @@ const register = async (req, res, next) => {
       email,
       password,
       emailVerified: false,
-      adminRequestPending: requestAdmin || false
+      adminRequestPending: isRequestAdmin
     });
     
     console.log('✅ User created successfully:', user._id);
@@ -104,7 +107,7 @@ const register = async (req, res, next) => {
       console.log('✅ Verification email sent successfully');
       
       // Nếu user yêu cầu làm admin, tạo admin request và gửi email
-      if (requestAdmin) {
+      if (isRequestAdmin) {
         console.log('👑 Processing admin request...');
         
         const adminRequest = await AdminRequest.create({
@@ -130,7 +133,7 @@ const register = async (req, res, next) => {
       
       res.status(201).json({
         success: true,
-        message: requestAdmin 
+        message: isRequestAdmin 
           ? 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản. Yêu cầu quyền admin đã được gửi để xem xét.'
           : 'Đăng ký thành công! Vui lòng kiểm tra email để xác thực tài khoản.',
         data: {

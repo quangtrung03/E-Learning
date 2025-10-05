@@ -1,9 +1,14 @@
 import { Link, useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+import { BookOpen, User, LogOut, Menu, X, Home, Award } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { ThemeSwitcher } from "../../themes";
+import { useState } from "react";
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -11,106 +16,186 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white/95 backdrop-blur-md border-b shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-2">
+    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl md:text-3xl font-bold text-primary-600">ELearn</span>
+          <Link to="/" className="flex-shrink-0">
+            <motion.div
+              className="flex items-center space-x-3"
+              whileHover={{ scale: 1.05 }}
+            >
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">E</span>
+              </div>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">
+                ELearn
+              </span>
+            </motion.div>
           </Link>
 
-          {/* Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            {isAuthenticated && (
-              <Link
-                to="/courses"
-                className="text-gray-700 hover:text-primary-600 transition-colors"
-              >
-                Khóa học
-              </Link>
-            )}
+          <nav className="hidden md:flex space-x-8">
             <Link
-              to="/#about"
-              className="text-gray-700 hover:text-primary-600 transition-colors"
+              to="/"
+              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
             >
-              Giới thiệu
+              Trang chủ
             </Link>
             {isAuthenticated && (
-              <Link
-                to="/my-courses"
-                className="text-gray-700 hover:text-primary-600 transition-colors"
-              >
-                Khóa học của tôi
-              </Link>
+              <>
+                <Link
+                  to="/courses"
+                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Khóa học
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Dashboard
+                </Link>
+                {user?.isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                  >
+                    <Award className="w-4 h-4" />
+                    <span>Quản trị</span>
+                  </Link>
+                )}
+              </>
             )}
           </nav>
 
-          {/* User actions */}
           <div className="flex items-center space-x-4">
+            <ThemeSwitcher variant="toggle" />
+            
             {isAuthenticated ? (
-              <div className="relative group">
-                <button className="flex items-center space-x-2 text-gray-700 hover:text-primary-600 transition-colors">
-                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                    <span className="text-primary-600 font-medium text-sm">
-                      {user?.name?.charAt(0)?.toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="hidden md:block">{user?.name}</span>
+              <>
+                <Link
+                  to="/profile"
+                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                >
+                  <User className="w-4 h-4" />
+                  <span className="hidden lg:inline">{user?.name}</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden lg:inline">Đăng xuất</span>
                 </button>
-
-                {/* Dropdown */}
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-2 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-all duration-200">
-                  <Link
-                    to="/profile"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Thông tin cá nhân
-                  </Link>
-                  <Link
-                    to="/my-courses"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Khóa học của tôi
-                  </Link>
-                  {user?.isAdmin && (
-                    <>
-                      <hr className="my-1" />
-                      <Link
-                        to="/admin"
-                        className="block px-4 py-2 text-sm text-purple-700 hover:bg-purple-50 font-medium"
-                      >
-                        🛡️ Admin Dashboard
-                      </Link>
-                    </>
-                  )}
-                  <hr className="my-1" />
-                  <button
-                    onClick={handleLogout}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Đăng xuất
-                  </button>
-                </div>
-              </div>
+              </>
             ) : (
-              <div className="flex items-center space-x-3">
+              <>
                 <Link
                   to="/login"
-                  className="text-gray-700 hover:text-primary-600 transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                 >
                   Đăng nhập
                 </Link>
                 <Link
                   to="/register"
-                  className="px-4 py-2 rounded-lg bg-primary-600 text-white font-medium hover:bg-primary-700 transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Đăng ký
                 </Link>
-              </div>
+              </>
             )}
+
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="md:hidden p-2 rounded-md text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
         </div>
       </div>
+
+      {isMobileMenuOpen && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700"
+        >
+          <div className="px-4 py-4 space-y-4">
+            <Link
+              to="/"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              <Home className="w-4 h-4" />
+              <span>Trang chủ</span>
+            </Link>
+            
+            {isAuthenticated && (
+              <>
+                <Link
+                  to="/courses"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Khóa học</span>
+                </Link>
+                <Link
+                  to="/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <Award className="w-4 h-4" />
+                  <span>Dashboard</span>
+                </Link>
+              </>
+            )}
+
+            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+              {isAuthenticated ? (
+                <>
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    <span>{user?.name}</span>
+                  </Link>
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-red-600 dark:text-red-400"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block w-full p-3 text-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Đăng nhập
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="block w-full p-3 bg-blue-600 text-white text-center rounded-lg hover:bg-blue-700 transition-colors mt-2"
+                  >
+                    Đăng ký
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
     </header>
   );
 };

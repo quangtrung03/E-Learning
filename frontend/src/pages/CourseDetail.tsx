@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { courseAPI, lessonAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 
 interface Lesson {
   _id: string;
@@ -315,7 +316,7 @@ const CourseDetail = () => {
             
             {/* Enrollment Card */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-xl shadow-lg p-6 text-gray-900">
+              <Card className="shadow-lg p-6 text-gray-900">
                 <div className="text-center mb-6">
                   {course.discount > 0 && (
                     <p className="text-gray-500 line-through text-lg mb-1">
@@ -375,7 +376,7 @@ const CourseDetail = () => {
                     <span>Truy cập trọn đời</span>
                   </div>
                 </div>
-              </div>
+              </Card>
             </div>
           </div>
         </div>
@@ -386,7 +387,7 @@ const CourseDetail = () => {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Lesson Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Nội dung khóa học</h3>
               
               <div className="space-y-2">
@@ -466,13 +467,13 @@ const CourseDetail = () => {
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Lesson Content */}
           <div className="lg:col-span-3">
             {currentLesson ? (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+              <Card>
                 {/* Lesson Header */}
                 <div className="p-6 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-4">
@@ -595,15 +596,15 @@ const CourseDetail = () => {
                     </>
                   )}
                 </div>
-              </div>
+              </Card>
             ) : (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+              <Card className="p-12 text-center">
                 <div className="text-6xl text-gray-300 mb-4">📖</div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Chọn bài học để bắt đầu</h3>
                 <p className="text-gray-600">
                   Chọn một bài học từ danh sách bên trái để bắt đầu học
                 </p>
-              </div>
+              </Card>
             )}
           </div>
         </div>
@@ -612,7 +613,7 @@ const CourseDetail = () => {
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* What you'll learn */}
           {course.whatYouWillLearn && course.whatYouWillLearn.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Bạn sẽ học được gì</h3>
               <ul className="space-y-2">
                 {course.whatYouWillLearn.map((item, index) => (
@@ -624,12 +625,12 @@ const CourseDetail = () => {
                   </li>
                 ))}
               </ul>
-            </div>
+            </Card>
           )}
 
           {/* Requirements */}
           {course.requirements && course.requirements.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Yêu cầu</h3>
               <ul className="space-y-2">
                 {course.requirements.map((requirement, index) => (
@@ -641,7 +642,7 @@ const CourseDetail = () => {
                   </li>
                 ))}
               </ul>
-            </div>
+            </Card>
           )}
         </div>
       </div>

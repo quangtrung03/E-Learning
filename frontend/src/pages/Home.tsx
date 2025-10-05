@@ -1,8 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Button } from "../components/ui/Button";
+import { motion } from 'framer-motion';
+import { BookOpen, Users, Award, TrendingUp, Star, ArrowRight, Palette, Play } from 'lucide-react';
+
 import { courseAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
 
 interface Course {
   _id: string;
@@ -23,261 +28,274 @@ interface Course {
     name: string;
   };
   students: string[];
+  thumbnail?: string;
 }
 
-export default function Home() {
-  const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(false);
+const Home = () => {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    const fetchFeaturedCourses = async () => {
+    const fetchCourses = async () => {
       try {
-        setLoading(true);
-        const response = await courseAPI.getAllCourses({ limit: 3 });
-        if (response.data.success) {
-          setFeaturedCourses(response.data.data.courses);
-        }
+        const response = await courseAPI.getAllCourses();
+        setCourses(response.data.slice(0, 6)); // Show only 6 courses
       } catch (error) {
-        console.error('Error fetching featured courses:', error);
+        console.error('Error fetching courses:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchFeaturedCourses();
+    fetchCourses();
   }, []);
 
-  const getCategoryLabel = (category: string) => {
-    const categories: { [key: string]: string } = {
-      'programming': 'Lập trình',
-      'design': 'Thiết kế',
-      'business': 'Kinh doanh',
-      'marketing': 'Marketing',
-      'language': 'Ngôn ngữ',
-      'science': 'Khoa học',
-      'other': 'Khác'
-    };
-    return categories[category] || category;
-  };
-
-  const getLevelLabel = (level: string) => {
-    const levels: { [key: string]: string } = {
-      'beginner': 'Cơ bản',
-      'intermediate': 'Trung cấp',
-      'advanced': 'Nâng cao'
-    };
-    return levels[level] || level;
-  };
+  const stats = [
+    { icon: BookOpen, label: 'Khóa học', value: '100+' },
+    { icon: Users, label: 'Học viên', value: '10K+' },
+    { icon: Award, label: 'Chứng chỉ', value: '5K+' },
+    { icon: TrendingUp, label: 'Tỷ lệ hoàn thành', value: '95%' },
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-100 via-white to-secondary-100">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
-      <section className="flex flex-col md:flex-row items-center justify-between px-10 py-20">
-        <div className="max-w-lg">
-          <h2 className="text-4xl md:text-5xl font-extrabold text-primary-700 leading-snug">
-            Học trực tuyến <span className="text-secondary-600">mọi lúc, mọi nơi</span>
-          </h2>
-          <p className="mt-6 text-gray-600 text-lg">
-            Nền tảng e-learning hiện đại giúp bạn dễ dàng tiếp cận tri thức,
-            học tập hiệu quả và kết nối cùng cộng đồng.
-          </p>
-          <div className="mt-8 flex gap-4">
-            {isAuthenticated ? (
-              <Link to="/dashboard">
-                <Button variant="primary" size="lg" className="rounded-xl">
-                  🎯 Vào Dashboard
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white">
+        <div className="absolute inset-0 bg-black/20" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="text-center">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-4xl md:text-6xl font-bold mb-6"
+            >
+              Học tập không giới hạn
+              <br />
+              <span className="text-yellow-300">Phát triển kỹ năng</span>
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto opacity-90"
+            >
+              Khám phá hàng ngàn khóa học chất lượng cao từ các chuyên gia hàng đầu.
+              Học mọi lúc, mọi nơi với nền tảng E-Learning hiện đại.
+            </motion.p>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center items-center"
+            >
+              {!isAuthenticated ? (
+                <>
+                  <Link to="/register">
+                    <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4">
+                      Bắt đầu học ngay
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
+                  <Link to="/courses">
+                    <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4">
+                      Khám phá khóa học
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/dashboard">
+                    <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4">
+                      Vào Dashboard
+                      <ArrowRight className="w-5 h-5 ml-2" />
+                    </Button>
+                  </Link>
+                  <Link to="/courses">
+                    <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-blue-600 px-8 py-4">
+                      Xem khóa học
+                    </Button>
+                  </Link>
+                </>
+              )}
+              <Link to="/theme-settings">
+                <Button variant="ghost" size="lg" className="text-white hover:bg-white/10 px-6 py-4">
+                  <Palette className="w-5 h-5 mr-2" />
+                  Tùy chỉnh giao diện
                 </Button>
               </Link>
-            ) : (
-              <Link to="/register">
-                <Button variant="primary" size="lg" className="rounded-xl">
-                  🎯 Đăng ký ngay
-                </Button>
-              </Link>
-            )}
-            <Link to="/login">
-              <Button variant="outline" size="lg" className="rounded-xl">
-                📚 Đăng nhập
-              </Button>
-            </Link>
+            </motion.div>
           </div>
         </div>
-
-        <div className="mt-12 md:mt-0">
-          {/* <img
-            src="https://illustrations.popsy.co/green/online-learning.svg"
-            alt="Learning Illustration"
-            className="w-[450px] max-w-full"
-          /> */}
-        </div>  
       </section>
 
-      {/* Features */}
-      <section className="bg-white py-16 px-10 grid md:grid-cols-3 gap-10 text-center">
-        <div className="p-6 rounded-2xl shadow-md border-t-4 border-primary-600">
-          <div className="mx-auto w-12 h-12 text-primary-600 text-4xl">📚</div>
-          <h3 className="mt-4 text-xl font-semibold text-gray-800">Nhiều khóa học</h3>
-          <p className="text-gray-600 mt-2">
-            Hàng trăm khóa học đa dạng, phù hợp cho mọi cấp độ.
-          </p>
-        </div>
-        <div className="p-6 rounded-2xl shadow-md border-t-4 border-secondary-600">
-          <div className="mx-auto w-12 h-12 text-secondary-600 text-4xl">🎥</div>
-          <h3 className="mt-4 text-xl font-semibold text-gray-800">Học dễ dàng</h3>
-          <p className="text-gray-600 mt-2">
-            Nội dung được thiết kế khoa học, dễ tiếp thu và áp dụng thực tế.
-          </p>
-        </div>
-        <div className="p-6 rounded-2xl shadow-md border-t-4 border-primary-600">
-          <div className="mx-auto w-12 h-12 text-primary-600 text-4xl">👥</div>
-          <h3 className="mt-4 text-xl font-semibold text-gray-800">Cộng đồng học tập</h3>
-          <p className="text-gray-600 mt-2">
-            Kết nối với giảng viên và bạn học trên toàn quốc.
-          </p>
+      {/* Stats Section */}
+      <section className="py-16 bg-white dark:bg-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="text-center"
+              >
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-full mb-4">
+                  <stat.icon className="w-8 h-8" />
+                </div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                  {stat.value}
+                </div>
+                <div className="text-gray-600 dark:text-gray-300">
+                  {stat.label}
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Featured Courses */}
-      <section className="py-16 px-10 bg-gray-50">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">Khóa học nổi bật</h2>
-          <p className="text-gray-600 text-lg">
-            Khám phá những khóa học chất lượng cao từ các chuyên gia hàng đầu
-          </p>
-        </div>
-
-        {loading ? (
-          <div className="grid md:grid-cols-3 gap-8">
-            {[1, 2, 3].map((item) => (
-              <div key={item} className="bg-white rounded-xl shadow-sm border border-gray-200 animate-pulse">
-                <div className="h-48 bg-gray-200 rounded-t-xl"></div>
-                <div className="p-6">
-                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
-                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
-                  <div className="flex justify-between">
-                    <div className="h-4 bg-gray-200 rounded w-20"></div>
-                    <div className="h-6 bg-gray-200 rounded w-24"></div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : featuredCourses.length > 0 ? (
-          <div className="grid md:grid-cols-3 gap-8">
-            {featuredCourses.map((course) => (
-              <Link key={course._id} to={`/courses/${course._id}`}>
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-shadow">
-                  <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center">
-                    <span className="text-white text-4xl font-bold">
-                      {course.title.charAt(0)}
-                    </span>
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="text-xs px-2 py-1 bg-orange-100 text-orange-700 rounded-full">
-                        {getCategoryLabel(course.category)}
-                      </span>
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                        {getLevelLabel(course.level)}
-                      </span>
-                    </div>
-                    
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
-                      {course.title}
-                    </h3>
-                    
-                    <p className="text-gray-600 mb-4 line-clamp-2">
-                      {course.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-2">
-                          <span className="text-sm font-medium text-gray-600">
-                            {course.instructor.name.charAt(0)}
-                          </span>
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          {course.instructor.name}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        {course.discount > 0 && (
-                          <span className="text-sm text-gray-500 line-through mr-2">
-                            {course.price.toLocaleString('vi-VN')}đ
-                          </span>
-                        )}
-                        <span className="text-lg font-bold text-primary-600">
-                          {course.finalPrice.toLocaleString('vi-VN')}đ
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">📚</div>
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">
-              Chưa có khóa học nào
-            </h3>
-            <p className="text-gray-600">
-              Hệ thống đang được cập nhật, vui lòng quay lại sau
+      <section className="py-16 bg-gray-50 dark:bg-gray-900">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
+              Khóa học nổi bật
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+              Được chọn lọc kỹ càng từ các chuyên gia hàng đầu trong ngành
             </p>
           </div>
-        )}
 
-        <div className="text-center mt-12">
-          {isAuthenticated ? (
-            <Link to="/courses">
-              <Button variant="primary" size="lg" className="rounded-xl">
-                Xem tất cả khóa học
-              </Button>
-            </Link>
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {[...Array(6)].map((_, index) => (
+                <Card key={index} className="animate-pulse">
+                  <div className="h-48 bg-gray-300 dark:bg-gray-700 rounded-lg mb-4" />
+                  <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded mb-2" />
+                  <div className="h-4 bg-gray-300 dark:bg-gray-700 rounded w-2/3" />
+                </Card>
+              ))}
+            </div>
           ) : (
-            <div className="flex gap-4 justify-center">
-              <Link to="/login">
-                <Button variant="outline" size="lg" className="rounded-xl">
-                  Đăng nhập để xem thêm
-                </Button>
-              </Link>
-              <Link to="/register">
-                <Button variant="primary" size="lg" className="rounded-xl">
-                  Đăng ký ngay
-                </Button>
-              </Link>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {courses.map((course, index) => (
+                <motion.div
+                  key={course._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                >
+                  <Card hoverable className="h-full">
+                    <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg mb-4 overflow-hidden">
+                      <div className="absolute inset-0 bg-black/20" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Play className="w-12 h-12 text-white opacity-80" />
+                      </div>
+                      {course.discount > 0 && (
+                        <Badge className="absolute top-2 right-2 bg-red-500 text-white">
+                          -{course.discount}%
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <Badge variant="secondary" className="text-xs">
+                        {course.category}
+                      </Badge>
+                      
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
+                        {course.title}
+                      </h3>
+                      
+                      <p className="text-gray-600 dark:text-gray-300 text-sm line-clamp-2">
+                        {course.description}
+                      </p>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1">
+                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                          <span className="text-sm text-gray-600 dark:text-gray-300">
+                            {course.rating.average.toFixed(1)} ({course.rating.count})
+                          </span>
+                        </div>
+                        <div className="text-right">
+                          {course.discount > 0 ? (
+                            <>
+                              <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                {course.finalPrice.toLocaleString()}đ
+                              </div>
+                              <div className="text-sm text-gray-500 line-through">
+                                {course.price.toLocaleString()}đ
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                              {course.price.toLocaleString()}đ
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <Link to={`/courses/${course._id}`} className="block">
+                        <Button className="w-full">
+                          Xem chi tiết
+                        </Button>
+                      </Link>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
             </div>
           )}
+
+          <div className="text-center mt-12">
+            <Link to="/courses">
+              <Button size="lg" variant="outline">
+                Xem tất cả khóa học
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-16 px-10 text-center">
-        <h2 className="text-3xl font-bold mb-4">Bắt đầu hành trình học tập của bạn</h2>
-        <p className="text-primary-100 text-lg mb-8 max-w-2xl mx-auto">
-          Tham gia cùng hàng ngàn học viên khác để nâng cao kỹ năng và phát triển sự nghiệp của bạn
-        </p>
-        <div className="flex gap-4 justify-center">
-          {!isAuthenticated && (
-            <>
+      {/* CTA Section */}
+      <section className="py-16 bg-blue-600 text-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Sẵn sàng bắt đầu hành trình học tập?
+          </h2>
+          <p className="text-xl mb-8 opacity-90">
+            Tham gia cùng hàng nghìn học viên đã tin tưởng và phát triển kỹ năng tại ELearn
+          </p>
+          {!isAuthenticated ? (
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/register">
-                <Button variant="outline" size="lg" className="rounded-xl text-white border-white hover:bg-white hover:text-primary-600">
+                <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
                   Đăng ký miễn phí
                 </Button>
               </Link>
-              <Link to="/login">
-                <Button variant="primary" size="lg" className="rounded-xl bg-white text-primary-600 hover:bg-gray-100">
-                  Đăng nhập
+              <Link to="/theme-settings">
+                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
+                  <Palette className="w-5 h-5 mr-2" />
+                  Khám phá giao diện mới
                 </Button>
               </Link>
-            </>
+            </div>
+          ) : (
+            <Link to="/dashboard">
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+                Tiếp tục học tập
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </Link>
           )}
         </div>
       </section>
     </div>
   );
-}
+};
+
+export default Home;

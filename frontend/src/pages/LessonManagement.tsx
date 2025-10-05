@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { courseAPI, lessonAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 
 interface Lesson {
   _id: string;
@@ -300,7 +301,7 @@ const LessonManagement = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Lessons List */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+            <Card>
               {/* Header */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex items-center justify-between">
@@ -407,13 +408,13 @@ const LessonManagement = () => {
                   ))
                 )}
               </div>
-            </div>
+            </Card>
           </div>
 
           {/* Create/Edit Form */}
           <div className="lg:col-span-1">
             {showCreateForm && (
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
+              <Card className="p-6 sticky top-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">
                     {editingLesson ? 'Chỉnh sửa bài học' : 'Thêm bài học mới'}
@@ -631,7 +632,7 @@ const LessonManagement = () => {
                     </Button>
                   </div>
                 </form>
-              </div>
+              </Card>
             )}
           </div>
         </div>

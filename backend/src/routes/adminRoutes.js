@@ -7,9 +7,13 @@ const {
   getAdminStats,
   toggleUserBan,
   getAllUsers,
+  getAllCourses,
   getAdminRequests,
   approveAdminRequest,
-  rejectAdminRequest
+  rejectAdminRequest,
+  getCourseDetail,
+  getUserDetail,
+  makeUserAdmin
 } = require('../controllers/adminController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -68,6 +72,9 @@ router.get('/stats', getAdminStats);
  *         description: Lấy danh sách thành công
  */
 router.get('/courses/pending', getPendingCourses);
+router.get('/courses/all', getAllCourses);
+router.get('/users', getAllUsers);
+router.put('/users/:id/toggle-ban', toggleUserBan);
 
 /**
  * @swagger
@@ -187,6 +194,74 @@ router.get('/users', getAllUsers);
  *         description: Không tìm thấy người dùng
  */
 router.put('/users/:id/toggle-ban', toggleUserBan);
+
+/**
+ * @swagger
+ * /admin/users/{id}:
+ *   get:
+ *     summary: Lấy chi tiết người dùng
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lấy chi tiết thành công
+ *       404:
+ *         description: Không tìm thấy người dùng
+ */
+router.get('/users/:id', getUserDetail);
+
+/**
+ * @swagger
+ * /admin/users/{id}/make-admin:
+ *   put:
+ *     summary: Cấp quyền admin cho người dùng
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Cấp quyền thành công
+ *       400:
+ *         description: Người dùng đã là admin
+ *       404:
+ *         description: Không tìm thấy người dùng
+ */
+router.put('/users/:id/make-admin', makeUserAdmin);
+
+/**
+ * @swagger
+ * /admin/courses/{id}:
+ *   get:
+ *     summary: Lấy chi tiết khóa học
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lấy chi tiết thành công
+ *       404:
+ *         description: Không tìm thấy khóa học
+ */
+router.get('/courses/:id', getCourseDetail);
 
 // Admin Request routes
 router.get('/admin-requests', getAdminRequests);

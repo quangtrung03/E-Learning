@@ -1,16 +1,11 @@
-import React, { useState, useContext, useRef } from 'react';
-import AuthContext from '../context/AuthContext';
+import { useState, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 
+
 const Profile: React.FC = () => {
-  const authContext = useContext(AuthContext);
-  
-  if (!authContext) {
-    throw new Error('Profile must be used within AuthProvider');
-  }
-  
-  const { user, updateProfile } = authContext;
+  const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -22,7 +17,7 @@ const Profile: React.FC = () => {
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user?.avatar ? `http://localhost:5000${user.avatar}` : null
+    user?.avatar ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${user.avatar}` : null
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
