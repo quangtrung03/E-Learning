@@ -8,7 +8,8 @@ const {
   deleteCourse,
   enrollCourse,
   submitCourseForApproval,
-  getMyCourses
+  getMyCourses,
+  getMyEnrolledCourses
 } = require('../controllers/courseController');
 const { protect, requireAdmin, requireOwnershipOrAdmin } = require('../middleware/auth');
 
@@ -347,5 +348,30 @@ router.put('/:id/submit', protect, submitCourseForApproval);
  *         description: Lấy danh sách thành công
  */
 router.get('/my-courses', protect, getMyCourses);
+
+/**
+ * @swagger
+ * /courses/my-enrolled-courses:
+ *   get:
+ *     summary: Lấy khóa học đã đăng ký
+ *     tags: [Courses]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ */
+router.get('/my-enrolled-courses', protect, getMyEnrolledCourses);
 
 module.exports = router;

@@ -186,28 +186,32 @@ const Courses = () => {
     }));
   };
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await handleCreateCourse('pending');
+  };
+
+  // Hàm dùng chung cho cả tạo mới và lưu nháp
+  const handleCreateCourse = async (status: 'pending' | 'draft') => {
     try {
       setFormLoading(true);
-      
       // Validate
       if (!formData.title.trim() || !formData.description.trim()) {
         alert('Vui lòng điền đầy đủ thông tin bắt buộc');
         return;
       }
-
       // Filter empty values
       const courseData = {
         ...formData,
         requirements: formData.requirements.filter(req => req.trim()),
         whatYouWillLearn: formData.whatYouWillLearn.filter(obj => obj.trim()),
-        tags: formData.tags.filter(tag => tag.trim())
+        tags: formData.tags.filter(tag => tag.trim()),
+        status
       };
-
       const response = await courseAPI.createCourse(courseData);
       if (response.data.success) {
-        alert('Tạo khóa học thành công!');
+        alert(status === 'draft' ? 'Đã lưu bản nháp!' : 'Tạo khóa học thành công!');
         navigate('/my-courses');
       }
     } catch (error: any) {
@@ -761,6 +765,14 @@ const Courses = () => {
               onClick={() => setActiveTab('browse')}
             >
               Hủy
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={formLoading}
+              onClick={() => handleCreateCourse('draft')}
+            >
+              {formLoading ? 'Đang lưu...' : 'Lưu bản nháp'}
             </Button>
             <Button
               type="submit"

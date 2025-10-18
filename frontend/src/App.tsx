@@ -11,16 +11,16 @@ import EmailVerification from './pages/EmailVerification';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 
-import MyCourses from './pages/MyCourses';
+
 import LessonManagement from './pages/LessonManagement';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminUsersList from './pages/AdminUsersList';
 import AdminCoursesList from './pages/AdminCoursesList';
 import AdminUserDetail from './pages/AdminUserDetail';
 import AdminCourseDetail from './pages/AdminCourseDetail';
-import ThemeSettings from './pages/ThemeSettings';
+import AssignmentDetail from './pages/AssignmentDetail';
+import MyCertificates from './pages/MyCertificates';
 import { useAuth } from './context/AuthContext';
-import { ThemeProvider } from './themes';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -54,7 +54,6 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 function App() {
   return (
-    <ThemeProvider defaultTheme="light">
       <Layout>
         <Routes>
           <Route path="/" element={<Home />} />
@@ -100,14 +99,7 @@ function App() {
             } 
           />
 
-          <Route 
-            path="/my-courses" 
-            element={
-              <ProtectedRoute>
-                <MyCourses />
-              </ProtectedRoute>
-            } 
-          />
+
           <Route 
             path="/courses/:courseId/lessons" 
             element={
@@ -166,11 +158,25 @@ function App() {
             } 
           />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/theme-settings" element={<ThemeSettings />} />
+          <Route 
+            path="/assignments/:assignmentId" 
+            element={
+              <ProtectedRoute>
+                <AssignmentDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/my-certificates" 
+            element={
+              <ProtectedRoute>
+                <MyCertificates />
+              </ProtectedRoute>
+            } 
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
-    </ThemeProvider>
   );
 }
 

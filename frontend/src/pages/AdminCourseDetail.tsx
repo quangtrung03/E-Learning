@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
+// Update the import path below if Card is located elsewhere, for example:
 import { Card } from '../components/ui/Card';
+// Or, if Card does not exist, create it at '../components/ui/Card.tsx' or the correct path.
 import api from '../services/api';
 
 interface Lesson {
@@ -314,11 +316,11 @@ const AdminCourseDetail = () => {
                     <div key={student._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div className="flex items-center gap-3">
                         {student.avatar ? (
-                          <img className="h-10 w-10 rounded-full" src={student.avatar} alt={student.name} />
+                          <img className="h-10 w-10 rounded-full" src={student.avatar} alt={student.name || ''} />
                         ) : (
                           <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                             <span className="text-sm font-medium text-gray-700">
-                              {student.name.charAt(0)}
+                              {student.name?.charAt(0) || 'N'}
                             </span>
                           </div>
                         )}
@@ -389,11 +391,11 @@ const AdminCourseDetail = () => {
               
               <div className="flex items-center gap-3 mb-4">
                 {course.instructor.avatar ? (
-                  <img className="h-12 w-12 rounded-full" src={course.instructor.avatar} alt={course.instructor.name} />
+                  <img className="h-12 w-12 rounded-full" src={course.instructor.avatar} alt={course.instructor.name || ''} />
                 ) : (
                   <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
                     <span className="text-lg font-medium text-gray-700">
-                      {course.instructor.name.charAt(0)}
+                      {course.instructor.name?.charAt(0) || 'I'}
                     </span>
                   </div>
                 )}

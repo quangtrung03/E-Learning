@@ -30,7 +30,7 @@ interface Course {
   _id: string;
   title: string;
   description: string;
-  instructor: {
+  instructor?: {
     _id: string;
     name: string;
     avatar?: string;
@@ -38,23 +38,23 @@ interface Course {
   };
   category: string;
   level: string;
-  price: number;
-  finalPrice: number;
-  discount: number;
-  duration: number;
-  rating: {
+  price?: number;
+  finalPrice?: number;
+  discount?: number;
+  duration?: number;
+  rating?: {
     average: number;
     count: number;
   };
-  students: Array<{
+  students?: Array<{
     student: string;
     enrolledAt: Date;
     progress: number;
   }>;
-  lessons: string[];
-  requirements: string[];
-  whatYouWillLearn: string[];
-  isPublished: boolean;
+  lessons?: string[];
+  requirements?: string[];
+  whatYouWillLearn?: string[];
+  isPublished?: boolean;
   status: string;
 }
 
@@ -82,16 +82,31 @@ const CourseDetail = () => {
   const fetchCourseData = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       // Fetch course details
+      console.log('Fetching course details for ID:', id);
       const courseResponse = await courseAPI.getCourse(id!);
-      const courseData = courseResponse.data.data.course;
+      console.log('Course response:', courseResponse.data);
+      
+      // Handle different response structures
+      let courseData;
+      if (courseResponse.data.success && courseResponse.data.data) {
+        courseData = courseResponse.data.data.course || courseResponse.data.data;
+      } else {
+        courseData = courseResponse.data;
+      }
+      
+      if (!courseData) {
+        throw new Error('Không tìm thấy thông tin khóa học');
+      }
+      
       setCourse(courseData);
 
       // Check if user is enrolled
-      if (user) {
-        const enrollment = user.enrolledCourses?.find(
-          (enrollment: any) => enrollment.course === id
+      if (user && user.enrolledCourses) {
+        const enrollment = user.enrolledCourses.find(
+          (enrollment: any) => enrollment.course === id || enrollment.course._id === id
         );
         if (enrollment) {
           setIsEnrolled(true);
@@ -100,20 +115,36 @@ const CourseDetail = () => {
       }
 
       // Fetch lessons
-      const lessonsResponse = await lessonAPI.getLessonsByCourse(id!);
-      const lessonsData = lessonsResponse.data.data.lessons;
-      setLessons(lessonsData);
-
-      // Set first lesson as current if enrolled or preview available
-      if (lessonsData.length > 0) {
-        const firstLesson = lessonsData[0];
-        if (firstLesson.isPreview || isEnrolled) {
-          setCurrentLesson(firstLesson);
+      try {
+        console.log('Fetching lessons for course:', id);
+        const lessonsResponse = await lessonAPI.getLessonsByCourse(id!);
+        console.log('Lessons response:', lessonsResponse.data);
+        
+        let lessonsData: Lesson[] = [];
+        if (lessonsResponse.data.success && lessonsResponse.data.data) {
+          lessonsData = lessonsResponse.data.data.lessons || lessonsResponse.data.data || [];
+        } else if (Array.isArray(lessonsResponse.data)) {
+          lessonsData = lessonsResponse.data;
         }
+        
+        setLessons(lessonsData);
+
+        // Set first lesson as current if enrolled or preview available
+        if (lessonsData.length > 0) {
+          const firstLesson = lessonsData[0];
+          if (firstLesson.isPreview || isEnrolled) {
+            setCurrentLesson(firstLesson);
+          }
+        }
+      } catch (lessonError) {
+        console.error('Error fetching lessons:', lessonError);
+        // Don't fail the whole page if lessons fail to load
+        setLessons([]);
       }
 
     } catch (error: any) {
-      setError(error.response?.data?.message || 'Có lỗi xảy ra khi tải khóa học');
+      console.error('Error in fetchCourseData:', error);
+      setError(error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tải khóa học');
     } finally {
       setLoading(false);
     }
@@ -151,9 +182,23 @@ const CourseDetail = () => {
     try {
       setLessonLoading(true);
       const response = await lessonAPI.getLesson(lesson._id);
-      setCurrentLesson(response.data.data.lesson);
+      console.log('Lesson detail response:', response.data);
+      
+      let lessonData;
+      if (response.data.success && response.data.data) {
+        lessonData = response.data.data.lesson || response.data.data;
+      } else {
+        lessonData = response.data;
+      }
+      
+      if (lessonData) {
+        setCurrentLesson(lessonData);
+      } else {
+        throw new Error('Không tìm thấy thông tin bài học');
+      }
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi tải bài học');
+      console.error('Error loading lesson:', error);
+      alert(error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tải bài học');
     } finally {
       setLessonLoading(false);
     }
@@ -274,25 +319,25 @@ const CourseDetail = () => {
             <div className="lg:col-span-2">
               <div className="flex items-center gap-4 mb-4">
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
-                  {getCategoryLabel(course.category)}
+                  {getCategoryLabel(course.category || 'other')}
                 </span>
                 <span className="px-3 py-1 bg-white/20 rounded-full text-sm font-medium">
-                  {getLevelLabel(course.level)}
+                  {getLevelLabel(course.level || 'beginner')}
                 </span>
               </div>
               
-              <h1 className="text-4xl font-bold mb-4">{course.title}</h1>
-              <p className="text-primary-100 text-lg mb-6">{course.description}</p>
+              <h1 className="text-4xl font-bold mb-4">{course.title || 'Khóa học'}</h1>
+              <p className="text-primary-100 text-lg mb-6">{course.description || 'Mô tả khóa học'}</p>
               
               <div className="flex items-center gap-6">
                 <div className="flex items-center">
                   <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-3">
                     <span className="text-sm font-medium">
-                      {course.instructor.name.charAt(0)}
+                      {course.instructor?.name?.charAt(0) || 'A'}
                     </span>
                   </div>
                   <div>
-                    <p className="font-medium">{course.instructor.name}</p>
+                    <p className="font-medium">{course.instructor?.name || 'Giảng viên'}</p>
                     <p className="text-primary-100 text-sm">Giảng viên</p>
                   </div>
                 </div>
@@ -302,13 +347,13 @@ const CourseDetail = () => {
                     <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                   </svg>
                   <span className="text-white">
-                    {course.rating.average.toFixed(1)} ({course.rating.count} đánh giá)
+                    {course.rating?.average?.toFixed(1) || '0.0'} ({course.rating?.count || 0} đánh giá)
                   </span>
                 </div>
                 
                 <div className="text-sm">
                   <span className="text-white">
-                    {course.students.length} học viên
+                    {course.students?.length || 0} học viên
                   </span>
                 </div>
               </div>
@@ -318,13 +363,13 @@ const CourseDetail = () => {
             <div className="lg:col-span-1">
               <Card className="shadow-lg p-6 text-gray-900">
                 <div className="text-center mb-6">
-                  {course.discount > 0 && (
+                  {(course.discount || 0) > 0 && (
                     <p className="text-gray-500 line-through text-lg mb-1">
-                      {course.price.toLocaleString('vi-VN')}đ
+                      {course.price?.toLocaleString('vi-VN')}đ
                     </p>
                   )}
                   <p className="text-3xl font-bold text-primary-600">
-                    {course.finalPrice.toLocaleString('vi-VN')}đ
+                    {course.finalPrice?.toLocaleString('vi-VN')}đ
                   </p>
                 </div>
                 
@@ -361,7 +406,7 @@ const CourseDetail = () => {
                     <svg className="w-4 h-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span>{course.duration} phút</span>
+                    <span>{course.duration || 0} phút</span>
                   </div>
                   <div className="flex items-center">
                     <svg className="w-4 h-4 text-gray-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

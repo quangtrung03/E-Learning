@@ -2,7 +2,6 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BookOpen, User, LogOut, Menu, X, Home, Award } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
-import { ThemeSwitcher } from "../../themes";
 import { useState } from "react";
 
 const Header = () => {
@@ -16,7 +15,7 @@ const Header = () => {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <header className="bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex-shrink-0">
@@ -27,7 +26,7 @@ const Header = () => {
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">E</span>
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">
+              <span className="text-xl font-bold text-gray-900">
                 ELearn
               </span>
             </motion.div>
@@ -36,7 +35,7 @@ const Header = () => {
           <nav className="hidden md:flex space-x-8">
             <Link
               to="/"
-              className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+              className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
             >
               Trang chủ
             </Link>
@@ -44,20 +43,32 @@ const Header = () => {
               <>
                 <Link
                   to="/courses"
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
                 >
                   Khóa học
                 </Link>
                 <Link
                   to="/dashboard"
-                  className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
                 >
                   Dashboard
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="text-gray-700 hover:text-orange-600 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Khóa học của tôi
+                </Link>
+                <Link
+                  to="/my-certificates"
+                  className="text-gray-700 hover:text-green-600 px-3 py-2 text-sm font-medium transition-colors"
+                >
+                  Chứng chỉ
                 </Link>
                 {user?.isAdmin && (
                   <Link
                     to="/admin"
-                    className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                    className="text-gray-700 hover:text-purple-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
                   >
                     <Award className="w-4 h-4" />
                     <span>Quản trị</span>
@@ -68,20 +79,18 @@ const Header = () => {
           </nav>
 
           <div className="flex items-center space-x-4">
-            <ThemeSwitcher variant="toggle" />
-            
             {isAuthenticated ? (
               <>
                 <Link
                   to="/profile"
-                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   <User className="w-4 h-4" />
                   <span className="hidden lg:inline">{user?.name}</span>
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                  className="flex items-center space-x-2 px-3 py-2 text-sm font-medium text-gray-700 hover:text-red-600 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
                   <span className="hidden lg:inline">Đăng xuất</span>
@@ -91,7 +100,7 @@ const Header = () => {
               <>
                 <Link
                   to="/login"
-                  className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                  className="px-3 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   Đăng nhập
                 </Link>
@@ -106,7 +115,7 @@ const Header = () => {
 
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-md text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="md:hidden p-2 rounded-md text-gray-700 hover:text-blue-600 hover:bg-gray-100 transition-colors"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -119,13 +128,13 @@ const Header = () => {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700"
+          className="md:hidden bg-white border-t border-gray-200"
         >
           <div className="px-4 py-4 space-y-4">
             <Link
               to="/"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <Home className="w-4 h-4" />
               <span>Trang chủ</span>
@@ -136,7 +145,7 @@ const Header = () => {
                 <Link
                   to="/courses"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <BookOpen className="w-4 h-4" />
                   <span>Khóa học</span>
@@ -144,21 +153,29 @@ const Header = () => {
                 <Link
                   to="/dashboard"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <Award className="w-4 h-4" />
                   <span>Dashboard</span>
                 </Link>
+                <Link
+                  to="/dashboard"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  <span>Khóa học của tôi</span>
+                </Link>
               </>
             )}
 
-            <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="pt-4 border-t border-gray-200">
               {isAuthenticated ? (
                 <>
                   <Link
                     to="/profile"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <User className="w-4 h-4" />
                     <span>{user?.name}</span>
@@ -168,7 +185,7 @@ const Header = () => {
                       handleLogout();
                       setIsMobileMenuOpen(false);
                     }}
-                    className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-red-600 dark:text-red-400"
+                    className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors text-red-600"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Đăng xuất</span>
@@ -179,7 +196,7 @@ const Header = () => {
                   <Link
                     to="/login"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="block w-full p-3 text-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    className="block w-full p-3 text-center rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     Đăng nhập
                   </Link>

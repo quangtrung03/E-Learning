@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui';
+import { Card } from '../components/ui';
 
 interface Course {
   _id: string;
@@ -11,18 +11,23 @@ interface Course {
   description: string;
   category: string;
   level: string;
-  price: number;
-  finalPrice: number;
-  discount: number;
-  duration: number;
+  price?: number;
+  finalPrice?: number;
+  discount?: number;
+  duration?: number;
   status: 'draft' | 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
-  students: Array<{
+  students?: Array<{
     student: string;
     enrolledAt: Date;
     progress: number;
   }>;
   createdAt: Date;
+  progress?: number; // Add this line to fix the error
+  instructor?: {
+    name?: string;
+    [key: string]: any;
+  };
 }
 
 const MyCourses = () => {
@@ -36,17 +41,44 @@ const MyCourses = () => {
     fetchMyCourses();
   }, []);
 
+
+
   const fetchMyCourses = async () => {
     try {
       setLoading(true);
-      // Lấy khóa học đã tạo
-      const response = await courseAPI.getMyCourses();
-      setCreatedCourses(response.data.data.courses);
       
-      // TODO: Lấy khóa học đã đăng ký từ user enrolled courses
-      setEnrolledCourses([]);
+      // Lấy khóa học đã tạo
+      try {
+        const response = await courseAPI.getMyCourses();
+        console.log('Created Courses API Response:', response.data); // Debug log
+        
+        // Kiểm tra cấu trúc response
+        const courses = response.data?.data?.courses || response.data?.courses || [];
+        console.log('Parsed created courses:', courses);
+        setCreatedCourses(courses);
+      } catch (createdError) {
+        console.error('Lỗi khi lấy khóa học đã tạo:', createdError);
+        // Không có dữ liệu thì để trống
+        setCreatedCourses([]);
+      }
+      
+      // Lấy khóa học đã đăng ký
+      try {
+        const enrolledResponse = await courseAPI.getMyEnrolledCourses();
+        console.log('Enrolled Courses API Response:', enrolledResponse.data);
+        const enrolled = enrolledResponse.data?.data?.courses || enrolledResponse.data?.courses || [];
+        console.log('Parsed enrolled courses:', enrolled);
+        setEnrolledCourses(enrolled);
+      } catch (enrolledError) {
+        console.error('Lỗi khi lấy khóa học đã đăng ký:', enrolledError);
+        // Không có dữ liệu thì để trống
+        setEnrolledCourses([]);
+      }
+      
     } catch (error) {
-      console.error('Lỗi khi lấy khóa học của tôi:', error);
+      console.error('Lỗi chung khi lấy khóa học:', error);
+      setCreatedCourses([]);
+      setEnrolledCourses([]);
     } finally {
       setLoading(false);
     }
@@ -115,7 +147,7 @@ const MyCourses = () => {
               <div className="flex items-center justify-between mb-2">
                 {getStatusBadge(course.status)}
                 <span className="text-xs text-gray-500">
-                  {course.students.length} học viên
+                  {course.students?.length || 0} học viên
                 </span>
               </div>
               
@@ -137,7 +169,7 @@ const MyCourses = () => {
               
               <div className="flex items-center justify-between">
                 <span className="text-lg font-bold text-primary-600">
-                  {course.finalPrice.toLocaleString('vi-VN')}đ
+                  {course.finalPrice?.toLocaleString('vi-VN') || 0}đ
                 </span>
                 <div className="flex gap-2">
                   <Link to={`/courses/${course._id}/lessons`}>
@@ -190,7 +222,44 @@ const MyCourses = () => {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Render enrolled courses */}
+        {enrolledCourses.map((course) => (
+          <Card key={course._id} className="hover:shadow-lg transition-shadow">
+            <div className="h-32 bg-gradient-to-r from-blue-400 to-purple-600 rounded-t-xl flex items-center justify-center">
+              <span className="text-white text-xl font-bold">
+                {course.title.charAt(0)}
+              </span>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
+                  Đã đăng ký
+                </span>
+                <span className="text-xs text-gray-500">
+                  {course.progress || 0}% hoàn thành
+                </span>
+              </div>
+              
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                {course.title}
+              </h3>
+              
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                {course.description}
+              </p>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">
+                  Giảng viên: {course.instructor?.name || 'N/A'}
+                </span>
+                <Link to={`/courses/${course._id}`}>
+                  <Button size="sm">
+                    Tiếp tục học
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
     );
   };
@@ -219,7 +288,7 @@ const MyCourses = () => {
               }`}
               onClick={() => setActiveTab('created')}
             >
-              Khóa học đã tạo ({user?.createdCourses?.length || 0})
+              Khóa học đã tạo ({createdCourses.length})
             </button>
             <button
               className={`px-6 py-4 font-medium ${
@@ -229,7 +298,7 @@ const MyCourses = () => {
               }`}
               onClick={() => setActiveTab('enrolled')}
             >
-              Khóa học đã đăng ký ({user?.enrolledCourses?.length || 0})
+              Khóa học đã đăng ký ({enrolledCourses.length})
             </button>
           </div>
         </Card>

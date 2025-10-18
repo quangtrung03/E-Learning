@@ -85,6 +85,14 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+// Kiểm tra quyền instructor - thay vì dựa vào role, ta cho phép
+// bất kỳ user đã xác thực nào gọi route này. Các controller sẽ
+// kiểm tra ownership (ví dụ: course.instructor === req.user.id) khi cần.
+const requireInstructor = (req, res, next) => {
+  // Nếu muốn giữ admin riêng biệt, controller vẫn có thể check req.user.isAdmin
+  return next();
+};
+
 // Kiểm tra ownership hoặc admin (cho các tài nguyên cá nhân)
 const requireOwnershipOrAdmin = (resourceUserIdField = 'userId') => {
   return (req, res, next) => {
@@ -110,5 +118,6 @@ const requireOwnershipOrAdmin = (resourceUserIdField = 'userId') => {
 module.exports = {
   protect,
   requireAdmin,
+  requireInstructor,
   requireOwnershipOrAdmin
 };

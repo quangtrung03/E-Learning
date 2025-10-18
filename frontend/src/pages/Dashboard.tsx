@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import Modal from '../components/ui/Modal';
 
 interface Course {
   _id: string;
@@ -11,18 +12,18 @@ interface Course {
   description: string;
   category: string;
   level: string;
-  price: number;
-  finalPrice: number;
-  duration: number;
-  rating: {
+  price?: number;
+  finalPrice?: number;
+  duration?: number;
+  rating?: {
     average: number;
     count: number;
   };
-  instructor: {
+  instructor?: {
     _id: string;
     name: string;
   };
-  students: string[];
+  students?: any[];
   progress?: number;
 }
 
@@ -48,6 +49,11 @@ const Dashboard = () => {
   const [recentCourses, setRecentCourses] = useState<Course[]>([]);
   const [myCourses, setMyCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [modalCourses, setModalCourses] = useState<Course[]>([]);
+  const [modalTitle, setModalTitle] = useState('');
+  const [createdCourses, setCreatedCourses] = useState<Course[]>([]);
+  const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -75,9 +81,16 @@ const Dashboard = () => {
       if (user) {
         console.log('Fetching user courses...');
         try {
-          const myCoursesResponse = await courseAPI.getMyCourses({ limit: 10 });
-          console.log('My courses response:', myCoursesResponse.data);
+          // Fetch both created courses and enrolled courses
+          const [myCoursesResponse, enrolledCoursesResponse] = await Promise.all([
+            courseAPI.getMyCourses({ limit: 10 }),
+            courseAPI.getMyEnrolledCourses({ limit: 10 })
+          ]);
           
+          console.log('My courses response:', myCoursesResponse.data);
+          console.log('Enrolled courses response:', enrolledCoursesResponse.data);
+          
+          // Parse created courses
           let userCourses: any[] = [];
           if (myCoursesResponse.data.success && myCoursesResponse.data.data) {
             if (Array.isArray(myCoursesResponse.data.data.courses)) {
@@ -87,12 +100,28 @@ const Dashboard = () => {
             }
           }
           
-          setMyCourses(userCourses.slice(0, 4)); // Chỉ hiển thị 4 khóa học đầu
+          // Parse enrolled courses
+          let enrolledCourses: any[] = [];
+          if (enrolledCoursesResponse.data.success && enrolledCoursesResponse.data.data) {
+            if (Array.isArray(enrolledCoursesResponse.data.data.courses)) {
+              enrolledCourses = enrolledCoursesResponse.data.data.courses;
+            } else if (Array.isArray(enrolledCoursesResponse.data.data)) {
+              enrolledCourses = enrolledCoursesResponse.data.data;
+            }
+          }
+          
+          // Store courses separately for modal display
+          setCreatedCourses(userCourses);
+          setEnrolledCourses(enrolledCourses);
+          
+          // Show mixed courses on dashboard - prioritize enrolled courses, then created courses
+          const dashboardCourses = [...enrolledCourses, ...userCourses].slice(0, 4);
+          setMyCourses(dashboardCourses);
 
-          // Calculate stats from user data and backend response
-          const enrolledCount = user.enrolledCourses?.length || 0;
-          const createdCount = userCourses.length || 0;
-          const completedCount = user.enrolledCourses?.filter((enrollment: any) => enrollment.progress >= 100).length || 0;
+          // Calculate accurate stats
+          const enrolledCount = enrolledCourses.length;
+          const createdCount = userCourses.length;
+          const completedCount = enrolledCourses.filter((course: any) => course.progress >= 100).length;
           const totalStudents = userCourses.reduce((sum: number, course: any) => {
             const students = course.students || [];
             return sum + (Array.isArray(students) ? students.length : 0);
@@ -180,6 +209,23 @@ const Dashboard = () => {
     return levels[level] || level;
   };
 
+  const handleStatsClick = (type: string) => {
+    switch (type) {
+      case 'enrolled':
+        setModalCourses(enrolledCourses);
+        setModalTitle('Khóa học đã đăng ký');
+        setShowCourseModal(true);
+        break;
+      case 'created':
+        setModalCourses(createdCourses);
+        setModalTitle('Khóa học đã tạo');
+        setShowCourseModal(true);
+        break;
+      default:
+        break;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -228,29 +274,49 @@ const Dashboard = () => {
             <section className="mb-12">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">📊 Thống kê của bạn</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Khóa học đã đăng ký</p>
-                      <p className="text-3xl font-bold text-blue-600">{stats.enrolledCourses}</p>
+                <div
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handleStatsClick('enrolled')}
+                  tabIndex={0}
+                  role="button"
+                  onKeyPress={e => {
+                    if (e.key === 'Enter' || e.key === ' ') handleStatsClick('enrolled');
+                  }}
+                >
+                  <Card>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Khóa học đã đăng ký</p>
+                        <p className="text-3xl font-bold text-blue-600">{stats.enrolledCourses}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <span className="text-2xl">📖</span>
+                      </div>
                     </div>
-                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">📖</span>
-                    </div>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
 
-                <Card>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Khóa học đã tạo</p>
-                      <p className="text-3xl font-bold text-green-600">{stats.createdCourses}</p>
+                <div
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handleStatsClick('created')}
+                  tabIndex={0}
+                  role="button"
+                  onKeyPress={e => {
+                    if (e.key === 'Enter' || e.key === ' ') handleStatsClick('created');
+                  }}
+                >
+                  <Card>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Khóa học đã tạo</p>
+                        <p className="text-3xl font-bold text-green-600">{stats.createdCourses}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <span className="text-2xl">✨</span>
+                      </div>
                     </div>
-                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">✨</span>
-                    </div>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
 
                 <Card>
                   <div className="flex items-center justify-between">
@@ -268,7 +334,7 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">Doanh thu</p>
-                      <p className="text-3xl font-bold text-orange-600">{(stats.totalRevenue || 0).toLocaleString('vi-VN')}đ</p>
+                      <p className="text-3xl font-bold text-orange-600">{Number(stats?.totalRevenue || 0).toLocaleString('vi-VN')}đ</p>
                     </div>
                     <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                       <span className="text-2xl">💰</span>
@@ -306,7 +372,7 @@ const Dashboard = () => {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">
-                          {course.students.length} học viên
+                          {course.students?.length || 0} học viên
                         </span>
                         <Link to={`/courses/${course._id}/lessons`}>
                           <Button size="sm">Quản lý bài học</Button>
@@ -333,7 +399,7 @@ const Dashboard = () => {
                         {course.title.charAt(0)}
                       </span>
                       <div className="absolute top-3 right-3 bg-white text-gray-800 px-2 py-1 rounded-full text-xs font-bold">
-                        ⭐ {course.rating.average.toFixed(1)}
+                        ⭐ {course.rating?.average?.toFixed(1) || '0.0'}
                       </div>
                     </div>
                     <div className="p-6">
@@ -356,11 +422,11 @@ const Dashboard = () => {
                       
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-500">
-                          {course.students.length} học viên
+                          {course.students?.length || 0} học viên
                         </div>
                         <div className="text-right">
                           <span className="text-lg font-bold text-primary-600">
-                            {(course.finalPrice || course.price || 0).toLocaleString('vi-VN')}đ
+                            {Number(course.finalPrice || course.price || 0).toLocaleString('vi-VN')}đ
                           </span>
                         </div>
                       </div>
@@ -419,6 +485,49 @@ const Dashboard = () => {
           </section>
         )}
       </div>
+
+      {/* Course List Modal */}
+      <Modal
+        isOpen={showCourseModal}
+        onClose={() => setShowCourseModal(false)}
+        title={modalTitle}
+      >
+        <div className="max-h-96 overflow-y-auto">
+          {modalCourses.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">Chưa có khóa học nào</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {modalCourses.map((course) => (
+                <div key={course._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 mb-1">{course.title}</h3>
+                      <p className="text-sm text-gray-600 mb-2 line-clamp-2">{course.description}</p>
+                      <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <span>📚 {getCategoryLabel(course.category)}</span>
+                        <span>📊 {getLevelLabel(course.level)}</span>
+                        {course.progress !== undefined && (
+                          <span>📈 {course.progress}% hoàn thành</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <Link
+                        to={`/courses/${course._id}`}
+                        className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 transition-colors"
+                      >
+                        Xem chi tiết
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -143,9 +143,8 @@ const createCourse = async (req, res) => {
     
     // Gán instructor là user hiện tại
     req.body.instructor = req.user.id;
-    
-    // Khóa học mới tạo sẽ ở trạng thái draft
-    req.body.status = 'draft';
+  // Nếu client không cung cấp status, model default (currently 'pending') sẽ áp dụng.
+  // Tránh ép trạng thái cứng để frontend có thể gửi 'draft' khi lưu nháp.
     
     const course = await Course.create(req.body);
     
@@ -381,23 +380,31 @@ const submitCourseForApproval = async (req, res) => {
 // @access  Private (Authenticated User)
 const getMyCourses = async (req, res) => {
   try {
+    console.log('🔍 getMyCourses called for user:', req.user.id);
     const { page = 1, limit = 10, status = '' } = req.query;
     const skip = (page - 1) * limit;
     
     const query = { instructor: req.user.id };
+    console.log('📋 Query:', query);
     
     if (status) {
       query.status = status;
     }
     
+    // return plain JS objects and populate instructor for predictable JSON shape
     const courses = await Course.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .populate('instructor', 'name avatar')
+      .lean();
+    
+    console.log('📦 Found courses:', courses.length, courses.map(c => c.title));
     
     const total = await Course.countDocuments(query);
+    console.log('📊 Total courses:', total);
     
-    res.status(200).json({
+    const response = {
       success: true,
       count: courses.length,
       pagination: {
@@ -409,12 +416,79 @@ const getMyCourses = async (req, res) => {
       data: {
         courses
       }
-    });
+    };
+    
+    console.log('📤 Sending response:', JSON.stringify(response, null, 2));
+    res.status(200).json(response);
     
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi lấy khóa học của bạn',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy khóa học đã đăng ký
+// @route   GET /api/courses/my-enrolled-courses  
+// @access  Private (Authenticated User)
+const getMyEnrolledCourses = async (req, res) => {
+  try {
+    console.log('🔍 getMyEnrolledCourses called for user:', req.user.id);
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+    
+    // Tìm user và populate enrolled courses
+    const user = await User.findById(req.user.id)
+      .populate({
+        path: 'enrolledCourses.course',
+        select: 'title description category level price finalPrice discount duration status instructor students createdAt',
+        populate: {
+          path: 'instructor',
+          select: 'name'
+        }
+      })
+      .select('enrolledCourses')
+      .lean();
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
+    
+    // Lọc và format data
+    const enrolledCourses = user.enrolledCourses
+      .filter(enrollment => enrollment.course) // Chỉ lấy courses còn tồn tại
+      .slice(skip, skip + parseInt(limit))
+      .map(enrollment => ({
+        ...enrollment.course.toObject(),
+        enrolledAt: enrollment.enrolledAt,
+        progress: enrollment.progress
+      }));
+    
+    const total = user.enrolledCourses.filter(enrollment => enrollment.course).length;
+    
+    res.status(200).json({
+      success: true,
+      count: enrolledCourses.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: {
+        courses: enrolledCourses
+      }
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy khóa học đã đăng ký',
       error: error.message
     });
   }
@@ -428,5 +502,6 @@ module.exports = {
   deleteCourse,
   enrollCourse,
   submitCourseForApproval,
-  getMyCourses
+  getMyCourses,
+  getMyEnrolledCourses
 };

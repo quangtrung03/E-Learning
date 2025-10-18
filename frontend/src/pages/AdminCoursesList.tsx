@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
+import { Button, Card } from '../components/ui';
 import api from '../services/api';
 
 interface Course {
@@ -129,6 +128,21 @@ const AdminCoursesList = () => {
       ));
     } catch (error) {
       console.error('Lỗi khi từ chối khóa học:', error);
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: string) => {
+    const ok = window.confirm('Bạn có chắc muốn xoá khóa học này? Hành động này không thể hoàn tác.');
+    if (!ok) return;
+
+    try {
+      await api.delete(`/admin/courses/${courseId}`);
+      // Remove from UI
+      setCourses(prev => prev.filter(c => c._id !== courseId));
+      setPagination(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+    } catch (error) {
+      console.error('Lỗi khi xoá khóa học:', error);
+      alert('Xoá khóa học thất bại. Vui lòng thử lại.');
     }
   };
 
@@ -338,6 +352,15 @@ const AdminCoursesList = () => {
                           </Button>
                         </>
                       )}
+
+                      {/* Delete action available to admin always */}
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        onClick={() => handleDeleteCourse(course._id)}
+                      >
+                        Xoá
+                      </Button>
                     </td>
                   </tr>
                 ))}
