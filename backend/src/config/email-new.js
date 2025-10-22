@@ -358,6 +358,111 @@ module.exports = {
   sendVerificationEmail,
   sendAdminRequestNotification,
   sendWelcomeEmail,
+  sendCourseApprovalEmail: async (data) => {
+    try {
+      const emailContent = {
+        subject: '✅ Khóa học của bạn đã được duyệt - E-Learning Platform',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Khóa học đã được duyệt</title>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+              .container { max-width: 600px; margin: 0 auto; background: white; }
+              .header { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; }
+              .success-box { background: #d4edda; border: 2px solid #28a745; padding: 25px; border-radius: 10px; text-align: center; margin: 20px 0; }
+              .button { display: inline-block; background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px; }
+              .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; border-top: 1px solid #eee; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>🎉 Khóa học đã được duyệt!</h1>
+              </div>
+              <div class="content">
+                <h2>Chào ${data.instructorName}!</h2>
+                <div class="success-box">
+                  <h3>✅ Khóa học "${data.courseTitle}" đã được duyệt</h3>
+                  <p>Chúc mừng! Khóa học của bạn đã được phê duyệt và giờ đây đã được công khai trên nền tảng.</p>
+                </div>
+                <p>Khóa học của bạn giờ đây có thể được tìm thấy bởi tất cả học viên trên E-Learning Platform.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${getFrontendUrl()}/courses/${data.courseId}" class="button">Xem khóa học</a>
+                </div>
+              </div>
+              <div class="footer">
+                <p>© 2025 E-Learning Platform</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+      return await sendEmail(data.to, emailContent.subject, emailContent.html);
+    } catch (error) {
+      console.error('❌ Failed to send course approval email:', error);
+      return { success: false, error: error.message };
+    }
+  },
+  sendCourseRejectionEmail: async (data) => {
+    try {
+      const emailContent = {
+        subject: '❌ Khóa học của bạn cần chỉnh sửa - E-Learning Platform',
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Khóa học cần chỉnh sửa</title>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+              .container { max-width: 600px; margin: 0 auto; background: white; }
+              .header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 30px; text-align: center; }
+              .content { padding: 30px; }
+              .warning-box { background: #fff3cd; border: 2px solid #ffc107; padding: 25px; border-radius: 10px; margin: 20px 0; }
+              .reason-box { background: #f8f9fa; padding: 20px; border-left: 4px solid #dc3545; margin: 15px 0; }
+              .button { display: inline-block; background: #dc3545; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px; }
+              .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; border-top: 1px solid #eee; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>📝 Khóa học cần chỉnh sửa</h1>
+              </div>
+              <div class="content">
+                <h2>Chào ${data.instructorName}!</h2>
+                <div class="warning-box">
+                  <h3>⚠️ Khóa học "${data.courseTitle}" cần chỉnh sửa</h3>
+                  <p>Khóa học của bạn đã được xem xét nhưng cần một số điều chỉnh trước khi được phê duyệt.</p>
+                </div>
+                <div class="reason-box">
+                  <h4>Lý do từ quản trị viên:</h4>
+                  <p>${data.rejectionReason}</p>
+                </div>
+                <p>Vui lòng chỉnh sửa khóa học theo hướng dẫn trên và gửi lại để được xem xét.</p>
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${getFrontendUrl()}/dashboard" class="button">Chỉnh sửa khóa học</a>
+                </div>
+              </div>
+              <div class="footer">
+                <p>© 2025 E-Learning Platform</p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+      };
+      return await sendEmail(data.to, emailContent.subject, emailContent.html);
+    } catch (error) {
+      console.error('❌ Failed to send course rejection email:', error);
+      return { success: false, error: error.message };
+    }
+  },
   emailTemplates,
   getFrontendUrl
 };

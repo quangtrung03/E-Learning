@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const AdminRequest = require('../models/AdminRequest');
+const emailService = require('../config/email-new');
 
 // @desc    Lấy danh sách khóa học cần duyệt
 // @route   GET /api/admin/courses/pending
@@ -70,7 +71,20 @@ const approveCourse = async (req, res) => {
 
     await course.save();
 
-    // TODO: Gửi email thông báo cho instructor
+    // Gửi email thông báo cho instructor
+    try {
+      const instructor = await User.findById(course.instructor);
+      if (instructor) {
+        await emailService.sendCourseApprovalEmail({
+          to: instructor.email,
+          instructorName: instructor.name,
+          courseTitle: course.title,
+          courseId: course._id
+        });
+      }
+    } catch (emailError) {
+      console.error('❌ Failed to send approval email:', emailError.message);
+    }
     
     res.status(200).json({
       success: true,
@@ -111,17 +125,30 @@ const rejectCourse = async (req, res) => {
       });
     }
 
-    if (course.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: 'Chỉ có thể từ chối khóa học đang chờ duyệt'
-      });
+    await course.save();
+
+    // Gửi email thông báo cho instructor
+    try {
+      const instructor = await User.findById(course.instructor);
+      if (instructor) {
+        await emailService.sendCourseRejectionEmail({
+          to: instructor.email,
+          instructorName: instructor.name,
+          courseTitle: course.title,
+          rejectionReason: reason.trim()
+        });
+      }
+    } catch (emailError) {
+      console.error('❌ Failed to send rejection email:', emailError.message);
     }
 
-    course.status = 'rejected';
-    course.rejectionReason = reason.trim();
-    course.isPublished = false;
-    course.approvedBy = req.user.id;
+    res.status(200).json({
+      success: true,
+      message: 'Đã từ chối khóa học',
+      data: {
+        course
+      }
+    });rse.approvedBy = req.user.id;
     course.approvedAt = new Date();
 
     await course.save();

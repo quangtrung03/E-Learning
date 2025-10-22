@@ -1,9 +1,13 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const connectDB = require('./config/database');
+const notificationService = require('./services/notificationService');
+const cronJobService = require('./services/cronJobService');
 
 // Load environment variables
 dotenv.config();
@@ -37,6 +41,26 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 };
+
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: process.env.NODE_ENV === 'production',
+  crossOriginEmbedderPolicy: false
+}));
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', limiter);
 
 // Middleware
 app.use(cors(corsOptions));
@@ -72,6 +96,14 @@ app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api', require('./routes/lessonRoutes'));
 app.use('/api', require('./routes/assignmentRoutes'));
 app.use('/api/certificates', require('./routes/certificateRoutes'));
+
+// New feature routes
+app.use('/api/payments', require('./routes/paymentRoutes'));
+app.use('/api/coupons', require('./routes/couponRoutes'));
+app.use('/api/discussions', require('./routes/discussionRoutes'));
+app.use('/api/reviews', require('./routes/reviewRoutes'));
+app.use('/api/study-groups', require('./routes/studyGroupRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
 
 // 404 Handler
 app.use('*', (req, res) => {
@@ -148,13 +180,45 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
   console.log(`🌐 API Health Check: http://localhost:${PORT}/api/health`);
+  
+  // Initialize services
+  if (process.env.NODE_ENV !== 'test') {
+    // Initialize Socket.IO for real-time notifications
+    notificationService.initSocketIO(server);
+    console.log('📡 Socket.IO initialized for real-time notifications');
+    
+    // Initialize cron jobs
+    cronJobService.init();
+    console.log('⏰ Cron job service initialized');
+  }
 });
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {
   console.log('Unhandled Rejection:', err.message);
+  // Stop cron jobs before shutting down
+  cronJobService.stopAllJobs();
   server.close(() => {
     process.exit(1);
+  });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM received. Shutting down gracefully...');
+  cronJobService.stopAllJobs();
+  server.close(() => {
+    console.log('💤 Process terminated');
+    process.exit(0);
+  });
+});
+
+process.on('SIGINT', () => {
+  console.log('👋 SIGINT received. Shutting down gracefully...');
+  cronJobService.stopAllJobs();
+  server.close(() => {
+    console.log('💤 Process terminated');
+    process.exit(0);
   });
 });
 

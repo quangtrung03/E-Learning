@@ -106,7 +106,7 @@ const Home = () => {
               ) : (
                 <>
                   <Link to="/dashboard">
-                    <Button size="lg" className="bg-white text-blue-600 hover:bg-gray-100 px-8 py-4">
+                    <Button size="lg" className="bg- text-blue-600 hover:bg-gray-100 px-8 py-4">
                       Vào Dashboard
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
@@ -118,12 +118,6 @@ const Home = () => {
                   </Link>
                 </>
               )}
-              <Link to="/theme-settings">
-                <Button variant="ghost" size="lg" className="text-white hover:bg-white/10 px-6 py-4">
-                  <Palette className="w-5 h-5 mr-2" />
-                  Tùy chỉnh giao diện
-                </Button>
-              </Link>
             </motion.div>
           </div>
         </div>

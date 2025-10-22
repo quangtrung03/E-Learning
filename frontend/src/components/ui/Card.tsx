@@ -1,5 +1,3 @@
-import { useThemeClasses } from '../../themes';
-
 interface CardProps {
   children: React.ReactNode;
   className?: string;
@@ -42,12 +40,11 @@ const CardComponent: React.FC<CardProps> = ({
   rounded = 'lg',
   hoverable = false,
 }) => {
-  const { getCardClass } = useThemeClasses();
-  
+  const defaultCardClass = 'bg-white border border-gray-200';
   return (
     <div
       className={`
-        ${getCardClass()}
+        ${defaultCardClass}
         ${paddingStyles[padding]}
         ${shadowStyles[shadow]}
         ${roundedStyles[rounded]}
