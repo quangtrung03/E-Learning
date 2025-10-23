@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
 import { Button } from '../components/ui';
 import { Card } from '../components/ui';
@@ -31,7 +30,6 @@ interface Course {
 }
 
 const MyCourses = () => {
-  const { user } = useAuth();
   const [createdCourses, setCreatedCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [activeTab, setActiveTab] = useState<'created' | 'enrolled'>('created');
