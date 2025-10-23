@@ -13,7 +13,14 @@ const {
   rejectAdminRequest,
   getCourseDetail,
   getUserDetail,
-  makeUserAdmin
+  makeUserAdmin,
+  requestAdminRole,
+  validateAdminToken,
+  submitAdminRequest,
+  getAdminRequestsForApproval,
+  getAdminRequestDetail,
+  approveAdminRequestDetailed,
+  rejectAdminRequestDetailed
 } = require('../controllers/adminController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -264,10 +271,23 @@ router.put('/users/:id/make-admin', makeUserAdmin);
 router.get('/courses/:id', getCourseDetail);
 
 // Admin Request routes
+// Old admin request routes (legacy)
 router.get('/admin-requests', getAdminRequests);
 router.put('/admin-requests/:id/approve', approveAdminRequest);
 router.put('/admin-requests/:id/reject', [
   body('reason').optional().isLength({ max: 500 }).withMessage('Lý do không được quá 500 ký tự')
 ], rejectAdminRequest);
+
+// New detailed admin request management routes
+router.get('/requests', getAdminRequestsForApproval);
+router.get('/requests/:id', getAdminRequestDetail);
+router.put('/requests/:id/approve', approveAdminRequestDetailed);
+router.put('/requests/:id/reject', [
+  body('rejectionReason')
+    .notEmpty()
+    .withMessage('Vui lòng nhập lý do từ chối')
+    .isLength({ max: 500 })
+    .withMessage('Lý do từ chối không được quá 500 ký tự')
+], rejectAdminRequestDetailed);
 
 module.exports = router;

@@ -20,6 +20,8 @@ import AdminUserDetail from './pages/AdminUserDetail';
 import AdminCourseDetail from './pages/AdminCourseDetail';
 import AssignmentDetail from './pages/AssignmentDetail';
 import MyCertificates from './pages/MyCertificates';
+import AdminRequestForm from './pages/AdminRequestForm';
+import AdminRequestManagement from './pages/AdminRequestManagement';
 import { useAuth } from './context/AuthContext';
 
 // Protected Route Component
@@ -50,6 +52,17 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   return !isAuthenticated ? <>{children}</> : <Navigate to="/dashboard" replace />;
+};
+
+// Admin Route Component (require admin role)
+const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+
+  if (!user?.isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 function App() {
@@ -174,6 +187,23 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          
+          {/* Admin Request Routes */}
+          <Route 
+            path="/admin/validate/:token" 
+            element={<AdminRequestForm />} 
+          />
+          <Route 
+            path="/admin/requests" 
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminRequestManagement />
+                </AdminRoute>
+              </ProtectedRoute>
+            } 
+          />
+          
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

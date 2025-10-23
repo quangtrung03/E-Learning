@@ -4,6 +4,232 @@ const User = require('../models/User');
 const AdminRequest = require('../models/AdminRequest');
 const emailService = require('../config/email-new');
 
+// ====================== ADMIN REQUEST MANAGEMENT ======================
+
+// @desc    Gửi yêu cầu làm admin (Bước 1)
+// @route   POST /api/admin/request
+// @access  Private (User)
+const requestAdminRole = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (user.isAdmin) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn đã là admin rồi'
+      });
+    }
+
+    // Kiểm tra xem user đã có request pending chưa
+    const existingRequest = await AdminRequest.findOne({
+      user: req.user.id,
+      status: { $in: ['pending_validation', 'pending_approval'] }
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bạn đã có yêu cầu đang chờ xử lý'
+      });
+    }
+
+    // Tạo admin request mới
+    const adminRequest = new AdminRequest({
+      user: req.user.id,
+      email: user.email
+    });
+
+    await adminRequest.save();
+
+    // Gửi email với link validation
+    const validationURL = adminRequest.getValidationURL(process.env.FRONTEND_URL || 'http://localhost:3000');
+    
+    const emailTemplate = {
+      to: user.email,
+      subject: 'Xác thực yêu cầu trở thành Admin',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Xác thực yêu cầu trở thành Admin</h2>
+          <p>Xin chào <strong>${user.name}</strong>,</p>
+          <p>Chúng tôi đã nhận được yêu cầu trở thành Admin từ tài khoản của bạn.</p>
+          <p>Để tiếp tục, vui lòng nhấp vào link dưới đây để điền thông tin chi tiết:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${validationURL}" 
+               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              Điền thông tin chi tiết
+            </a>
+          </div>
+          <p><strong>Lưu ý:</strong> Link này có hiệu lực trong 24 giờ.</p>
+          <p>Nếu bạn không gửi yêu cầu này, vui lòng bỏ qua email này.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 12px; color: #6b7280;">
+            Email này được gửi từ hệ thống E-Learning Platform
+          </p>
+        </div>
+      `
+    };
+
+    await emailService.sendEmail(emailTemplate);
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã gửi link xác thực đến email của bạn. Vui lòng kiểm tra email và hoàn tất thông tin.',
+      data: {
+        requestId: adminRequest._id,
+        validationExpires: adminRequest.validationTokenExpires
+      }
+    });
+
+  } catch (error) {
+    console.error('Error requesting admin role:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi gửi yêu cầu admin',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Xác thực token và hiển thị form (Bước 2)
+// @route   GET /api/admin/validate/:token
+// @access  Public
+const validateAdminToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+    
+    const adminRequest = await AdminRequest.findOne({
+      validationToken: token
+    }).populate('user', 'name email');
+
+    if (!adminRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Token không hợp lệ'
+      });
+    }
+
+    if (!adminRequest.isTokenValid()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token đã hết hạn'
+      });
+    }
+
+    if (adminRequest.isValidated) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu đã được xác thực rồi'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Token hợp lệ',
+      data: {
+        requestId: adminRequest._id,
+        user: adminRequest.user,
+        email: adminRequest.email
+      }
+    });
+
+  } catch (error) {
+    console.error('Error validating admin token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi xác thực token',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Submit thông tin chi tiết admin request (Bước 3)
+// @route   POST /api/admin/submit-request
+// @access  Public
+const submitAdminRequest = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu không hợp lệ',
+        errors: errors.array()
+      });
+    }
+
+    const { 
+      token, 
+      fullName, 
+      citizenId, 
+      dateOfBirth, 
+      phone, 
+      address, 
+      occupation, 
+      experience, 
+      reason 
+    } = req.body;
+
+    const adminRequest = await AdminRequest.findOne({
+      validationToken: token
+    });
+
+    if (!adminRequest || !adminRequest.isTokenValid()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token không hợp lệ hoặc đã hết hạn'
+      });
+    }
+
+    if (adminRequest.isValidated) {
+      return res.status(400).json({
+        success: false,
+        message: 'Yêu cầu đã được xác thực rồi'
+      });
+    }
+
+    // Kiểm tra CCCD trùng lặp
+    const existingCitizenId = await AdminRequest.findOne({
+      citizenId,
+      _id: { $ne: adminRequest._id }
+    });
+
+    if (existingCitizenId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Số CCCD này đã được sử dụng cho yêu cầu khác'
+      });
+    }
+
+    // Cập nhật thông tin chi tiết
+    adminRequest.fullName = fullName;
+    adminRequest.citizenId = citizenId;
+    adminRequest.dateOfBirth = new Date(dateOfBirth);
+    adminRequest.phone = phone;
+    adminRequest.address = address;
+    adminRequest.occupation = occupation;
+    adminRequest.experience = experience;
+    adminRequest.reason = reason;
+
+    await adminRequest.markAsValidated();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã gửi yêu cầu thành công! Chúng tôi sẽ xem xét và phản hồi trong thời gian sớm nhất.',
+      data: {
+        requestId: adminRequest._id,
+        status: adminRequest.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Error submitting admin request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi gửi yêu cầu',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Lấy danh sách khóa học cần duyệt
 // @route   GET /api/admin/courses/pending
 // @access  Private (Admin only)
@@ -666,6 +892,256 @@ const makeUserAdmin = async (req, res) => {
   }
 };
 
+// ====================== ADMIN REQUEST APPROVAL MANAGEMENT ======================
+
+// @desc    Lấy danh sách admin requests cần duyệt
+// @route   GET /api/admin/requests
+// @access  Private (Admin only)
+const getAdminRequestsForApproval = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, status } = req.query;
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (status && ['pending_approval', 'approved', 'rejected'].includes(status)) {
+      filter.status = status;
+    } else {
+      filter.status = { $in: ['pending_approval', 'approved', 'rejected'] };
+    }
+
+    const adminRequests = await AdminRequest.find(filter)
+      .populate('user', 'name email avatar')
+      .populate('processedBy', 'name email')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await AdminRequest.countDocuments(filter);
+
+    res.status(200).json({
+      success: true,
+      count: adminRequests.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: {
+        requests: adminRequests
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting admin requests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách admin requests',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy chi tiết admin request
+// @route   GET /api/admin/requests/:id
+// @access  Private (Admin only)
+const getAdminRequestDetail = async (req, res) => {
+  try {
+    const adminRequest = await AdminRequest.findById(req.params.id)
+      .populate('user', 'name email avatar createdAt')
+      .populate('processedBy', 'name email');
+
+    if (!adminRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy admin request'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        request: adminRequest
+      }
+    });
+
+  } catch (error) {
+    console.error('Error getting admin request detail:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy chi tiết admin request',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Duyệt admin request
+// @route   PUT /api/admin/requests/:id/approve
+// @access  Private (Admin only)
+const approveAdminRequestDetailed = async (req, res) => {
+  try {
+    const adminRequest = await AdminRequest.findById(req.params.id).populate('user');
+
+    if (!adminRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy admin request'
+      });
+    }
+
+    if (adminRequest.status !== 'pending_approval') {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin request không ở trạng thái chờ duyệt'
+      });
+    }
+
+    // Cập nhật user thành admin
+    const user = adminRequest.user;
+    user.isAdmin = true;
+    user.adminRequestPending = false;
+    await user.save();
+
+    // Cập nhật admin request
+    adminRequest.status = 'approved';
+    adminRequest.processedBy = req.user.id;
+    adminRequest.processedAt = new Date();
+    await adminRequest.save();
+
+    // Gửi email thông báo
+    const emailTemplate = {
+      to: user.email,
+      subject: 'Yêu cầu trở thành Admin đã được duyệt',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #16a34a;">Chúc mừng! Yêu cầu của bạn đã được duyệt</h2>
+          <p>Xin chào <strong>${user.name}</strong>,</p>
+          <p>Chúng tôi vui mừng thông báo rằng yêu cầu trở thành Admin của bạn đã được <strong style="color: #16a34a;">chấp thuận</strong>.</p>
+          <p>Bạn hiện đã có quyền truy cập vào tất cả các chức năng quản trị của hệ thống.</p>
+          <div style="background-color: #f0fdf4; border-left: 4px solid #16a34a; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>Quyền hạn mới của bạn bao gồm:</strong></p>
+            <ul style="margin: 10px 0 0 20px;">
+              <li>Quản lý khóa học</li>
+              <li>Quản lý người dùng</li>
+              <li>Duyệt yêu cầu admin</li>
+              <li>Truy cập báo cáo thống kê</li>
+            </ul>
+          </div>
+          <p>Vui lòng sử dụng quyền hạn này một cách có trách nhiệm.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 12px; color: #6b7280;">
+            Email này được gửi từ hệ thống E-Learning Platform
+          </p>
+        </div>
+      `
+    };
+
+    await emailService.sendEmail(emailTemplate);
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã duyệt admin request thành công',
+      data: {
+        request: adminRequest,
+        user: {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          isAdmin: user.isAdmin
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error approving admin request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi duyệt admin request',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Từ chối admin request
+// @route   PUT /api/admin/requests/:id/reject
+// @access  Private (Admin only)
+const rejectAdminRequestDetailed = async (req, res) => {
+  try {
+    const { rejectionReason } = req.body;
+
+    if (!rejectionReason || rejectionReason.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập lý do từ chối'
+      });
+    }
+
+    const adminRequest = await AdminRequest.findById(req.params.id).populate('user');
+
+    if (!adminRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy admin request'
+      });
+    }
+
+    if (adminRequest.status !== 'pending_approval') {
+      return res.status(400).json({
+        success: false,
+        message: 'Admin request không ở trạng thái chờ duyệt'
+      });
+    }
+
+    // Cập nhật admin request
+    adminRequest.status = 'rejected';
+    adminRequest.processedBy = req.user.id;
+    adminRequest.processedAt = new Date();
+    adminRequest.rejectionReason = rejectionReason.trim();
+    await adminRequest.save();
+
+    // Gửi email thông báo
+    const user = adminRequest.user;
+    const emailTemplate = {
+      to: user.email,
+      subject: 'Yêu cầu trở thành Admin đã bị từ chối',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc2626;">Yêu cầu trở thành Admin bị từ chối</h2>
+          <p>Xin chào <strong>${user.name}</strong>,</p>
+          <p>Chúng tôi rất tiếc phải thông báo rằng yêu cầu trở thành Admin của bạn đã bị <strong style="color: #dc2626;">từ chối</strong>.</p>
+          <div style="background-color: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>Lý do từ chối:</strong></p>
+            <p style="margin: 8px 0 0 0;">${rejectionReason}</p>
+          </div>
+          <p>Bạn có thể gửi lại yêu cầu sau khi khắc phục các vấn đề được nêu ra.</p>
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="font-size: 12px; color: #6b7280;">
+            Email này được gửi từ hệ thống E-Learning Platform
+          </p>
+        </div>
+      `
+    };
+
+    await emailService.sendEmail(emailTemplate);
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã từ chối admin request',
+      data: {
+        request: adminRequest
+      }
+    });
+
+  } catch (error) {
+    console.error('Error rejecting admin request:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi từ chối admin request',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getPendingCourses,
   approveCourse,
@@ -679,5 +1155,14 @@ module.exports = {
   rejectAdminRequest,
   getCourseDetail,
   getUserDetail,
-  makeUserAdmin
+  makeUserAdmin,
+  
+  // New admin request controllers
+  requestAdminRole,
+  validateAdminToken,
+  submitAdminRequest,
+  getAdminRequestsForApproval,
+  getAdminRequestDetail,
+  approveAdminRequestDetailed,
+  rejectAdminRequestDetailed
 };

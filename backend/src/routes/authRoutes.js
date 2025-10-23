@@ -11,6 +11,12 @@ const {
   resetPassword,
   verifyResetToken
 } = require('../controllers/authController');
+
+const {
+  requestAdminRole,
+  validateAdminToken,
+  submitAdminRequest
+} = require('../controllers/adminController');
 const { protect } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 
@@ -346,5 +352,166 @@ router.get('/verify-reset-token/:token', verifyResetToken);
  *         description: Lỗi server
  */
 router.post('/reset-password', resetPasswordValidation, resetPassword);
+
+// ====================== ADMIN REQUEST ROUTES ======================
+
+/**
+ * @swagger
+ * /auth/admin/request:
+ *   post:
+ *     summary: Gửi yêu cầu trở thành admin (Bước 1)
+ *     tags: [Authentication]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Đã gửi link xác thực đến email
+ *       400:
+ *         description: Đã là admin hoặc có yêu cầu pending
+ *       401:
+ *         description: Chưa đăng nhập
+ */
+router.post('/admin/request', protect, requestAdminRole);
+
+/**
+ * @swagger
+ * /auth/admin/validate/{token}:
+ *   get:
+ *     summary: Xác thực token và lấy thông tin request (Bước 2)
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Validation token
+ *     responses:
+ *       200:
+ *         description: Token hợp lệ, có thể điền form
+ *       400:
+ *         description: Token không hợp lệ hoặc hết hạn
+ *       404:
+ *         description: Token không tồn tại
+ */
+router.get('/admin/validate/:token', validateAdminToken);
+
+/**
+ * @swagger
+ * /auth/admin/submit-request:
+ *   post:
+ *     summary: Gửi thông tin chi tiết admin request (Bước 3)
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - fullName
+ *               - citizenId
+ *               - dateOfBirth
+ *               - phone
+ *               - address
+ *               - reason
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Validation token
+ *               fullName:
+ *                 type: string
+ *                 maxLength: 100
+ *                 description: Họ tên đầy đủ
+ *               citizenId:
+ *                 type: string
+ *                 minLength: 9
+ *                 maxLength: 12
+ *                 description: Số CCCD
+ *               dateOfBirth:
+ *                 type: string
+ *                 format: date
+ *                 description: Ngày sinh
+ *               phone:
+ *                 type: string
+ *                 pattern: '^[0-9]{10,11}$'
+ *                 description: Số điện thoại
+ *               address:
+ *                 type: string
+ *                 maxLength: 200
+ *                 description: Địa chỉ
+ *               occupation:
+ *                 type: string
+ *                 maxLength: 100
+ *                 description: Nghề nghiệp
+ *               experience:
+ *                 type: string
+ *                 maxLength: 1000
+ *                 description: Kinh nghiệm
+ *               reason:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Lý do muốn làm admin
+ *     responses:
+ *       200:
+ *         description: Gửi yêu cầu thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ hoặc token hết hạn
+ */
+const submitAdminRequestValidation = [
+  body('token')
+    .notEmpty()
+    .withMessage('Token là bắt buộc'),
+  body('fullName')
+    .trim()
+    .notEmpty()
+    .withMessage('Họ tên là bắt buộc')
+    .isLength({ max: 100 })
+    .withMessage('Họ tên không được quá 100 ký tự'),
+  body('citizenId')
+    .trim()
+    .notEmpty()
+    .withMessage('Số CCCD là bắt buộc')
+    .isLength({ min: 9, max: 12 })
+    .withMessage('Số CCCD phải có từ 9-12 ký tự')
+    .matches(/^[0-9]+$/)
+    .withMessage('Số CCCD chỉ được chứa số'),
+  body('dateOfBirth')
+    .notEmpty()
+    .withMessage('Ngày sinh là bắt buộc')
+    .isISO8601()
+    .withMessage('Ngày sinh không hợp lệ'),
+  body('phone')
+    .trim()
+    .notEmpty()
+    .withMessage('Số điện thoại là bắt buộc')
+    .matches(/^[0-9]{10,11}$/)
+    .withMessage('Số điện thoại phải có 10-11 số'),
+  body('address')
+    .trim()
+    .notEmpty()
+    .withMessage('Địa chỉ là bắt buộc')
+    .isLength({ max: 200 })
+    .withMessage('Địa chỉ không được quá 200 ký tự'),
+  body('occupation')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('Nghề nghiệp không được quá 100 ký tự'),
+  body('experience')
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Kinh nghiệm không được quá 1000 ký tự'),
+  body('reason')
+    .trim()
+    .notEmpty()
+    .withMessage('Lý do muốn làm admin là bắt buộc')
+    .isLength({ max: 500 })
+    .withMessage('Lý do không được quá 500 ký tự')
+];
+
+router.post('/admin/submit-request', submitAdminRequestValidation, submitAdminRequest);
 
 module.exports = router;

@@ -206,7 +206,7 @@ const AdminDashboard = () => {
 
       <div className="container-custom py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
           <Link to="/admin/users">
             <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center justify-between">
@@ -280,6 +280,22 @@ const AdminDashboard = () => {
               </div>
             </div>
           </Card>
+
+          <Link to="/admin/requests">
+            <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Admin Requests</p>
+                  <p className="text-3xl font-bold text-indigo-600">-</p>
+                </div>
+                <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                </div>
+              </div>
+            </Card>
+          </Link>
         </div>
 
         {/* Pending Courses */}
