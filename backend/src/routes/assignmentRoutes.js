@@ -97,6 +97,59 @@ router.get('/courses/:courseId/assignments', protect, getAssignmentsByCourse);
 
 /**
  * @swagger
+ * /api/courses/{courseId}/assignments:
+ *   post:
+ *     summary: Tạo assignment cho khóa học
+ *     tags: [Assignments]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: courseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *               - type
+ *               - questions
+ *               - passingScore
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [quiz, essay, project, coding]
+ *               questions:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               passingScore:
+ *                 type: number
+ *               maxAttempts:
+ *                 type: number
+ *               timeLimit:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Tạo bài tập thành công
+ *       400:
+ *         description: Dữ liệu không hợp lệ
+ */
+router.post('/courses/:courseId/assignments', protect, requireInstructor, assignmentValidation, createAssignment);
+
+/**
+ * @swagger
  * /api/assignments/{id}:
  *   get:
  *     summary: Lấy thông tin chi tiết assignment

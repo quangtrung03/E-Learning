@@ -1,4 +1,5 @@
 const { validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Course = require('../models/Course');
 const User = require('../models/User');
@@ -29,7 +30,7 @@ const createReview = async (req, res) => {
     }
 
     // Kiểm tra user đã enroll course chưa
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     const enrollment = user.enrolledCourses.find(
       enrollment => enrollment.course.toString() === courseId
     );
@@ -44,7 +45,7 @@ const createReview = async (req, res) => {
     // Kiểm tra đã review chưa
     const existingReview = await Review.findOne({
       course: courseId,
-      reviewer: req.user.id
+      user: req.user._id
     });
 
     if (existingReview) {
@@ -57,20 +58,22 @@ const createReview = async (req, res) => {
     // Tính completion percentage
     const completionPercentage = enrollment.progress || 0;
 
+    // Build aspects object, only include non-null values
+    const aspects = {};
+    if (req.body.ratings?.content) aspects.contentQuality = req.body.ratings.content;
+    if (req.body.ratings?.instructor) aspects.instructorQuality = req.body.ratings.instructor;
+    if (req.body.ratings?.structure) aspects.courseStructure = req.body.ratings.structure;
+    if (req.body.ratings?.value) aspects.valueForMoney = req.body.ratings.value;
+    if (req.body.ratings?.difficulty) aspects.difficulty = req.body.ratings.difficulty;
+
     const review = new Review({
       course: courseId,
-      reviewer: req.user.id,
-      rating: {
-        overall: rating,
-        content: req.body.ratings?.content || rating,
-        instructor: req.body.ratings?.instructor || rating,
-        difficulty: req.body.ratings?.difficulty || 3,
-        value: req.body.ratings?.value || rating
-      },
+      user: req.user._id, // Use 'user' not 'reviewer'
+      rating: rating, // Use simple number, not object
       comment,
-      anonymous: anonymous || false,
+      aspects,
       completionPercentage,
-      reviewDate: new Date(),
+      verified: completionPercentage >= 50, // Mark as verified if >50% complete
       metadata: {
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -86,8 +89,8 @@ const createReview = async (req, res) => {
     // Populate dữ liệu để response
     await review.populate([
       { 
-        path: 'reviewer', 
-        select: anonymous ? 'name' : 'name avatar' 
+        path: 'user', 
+        select: 'name avatar' // Always show user info for now
       },
       { path: 'course', select: 'title' }
     ]);
@@ -504,14 +507,14 @@ const getMyReviews = async (req, res) => {
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
 
-    const reviews = await Review.find({ reviewer: req.user.id })
+    const reviews = await Review.find({ reviewer: req.user._id })
       .populate('course', 'title thumbnail instructor')
       .populate('course.instructor', 'name')
       .sort({ reviewDate: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
-    const total = await Review.countDocuments({ reviewer: req.user.id });
+    const total = await Review.countDocuments({ reviewer: req.user._id });
 
     res.status(200).json({
       success: true,
@@ -665,6 +668,163 @@ async function updateCourseRating(courseId) {
   }
 }
 
+// @desc    Báo cáo review không phù hợp
+// @route   POST /api/reviews/:id/report
+// @access  Private
+const reportReview = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu không hợp lệ',
+        errors: errors.array()
+      });
+    }
+
+    const { reason, description } = req.body;
+    const reviewId = req.params.id;
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy đánh giá'
+      });
+    }
+
+    // Thêm report vào review
+    const report = {
+      reportedBy: req.user._id,
+      reason,
+      description: description || '',
+      createdAt: new Date()
+    };
+
+    review.reports.push(report);
+    review.reportCount = review.reports.length;
+    await review.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã báo cáo đánh giá thành công',
+      data: {
+        review
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi báo cáo đánh giá',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy reviews của user
+// @route   GET /api/reviews/users/:userId/reviews
+// @access  Public
+const getUserReviews = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+    const userId = req.params.userId;
+
+    const reviews = await Review.find({ user: userId })
+      .populate('course', 'title thumbnail')
+      .populate('user', 'name avatar')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Review.countDocuments({ user: userId });
+
+    res.status(200).json({
+      success: true,
+      count: reviews.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: {
+        reviews
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy reviews của user',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy thống kê reviews theo course
+// @route   GET /api/reviews/course/:courseId/stats
+// @access  Public
+const getReviewStats = async (req, res) => {
+  try {
+    const courseId = req.params.courseId;
+
+    const stats = await Review.aggregate([
+      {
+        $match: { 
+          course: new mongoose.Types.ObjectId(courseId),
+          isModerated: { $ne: true }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 },
+          ratings: {
+            $push: '$rating'
+          }
+        }
+      }
+    ]);
+
+    if (stats.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          averageRating: 0,
+          totalReviews: 0,
+          ratingDistribution: {
+            5: 0, 4: 0, 3: 0, 2: 0, 1: 0
+          }
+        }
+      });
+    }
+
+    const { averageRating, totalReviews, ratings } = stats[0];
+
+    // Tính phân bố rating
+    const ratingDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    ratings.forEach(rating => {
+      ratingDistribution[rating]++;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        averageRating: Math.round(averageRating * 10) / 10,
+        totalReviews,
+        ratingDistribution
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy thống kê reviews',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createReview,
   getReviewsByCourse,
@@ -672,6 +832,9 @@ module.exports = {
   updateReview,
   deleteReview,
   markReviewHelpful,
+  reportReview,
+  getUserReviews,
+  getReviewStats,
   respondToReview,
   getMyReviews,
   getPendingReviews,

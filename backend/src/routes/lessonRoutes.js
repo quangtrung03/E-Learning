@@ -108,7 +108,7 @@ const lessonValidation = [
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.get('/courses/:courseId/lessons', getLessonsByCourse);
+router.get('/courses/:courseId/lessons', protect, getLessonsByCourse);
 
 /**
  * @swagger
@@ -224,7 +224,7 @@ router.use(protect);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.post('/courses/:courseId/lessons', lessonValidation, createLesson);
+router.post('/courses/:courseId/lessons', protect, lessonValidation, createLesson);
 
 /**
  * @swagger

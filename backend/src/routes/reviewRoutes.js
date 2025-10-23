@@ -178,6 +178,24 @@ router.post('/', createReviewValidation, createReview);
 
 /**
  * @swagger
+ * /reviews/my-reviews:
+ *   get:
+ *     summary: Lấy đánh giá của tôi
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách thành công
+ */
+router.get('/my-reviews', protect, (req, res) => {
+  // Redirect to getUserReviews with current user's ID
+  req.params.userId = req.user._id;
+  return getUserReviews(req, res);
+});
+
+/**
+ * @swagger
  * /reviews/{id}:
  *   get:
  *     summary: Lấy chi tiết đánh giá
@@ -420,7 +438,7 @@ router.get('/users/:userId/reviews', getUserReviews);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.get('/course/:courseId', getReviewsByCourse);
+router.get('/course/:courseId', protect, getReviewsByCourse);
 
 /**
  * @swagger
@@ -470,7 +488,7 @@ router.get('/course/:courseId', getReviewsByCourse);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.get('/course/:courseId/stats', getReviewStats);
+router.get('/course/:courseId/stats', protect, getReviewStats);
 
 // Admin routes
 /**

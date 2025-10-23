@@ -28,7 +28,7 @@ const getAssignmentsByCourse = async (req, res) => {
     if (status) query.isPublished = status === 'published';
 
     // If not instructor or admin, only show published assignments
-    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+    if (course.instructor.toString() !== req.user._id.toString() && !req.user.isAdmin) {
       query.isPublished = true;
       query.startDate = { $lte: new Date() };
     }
@@ -47,7 +47,7 @@ const getAssignmentsByCourse = async (req, res) => {
       assignments.map(async (assignment) => {
         const submission = await Submission.findOne({
           assignment: assignment._id,
-          student: req.user.id
+          student: req.user._id
         }).sort({ attemptNumber: -1 });
 
         return {
@@ -99,9 +99,9 @@ const getAssignment = async (req, res) => {
 
     // Check access permissions
     const course = await Course.findById(assignment.course._id);
-    const isInstructor = course.instructor.toString() === req.user.id;
+    const isInstructor = course.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.isAdmin;
-    const isEnrolled = await User.findById(req.user.id).populate('enrolledCourses.course');
+    const isEnrolled = await User.findById(req.user._id).populate('enrolledCourses.course');
     const hasAccess = isInstructor || isAdmin || 
       isEnrolled.enrolledCourses.some(ec => ec.course._id.toString() === assignment.course._id.toString());
 
@@ -123,7 +123,7 @@ const getAssignment = async (req, res) => {
     // Get user's submissions
     const submissions = await Submission.find({
       assignment: assignment._id,
-      student: req.user.id
+      student: req.user._id
     }).sort({ attemptNumber: -1 });
 
     res.status(200).json({
@@ -144,7 +144,7 @@ const getAssignment = async (req, res) => {
 };
 
 // @desc    Tạo assignment mới
-// @route   POST /api/assignments
+// @route   POST /api/assignments hoặc POST /api/courses/:courseId/assignments
 // @access  Private (Instructors and Admins)
 const createAssignment = async (req, res) => {
   try {
@@ -157,8 +157,11 @@ const createAssignment = async (req, res) => {
       });
     }
 
+    // Get course ID from params or body
+    const courseId = req.params.courseId || req.body.course;
+    
     // Check if user owns the course
-    const course = await Course.findById(req.body.course);
+    const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({
         success: false,
@@ -166,7 +169,7 @@ const createAssignment = async (req, res) => {
       });
     }
 
-    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+    if (course.instructor.toString() !== req.user._id.toString() && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Bạn chỉ có thể tạo bài tập cho khóa học của mình'
@@ -178,7 +181,8 @@ const createAssignment = async (req, res) => {
 
     const assignment = await Assignment.create({
       ...req.body,
-      instructor: req.user.id,
+      course: courseId,
+      instructor: req.user._id,
       totalPoints
     });
 

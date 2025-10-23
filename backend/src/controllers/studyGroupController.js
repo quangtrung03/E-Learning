@@ -730,14 +730,119 @@ const deleteStudyGroup = async (req, res) => {
   }
 };
 
+// @desc    Lấy tất cả study groups (có filter)
+// @route   GET /api/study-groups
+// @access  Private
+const getStudyGroups = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 10, 
+      course,
+      studyLevel, 
+      language,
+      search,
+      sortBy = 'memberCount',
+      sortOrder = 'desc'
+    } = req.query;
+    
+    const skip = (page - 1) * limit;
+
+    let query = { 
+      status: 'active'
+    };
+
+    // Chỉ hiển thị public groups hoặc groups mà user đã join
+    query.$or = [
+      { isPrivate: false },
+      { 'members.user': req.user.id }
+    ];
+
+    if (course) query.course = course;
+    if (studyLevel) query.studyLevel = studyLevel;
+    if (language) query.language = language;
+    
+    if (search) {
+      query.$and = [
+        query.$or ? { $or: query.$or } : {},
+        {
+          $or: [
+            { name: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } }
+          ]
+        }
+      ];
+      delete query.$or;
+    }
+
+    const sortOptions = {};
+    switch (sortBy) {
+      case 'newest':
+        sortOptions.createdAt = -1;
+        break;
+      case 'oldest':
+        sortOptions.createdAt = 1;
+        break;
+      case 'name':
+        sortOptions.name = sortOrder === 'desc' ? -1 : 1;
+        break;
+      case 'memberCount':
+      default:
+        sortOptions.currentMemberCount = sortOrder === 'desc' ? -1 : 1;
+        break;
+    }
+
+    const studyGroups = await StudyGroup.find(query)
+      .populate('creator', 'name avatar')
+      .populate('course', 'title thumbnail')
+      .populate('members.user', 'name avatar')
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await StudyGroup.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: studyGroups.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      data: {
+        studyGroups
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách nhóm học tập',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createStudyGroup,
+  getStudyGroups,
   getStudyGroupsByCourse,
   getStudyGroup,
   joinStudyGroup,
   leaveStudyGroup,
   updateStudyGroup,
+  deleteStudyGroup,
   managePendingMember,
   getMyStudyGroups,
-  deleteStudyGroup
+  // Placeholder functions for routes - will implement if needed
+  inviteToGroup: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  approveJoinRequest: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  scheduleSession: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  updateSession: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  deleteSession: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  addResource: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  removeResource: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  getGroupAnalytics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' })
 };

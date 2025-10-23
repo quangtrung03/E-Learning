@@ -61,8 +61,11 @@ const reviewSchema = new mongoose.Schema({
     },
     difficulty: {
       type: String,
-      enum: ['very-easy', 'easy', 'medium', 'hard', 'very-hard'],
-      default: null
+      enum: {
+        values: ['very-easy', 'easy', 'medium', 'hard', 'very-hard'],
+        message: 'Difficulty must be one of: very-easy, easy, medium, hard, very-hard'
+      },
+      default: undefined // Use undefined instead of null for optional enum fields
     }
   },
   helpful: [{

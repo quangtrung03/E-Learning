@@ -149,7 +149,7 @@ const createCourse = async (req, res) => {
     const course = await Course.create(req.body);
     
     // Thêm course vào danh sách createdCourses của user
-    await User.findByIdAndUpdate(req.user.id, {
+    await User.findByIdAndUpdate(req.user._id, {
       $push: { createdCourses: course._id }
     });
     
@@ -184,7 +184,10 @@ const updateCourse = async (req, res) => {
     }
     
     // Kiểm tra quyền sở hữu (chỉ người tạo khóa học hoặc admin mới được cập nhật)
-    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+    const courseInstructor = course.instructor._id ? course.instructor._id.toString() : course.instructor.toString();
+    const currentUserId = req.user._id.toString();
+    
+    if (courseInstructor !== currentUserId && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Bạn chỉ có thể cập nhật khóa học do mình tạo'
@@ -227,7 +230,7 @@ const deleteCourse = async (req, res) => {
     }
     
     // Kiểm tra quyền sở hữu (chỉ người tạo khóa học hoặc admin mới được xóa)
-    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+    if (course.instructor.toString() !== req.user._id.toString() && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Bạn chỉ có thể xóa khóa học do mình tạo'
@@ -237,7 +240,7 @@ const deleteCourse = async (req, res) => {
     await Course.findByIdAndDelete(req.params.id);
     
     // Xóa course khỏi danh sách createdCourses của user
-    await User.findByIdAndUpdate(req.user.id, {
+    await User.findByIdAndUpdate(req.user._id, {
       $pull: { createdCourses: req.params.id }
     });
     
@@ -301,7 +304,7 @@ const enrollCourse = async (req, res) => {
     });
     
     // Thêm course vào enrolled courses của user
-    await User.findByIdAndUpdate(req.user.id, {
+    await User.findByIdAndUpdate(req.user._id, {
       $push: {
         enrolledCourses: {
           course: req.params.id,
@@ -340,7 +343,7 @@ const submitCourseForApproval = async (req, res) => {
     }
     
     // Kiểm tra quyền sở hữu
-    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+    if (course.instructor.toString() !== req.user._id.toString() && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Bạn chỉ có thể gửi duyệt khóa học do mình tạo'
@@ -380,11 +383,11 @@ const submitCourseForApproval = async (req, res) => {
 // @access  Private (Authenticated User)
 const getMyCourses = async (req, res) => {
   try {
-    console.log('🔍 getMyCourses called for user:', req.user.id);
+    console.log('🔍 getMyCourses called for user:', req.user._id);
     const { page = 1, limit = 10, status = '' } = req.query;
     const skip = (page - 1) * limit;
     
-    const query = { instructor: req.user.id };
+    const query = { instructor: req.user._id };
     console.log('📋 Query:', query);
     
     if (status) {
@@ -435,12 +438,12 @@ const getMyCourses = async (req, res) => {
 // @access  Private (Authenticated User)
 const getMyEnrolledCourses = async (req, res) => {
   try {
-    console.log('🔍 getMyEnrolledCourses called for user:', req.user.id);
+    console.log('🔍 getMyEnrolledCourses called for user:', req.user._id);
     const { page = 1, limit = 10 } = req.query;
     const skip = (page - 1) * limit;
     
     // Tìm user và populate enrolled courses
-    const user = await User.findById(req.user.id)
+    const user = await User.findById(req.user._id)
       .populate({
         path: 'enrolledCourses.course',
         select: 'title description category level price finalPrice discount duration status instructor students createdAt',
@@ -464,7 +467,7 @@ const getMyEnrolledCourses = async (req, res) => {
       .filter(enrollment => enrollment.course) // Chỉ lấy courses còn tồn tại
       .slice(skip, skip + parseInt(limit))
       .map(enrollment => ({
-        ...enrollment.course.toObject(),
+        ...enrollment.course,
         enrolledAt: enrollment.enrolledAt,
         progress: enrollment.progress
       }));

@@ -88,13 +88,13 @@ const getLesson = async (req, res) => {
 
     // Kiểm tra quyền xem bài học
     const course = lesson.course;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById(req.user._id);
     
     const isEnrolled = user.enrolledCourses.some(
       enrollment => enrollment.course.toString() === course._id.toString()
     );
     
-    const isInstructor = course.instructor.toString() === req.user.id;
+    const isInstructor = course.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.isAdmin;
 
     // Nếu là preview lesson thì ai cũng xem được
@@ -154,7 +154,10 @@ const createLesson = async (req, res) => {
     }
 
     // Kiểm tra quyền tạo bài học (chỉ instructor hoặc admin)
-    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+    const courseInstructor = course.instructor._id ? course.instructor._id.toString() : course.instructor.toString();
+    const currentUserId = req.user._id.toString();
+    
+    if (courseInstructor !== currentUserId && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Bạn chỉ có thể tạo bài học cho khóa học của mình'
@@ -207,7 +210,10 @@ const updateLesson = async (req, res) => {
     }
 
     // Kiểm tra quyền chỉnh sửa
-    if (lesson.course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+    const courseInstructor = lesson.course.instructor._id ? lesson.course.instructor._id.toString() : lesson.course.instructor.toString();
+    const currentUserId = req.user._id.toString();
+    
+    if (courseInstructor !== currentUserId && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Bạn chỉ có thể chỉnh sửa bài học của khóa học mình tạo'

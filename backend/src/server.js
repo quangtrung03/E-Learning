@@ -58,6 +58,22 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau'
+    });
+  },
+  onLimitReached: (req, res) => {
+    console.log(`Rate limit reached for IP: ${req.ip}`);
+  }
+});
+
+// Middleware để thêm rate limit headers cho tất cả responses
+app.use((req, res, next) => {
+  res.set('X-RateLimit-Limit', process.env.NODE_ENV === 'production' ? '100' : '1000');
+  res.set('X-RateLimit-Window', '900'); // 15 minutes in seconds
+  next();
 });
 
 app.use('/api/', limiter);

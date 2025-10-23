@@ -743,8 +743,16 @@ function generateCourseRecommendations(analytics, course) {
 
 module.exports = {
   getUserAnalytics,
-  updateLearningProgress,
   getCourseAnalytics,
-  getLearningRecommendations,
+  getInstructorAnalytics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  updateProgress: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  trackActivity: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  getRecommendations: getLearningRecommendations,
+  generateReport: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  getDashboardStats: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  getEngagementMetrics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  getLearningPath: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  exportAnalytics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  updateLearningProgress,
   setLearningGoals
 };

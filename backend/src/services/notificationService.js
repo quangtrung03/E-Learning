@@ -46,7 +46,7 @@ class NotificationService {
   // Khởi tạo email transporter
   initEmailTransporter() {
     if (process.env.EMAIL_SERVICE === 'gmail') {
-      this.emailTransporter = nodemailer.createTransporter({
+      this.emailTransporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: process.env.EMAIL_USER,
@@ -54,7 +54,7 @@ class NotificationService {
         }
       });
     } else {
-      this.emailTransporter = nodemailer.createTransporter({
+      this.emailTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: process.env.SMTP_PORT,
         secure: process.env.SMTP_PORT == 465,
