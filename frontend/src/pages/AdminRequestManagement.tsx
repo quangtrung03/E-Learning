@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 
@@ -32,7 +31,6 @@ interface AdminRequest {
 }
 
 const AdminRequestManagement: React.FC = () => {
-  const navigate = useNavigate();
   const { showToast } = useToast();
   
   const [requests, setRequests] = useState<AdminRequest[]>([]);

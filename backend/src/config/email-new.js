@@ -335,20 +335,93 @@ const sendAdminRequestNotification = async (data) => {
 };
 
 // Send welcome email
-const sendWelcomeEmail = async (userData) => {
+const sendWelcomeEmail = async (email, name) => {
   try {
     console.log('📧 Preparing welcome email...');
-    console.log('👤 User:', userData.name || userData.userName);
-    console.log('📧 Email:', userData.email);
+    console.log('👤 User:', name);
+    console.log('📧 Email:', email);
 
     const emailContent = emailTemplates.welcome({
-      userName: userData.name || userData.userName,
-      email: userData.email
+      userName: name,
+      email: email
     });
 
-    return await sendEmail(userData.email, emailContent.subject, emailContent.html);
+    return await sendEmail(email, emailContent.subject, emailContent.html);
   } catch (error) {
     console.error('❌ Failed to send welcome email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send password reset email
+const sendPasswordResetEmail = async (email, token, name) => {
+  try {
+    console.log('📧 Preparing password reset email...');
+    console.log('👤 User:', name);
+    console.log('📧 Email:', email);
+    console.log('🎫 Token:', token);
+
+    const emailContent = emailTemplates.passwordReset({
+      name,
+      token
+    });
+
+    return await sendEmail(email, emailContent.subject, emailContent.html);
+  } catch (error) {
+    console.error('❌ Failed to send password reset email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send password reset success email
+const sendPasswordResetSuccessEmail = async (email, name) => {
+  try {
+    console.log('📧 Preparing password reset success email...');
+    console.log('👤 User:', name);
+    console.log('📧 Email:', email);
+
+    const emailContent = {
+      subject: '✅ Mật khẩu đã được đặt lại thành công - E-Learning Platform',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>Mật khẩu đã được đặt lại</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+            .container { max-width: 600px; margin: 0 auto; background: white; }
+            .header { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 30px; text-align: center; }
+            .content { padding: 30px; }
+            .success-box { background: #d4edda; border: 2px solid #28a745; padding: 25px; border-radius: 10px; text-align: center; margin: 20px 0; }
+            .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; border-top: 1px solid #eee; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>✅ Mật khẩu đã được đặt lại</h1>
+            </div>
+            <div class="content">
+              <h2>Xin chào ${name}!</h2>
+              <div class="success-box">
+                <h3>🎉 Đặt lại mật khẩu thành công!</h3>
+                <p>Mật khẩu của bạn đã được thay đổi thành công. Bạn có thể đăng nhập bằng mật khẩu mới.</p>
+              </div>
+              <p>Nếu bạn không thực hiện thay đổi này, vui lòng liên hệ với chúng tôi ngay lập tức.</p>
+            </div>
+            <div class="footer">
+              <p>© 2025 E-Learning Platform</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `
+    };
+
+    return await sendEmail(email, emailContent.subject, emailContent.html);
+  } catch (error) {
+    console.error('❌ Failed to send password reset success email:', error);
     return { success: false, error: error.message };
   }
 };
@@ -358,6 +431,8 @@ module.exports = {
   sendVerificationEmail,
   sendAdminRequestNotification,
   sendWelcomeEmail,
+  sendPasswordResetEmail,
+  sendPasswordResetSuccessEmail,
   sendCourseApprovalEmail: async (data) => {
     try {
       const emailContent = {

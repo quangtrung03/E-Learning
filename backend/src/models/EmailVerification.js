@@ -22,7 +22,7 @@ const emailVerificationSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 600 // 10 minutes in seconds
+    expires: 86400 // 24 hours in seconds (consistent with isExpired method)
   },
   verified: {
     type: Boolean,
@@ -36,7 +36,7 @@ const emailVerificationSchema = new mongoose.Schema({
 // Indexes for performance
 emailVerificationSchema.index({ user: 1, verified: 1 });
 emailVerificationSchema.index({ token: 1 }, { unique: true });
-emailVerificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 86400 });
+// TTL index removed - using expires on createdAt field instead
 
 // Generate verification token
 emailVerificationSchema.methods.generateToken = function() {

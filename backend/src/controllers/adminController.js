@@ -44,10 +44,10 @@ const requestAdminRole = async (req, res) => {
     // Gửi email với link validation
     const validationURL = adminRequest.getValidationURL(process.env.FRONTEND_URL || 'http://localhost:3000');
     
-    const emailTemplate = {
-      to: user.email,
-      subject: 'Xác thực yêu cầu trở thành Admin',
-      html: `
+    const emailResult = await emailService.sendEmail(
+      user.email,
+      '✅ Xác thực yêu cầu trở thành Admin - E-Learning Platform',
+      `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2563eb;">Xác thực yêu cầu trở thành Admin</h2>
           <p>Xin chào <strong>${user.name}</strong>,</p>
@@ -67,9 +67,15 @@ const requestAdminRole = async (req, res) => {
           </p>
         </div>
       `
-    };
+    );
 
-    await emailService.sendEmail(emailTemplate);
+    if (!emailResult.success) {
+      console.error('Failed to send admin request email:', emailResult.error);
+      return res.status(500).json({
+        success: false,
+        message: 'Không thể gửi email xác thực. Vui lòng thử lại sau.'
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -1009,10 +1015,10 @@ const approveAdminRequestDetailed = async (req, res) => {
     await adminRequest.save();
 
     // Gửi email thông báo
-    const emailTemplate = {
-      to: user.email,
-      subject: 'Yêu cầu trở thành Admin đã được duyệt',
-      html: `
+    const emailResult = await emailService.sendEmail(
+      user.email,
+      'Yêu cầu trở thành Admin đã được duyệt - E-Learning Platform',
+      `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #16a34a;">Chúc mừng! Yêu cầu của bạn đã được duyệt</h2>
           <p>Xin chào <strong>${user.name}</strong>,</p>
@@ -1034,9 +1040,11 @@ const approveAdminRequestDetailed = async (req, res) => {
           </p>
         </div>
       `
-    };
+    );
 
-    await emailService.sendEmail(emailTemplate);
+    if (!emailResult.success) {
+      console.error('Failed to send approval email:', emailResult.error);
+    }
 
     res.status(200).json({
       success: true,
@@ -1101,10 +1109,10 @@ const rejectAdminRequestDetailed = async (req, res) => {
 
     // Gửi email thông báo
     const user = adminRequest.user;
-    const emailTemplate = {
-      to: user.email,
-      subject: 'Yêu cầu trở thành Admin đã bị từ chối',
-      html: `
+    const emailResult = await emailService.sendEmail(
+      user.email,
+      'Yêu cầu trở thành Admin đã bị từ chối - E-Learning Platform',
+      `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #dc2626;">Yêu cầu trở thành Admin bị từ chối</h2>
           <p>Xin chào <strong>${user.name}</strong>,</p>
@@ -1120,9 +1128,11 @@ const rejectAdminRequestDetailed = async (req, res) => {
           </p>
         </div>
       `
-    };
+    );
 
-    await emailService.sendEmail(emailTemplate);
+    if (!emailResult.success) {
+      console.error('Failed to send rejection email:', emailResult.error);
+    }
 
     res.status(200).json({
       success: true,
