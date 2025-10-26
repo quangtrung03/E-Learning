@@ -17,6 +17,9 @@ connectDB();
 
 const app = express();
 
+// Trust proxy for Render deployment (IMPORTANT for rate limiting)
+app.set('trust proxy', 1);
+
 // Middleware for logging
 app.use((req, res, next) => {
   if (process.env.NODE_ENV === 'development') {
@@ -33,13 +36,33 @@ app.use((req, res, next) => {
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.CORS_ORIGIN] 
-    : ['http://localhost:5173', 'http://localhost:3000'],
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = process.env.NODE_ENV === 'production' 
+      ? [
+          process.env.CORS_ORIGIN,
+          process.env.FRONTEND_URL,
+          process.env.PRODUCTION_URL,
+          'https://e-learning-frontend-wine.vercel.app', // Your Vercel domain
+          'https://e-learning-frontend-wine-git-trung-quangtrung03s-projects.vercel.app'
+        ].filter(Boolean) // Remove undefined values
+      : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('🚫 CORS blocked origin:', origin);
+      console.log('✅ Allowed origins:', allowedOrigins);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   optionsSuccessStatus: 200,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  preflightContinue: false
 };
 
 // Security middleware
@@ -47,6 +70,9 @@ app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === 'production',
   crossOriginEmbedderPolicy: false
 }));
+
+// CORS - MUST be before rate limiting
+app.use(cors(corsOptions));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -78,8 +104,7 @@ app.use((req, res, next) => {
 
 app.use('/api/', limiter);
 
-// Middleware
-app.use(cors(corsOptions));
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
