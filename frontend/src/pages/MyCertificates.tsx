@@ -152,7 +152,7 @@ const MyCertificates: React.FC = () => {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {certificates.map((certificate) => (
+        {(Array.isArray(certificates) ? certificates : []).map((certificate) => (
           <Card key={certificate._id} className="overflow-hidden hover:shadow-lg transition-shadow">
             {/* Certificate Preview */}
             <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600 p-6 text-white">
@@ -199,26 +199,30 @@ const MyCertificates: React.FC = () => {
                   <p className="text-sm">{certificate.courseDuration} giờ</p>
                 </div>
 
-                {certificate.skills.length > 0 && (
-                  <div>
-                    <p className="text-xs text-gray-500 mb-2">Kỹ năng đạt được</p>
-                    <div className="flex flex-wrap gap-1">
-                      {certificate.skills.slice(0, 3).map((skill, index) => (
-                        <span 
-                          key={index}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                      {certificate.skills.length > 3 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                          +{certificate.skills.length - 3}
-                        </span>
-                      )}
+                {(() => {
+                  const skills = Array.isArray(certificate.skills) ? certificate.skills : [];
+                  if (skills.length === 0) return null;
+                  return (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2">Kỹ năng đạt được</p>
+                      <div className="flex flex-wrap gap-1">
+                        {skills.slice(0, 3).map((skill, index) => (
+                          <span 
+                            key={index}
+                            className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                        {skills.length > 3 && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                            +{skills.length - 3}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
 
               {/* Actions */}

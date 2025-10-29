@@ -22,6 +22,7 @@ const {
   approveAdminRequestDetailed,
   rejectAdminRequestDetailed
 } = require('../controllers/adminController');
+const { deleteCourse } = require('../controllers/courseController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -142,6 +143,27 @@ router.put('/courses/:id/reject', [
     .isLength({ min: 1, max: 500 })
     .withMessage('Lý do từ chối phải có từ 1-500 ký tự')
 ], rejectCourse);
+
+/**
+ * @swagger
+ * /admin/courses/{id}:
+ *   delete:
+ *     summary: Xóa khóa học (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Course ID
+ *     responses:
+ *       200:
+ *         description: Xóa thành công
+ */
+router.delete('/courses/:id', protect, requireAdmin, deleteCourse);
 
 /**
  * @swagger

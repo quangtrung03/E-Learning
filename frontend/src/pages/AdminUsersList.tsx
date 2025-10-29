@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import api from '../services/api';
+import resolveAvatar from '../utils/resolveAvatar';
 
 interface User {
   _id: string;
@@ -209,13 +210,13 @@ const AdminUsersList = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((userData) => (
+                {(Array.isArray(users) ? users : []).map((userData) => (
                   <tr key={userData._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           {userData.avatar ? (
-                            <img className="h-10 w-10 rounded-full" src={userData.avatar} alt={userData.name} />
+                            <img className="h-10 w-10 rounded-full" src={resolveAvatar(userData.avatar) || undefined} alt={userData.name} />
                           ) : (
                             <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                               <span className="text-sm font-medium text-gray-700">

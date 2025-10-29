@@ -89,45 +89,47 @@ const Dashboard = () => {
           
           console.log('My courses response:', myCoursesResponse.data);
           console.log('Enrolled courses response:', enrolledCoursesResponse.data);
-          
+
           // Parse created courses
-          let userCourses: any[] = [];
+          let userCoursesArr: any[] = [];
           if (myCoursesResponse.data.success && myCoursesResponse.data.data) {
             if (Array.isArray(myCoursesResponse.data.data.courses)) {
-              userCourses = myCoursesResponse.data.data.courses;
+              userCoursesArr = myCoursesResponse.data.data.courses;
             } else if (Array.isArray(myCoursesResponse.data.data)) {
-              userCourses = myCoursesResponse.data.data;
+              userCoursesArr = myCoursesResponse.data.data;
             }
           }
-          
+
           // Parse enrolled courses
-          let enrolledCourses: any[] = [];
+          let enrolledCoursesArr: any[] = [];
           if (enrolledCoursesResponse.data.success && enrolledCoursesResponse.data.data) {
             if (Array.isArray(enrolledCoursesResponse.data.data.courses)) {
-              enrolledCourses = enrolledCoursesResponse.data.data.courses;
+              enrolledCoursesArr = enrolledCoursesResponse.data.data.courses;
             } else if (Array.isArray(enrolledCoursesResponse.data.data)) {
-              enrolledCourses = enrolledCoursesResponse.data.data;
+              enrolledCoursesArr = enrolledCoursesResponse.data.data;
             }
           }
-          
+
           // Store courses separately for modal display
-          setCreatedCourses(userCourses);
-          setEnrolledCourses(enrolledCourses);
-          
-          // Show mixed courses on dashboard - prioritize enrolled courses, then created courses
-          const dashboardCourses = [...enrolledCourses, ...userCourses].slice(0, 4);
+          setCreatedCourses(userCoursesArr);
+          setEnrolledCourses(enrolledCoursesArr);
+
+          // Show mixed courses on dashboard - prioritize enrolled courses, then created courses (defensive)
+          const safeEnrolled = Array.isArray(enrolledCoursesArr) ? enrolledCoursesArr : [];
+          const safeUserCourses = Array.isArray(userCoursesArr) ? userCoursesArr : [];
+          const dashboardCourses = [...safeEnrolled, ...safeUserCourses].slice(0, 4);
           setMyCourses(dashboardCourses);
 
           // Calculate accurate stats
-          const enrolledCount = enrolledCourses.length;
-          const createdCount = userCourses.length;
-          const completedCount = enrolledCourses.filter((course: any) => course.progress >= 100).length;
-          const totalStudents = userCourses.reduce((sum: number, course: any) => {
+          const enrolledCount = enrolledCoursesArr.length;
+          const createdCount = userCoursesArr.length;
+          const completedCount = enrolledCoursesArr.filter((course: any) => course.progress >= 100).length;
+          const totalStudents = userCoursesArr.reduce((sum: number, course: any) => {
             const students = course.students || [];
             return sum + (Array.isArray(students) ? students.length : 0);
           }, 0);
-          
-          const totalRevenue = userCourses.reduce((sum: number, course: any) => {
+
+          const totalRevenue = userCoursesArr.reduce((sum: number, course: any) => {
             const price = course.finalPrice || course.price || 0;
             const studentCount = course.students?.length || 0;
             return sum + (price * studentCount);
@@ -345,7 +347,7 @@ const Dashboard = () => {
             </section>
 
             {/* My Courses Section */}
-            {myCourses.length > 0 && (
+            {(Array.isArray(myCourses) && myCourses.length > 0) && (
               <section className="mb-12">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-gray-900">📚 Khóa học của tôi</h2>
@@ -354,7 +356,7 @@ const Dashboard = () => {
                   </Link>
                 </div>
                 <div className="grid md:grid-cols-2 gap-6">
-                  {myCourses.slice(0, 4).map((course) => (
+                  {(Array.isArray(myCourses) ? myCourses.slice(0, 4) : []).map((course) => (
                     <Card key={course._id} className="p-6">
                       <div className="flex items-start justify-between mb-4">
                         <div className="flex-1">
@@ -391,7 +393,7 @@ const Dashboard = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">🔥 Khóa học mới nhất</h2>
           {recentCourses.length > 0 ? (
             <div className="grid md:grid-cols-3 gap-6">
-              {recentCourses.map((course) => (
+                {(Array.isArray(recentCourses) ? recentCourses : []).map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
                   <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center relative">
@@ -499,7 +501,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {modalCourses.map((course) => (
+              {(Array.isArray(modalCourses) ? modalCourses : []).map((course) => (
                 <div key={course._id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">

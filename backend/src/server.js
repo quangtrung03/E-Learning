@@ -134,8 +134,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
-app.use('/api', require('./routes/lessonRoutes'));
-app.use('/api', require('./routes/assignmentRoutes'));
+app.use('/api/lessons', require('./routes/lessonRoutes'));
+app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/certificates', require('./routes/certificateRoutes'));
 
 // New feature routes

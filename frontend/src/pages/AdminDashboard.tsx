@@ -304,7 +304,7 @@ const AdminDashboard = () => {
             <h2 className="text-xl font-semibold text-gray-900">Khóa học chờ duyệt ({pendingCourses.length})</h2>
           </div>
           
-          {pendingCourses.length === 0 ? (
+          {(Array.isArray(pendingCourses) ? pendingCourses : []).length === 0 ? (
             <div className="p-12 text-center">
               <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -314,7 +314,7 @@ const AdminDashboard = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {pendingCourses.map((course) => (
+              {(Array.isArray(pendingCourses) ? pendingCourses : []).map((course) => (
                 <div key={course._id} className="p-6">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

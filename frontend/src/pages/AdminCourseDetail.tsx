@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 // Or, if Card does not exist, create it at '../components/ui/Card.tsx' or the correct path.
 import api from '../services/api';
+import resolveAvatar from '../utils/resolveAvatar';
 
 interface Lesson {
   _id: string;
@@ -199,7 +200,7 @@ const AdminCourseDetail = () => {
                 {course.thumbnail && (
                   <div className="flex-shrink-0">
                     <img 
-                      src={course.thumbnail} 
+                      src={resolveAvatar(course.thumbnail) || undefined} 
                       alt={course.title}
                       className="w-32 h-24 object-cover rounded-lg"
                     />
@@ -283,7 +284,7 @@ const AdminCourseDetail = () => {
                 <p className="text-gray-500 text-center py-8">Chưa có bài học nào</p>
               ) : (
                 <div className="space-y-3">
-                  {course.lessons
+                  {(Array.isArray(course.lessons) ? course.lessons : [])
                     .sort((a, b) => a.order - b.order)
                     .map((lesson, index) => (
                     <div key={lesson._id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
@@ -312,11 +313,11 @@ const AdminCourseDetail = () => {
                 <p className="text-gray-500 text-center py-8">Chưa có học viên nào</p>
               ) : (
                 <div className="space-y-4">
-                  {course.students.map((student) => (
+                  {(Array.isArray(course.students) ? course.students : []).map((student) => (
                     <div key={student._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div className="flex items-center gap-3">
                         {student.avatar ? (
-                          <img className="h-10 w-10 rounded-full" src={student.avatar} alt={student.name || ''} />
+                          <img className="h-10 w-10 rounded-full" src={resolveAvatar(student.avatar) || undefined} alt={student.name || ''} />
                         ) : (
                           <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
                             <span className="text-sm font-medium text-gray-700">
@@ -391,7 +392,7 @@ const AdminCourseDetail = () => {
               
               <div className="flex items-center gap-3 mb-4">
                 {course.instructor.avatar ? (
-                  <img className="h-12 w-12 rounded-full" src={course.instructor.avatar} alt={course.instructor.name || ''} />
+                  <img className="h-12 w-12 rounded-full" src={resolveAvatar(course.instructor.avatar) || undefined} alt={course.instructor.name || ''} />
                 ) : (
                   <div className="h-12 w-12 rounded-full bg-gray-300 flex items-center justify-center">
                     <span className="text-lg font-medium text-gray-700">

@@ -116,17 +116,17 @@ export const courseAPI = {
   getMyCourses: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
     api.get('/courses/my-courses', { params }),
   getMyEnrolledCourses: (params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
-    api.get('/courses/my-enrolled-courses', { params }),
+    api.get('/courses/enrolled', { params }),
 };
 
 // Lesson API calls
 export const lessonAPI = {
   getLessonsByCourse: (courseId: string, params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
-    api.get(`/courses/${courseId}/lessons`, { params }),
+    api.get(`/lessons/by-course/${courseId}`, { params }),
   getLesson: (id: string): Promise<AxiosResponse<any>> =>
     api.get(`/lessons/${id}`),
   createLesson: (courseId: string, lessonData: any): Promise<AxiosResponse<any>> =>
-    api.post(`/courses/${courseId}/lessons`, lessonData),
+    api.post(`/lessons/create/${courseId}`, lessonData),
   updateLesson: (id: string, lessonData: any): Promise<AxiosResponse<any>> =>
     api.put(`/lessons/${id}`, lessonData),
   deleteLesson: (id: string): Promise<AxiosResponse<any>> =>
@@ -140,7 +140,7 @@ export const lessonAPI = {
 // Assignment API calls
 export const assignmentAPI = {
   getAssignmentsByCourse: (courseId: string, params?: { page?: number; limit?: number; type?: string }): Promise<AxiosResponse<any>> =>
-    api.get(`/courses/${courseId}/assignments`, { params }),
+    api.get(`/assignments/by-course/${courseId}`, { params }),
   getAssignment: (id: string): Promise<AxiosResponse<any>> =>
     api.get(`/assignments/${id}`),
   createAssignment: (assignmentData: any): Promise<AxiosResponse<any>> =>
@@ -148,7 +148,7 @@ export const assignmentAPI = {
   submitAssignment: (id: string, data?: any): Promise<AxiosResponse<any>> =>
     api.post(`/assignments/${id}/submit`, data),
   completeSubmission: (submissionId: string, answers: any[]): Promise<AxiosResponse<any>> =>
-    api.put(`/submissions/${submissionId}/complete`, { answers }),
+    api.put(`/assignments/submissions/${submissionId}/complete`, { answers }),
 };
 
 // Certificate API calls

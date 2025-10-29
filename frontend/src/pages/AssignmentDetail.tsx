@@ -97,8 +97,9 @@ const AssignmentDetail: React.FC = () => {
         setAssignment(response.data.data.assignment);
         setSubmissions(response.data.data.submissions || []);
         
-        // Initialize answers array
-        const initialAnswers = response.data.data.assignment.questions.map(() => ({
+        // Initialize answers array (defensive: questions may be missing)
+        const questions = response.data.data.assignment?.questions ?? [];
+        const initialAnswers = (Array.isArray(questions) ? questions : []).map(() => ({
           selectedOptions: [],
           textAnswer: ''
         }));
@@ -171,17 +172,18 @@ const AssignmentDetail: React.FC = () => {
     try {
       setSubmitting(true);
       
-      // Update submission with answers
+      // Update submission with answers (defensive: assignment.questions may be missing)
+      const questionIds = (assignment?.questions && Array.isArray(assignment.questions)) ? assignment.questions.map(q => q._id) : [];
       const updatedSubmission = {
         ...currentSubmission,
         answers: answers.map((answer, index) => ({
-          question: assignment!.questions[index]._id,
+          question: questionIds[index] || null,
           selectedOptions: answer.selectedOptions,
           textAnswer: answer.textAnswer
         }))
       };
       
-      const response = await api.put(`/submissions/${currentSubmission._id}/complete`, {
+      const response = await api.put(`/assignments/submissions/${currentSubmission._id}/complete`, {
         answers: updatedSubmission.answers
       });
       
@@ -316,7 +318,7 @@ const AssignmentDetail: React.FC = () => {
           </div>
 
           <div className="space-y-6">
-            {assignment.questions.map((question, index) => (
+            {(Array.isArray(assignment.questions) ? assignment.questions : []).map((question, index) => (
               <div key={index} className="border-b border-gray-200 pb-6 last:border-b-0">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-lg font-semibold">
@@ -457,7 +459,7 @@ const AssignmentDetail: React.FC = () => {
             <p className="text-gray-500 text-center py-8">Bạn chưa làm bài tập này</p>
           ) : (
             <div className="space-y-4">
-              {submissions.map((submission) => (
+              {(Array.isArray(submissions) ? submissions : []).map((submission) => (
                 <div 
                   key={submission._id} 
                   className="p-4 border rounded-lg bg-gray-50"

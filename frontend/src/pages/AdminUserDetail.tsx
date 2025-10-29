@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import api from '../services/api';
+import resolveAvatar from '../utils/resolveAvatar';
 
 interface User {
   _id: string;
@@ -180,7 +181,7 @@ const AdminUserDetail = () => {
               <div className="text-center">
                 <div className="flex-shrink-0 mx-auto h-24 w-24 mb-4">
                   {user.avatar ? (
-                    <img className="h-24 w-24 rounded-full" src={user.avatar} alt={user.name} />
+                    <img className="h-24 w-24 rounded-full" src={resolveAvatar(user.avatar) || undefined} alt={user.name} />
                   ) : (
                     <div className="h-24 w-24 rounded-full bg-gray-300 flex items-center justify-center mx-auto">
                       <span className="text-2xl font-medium text-gray-700">
@@ -265,14 +266,14 @@ const AdminUserDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <Card className="p-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-blue-600">{user.createdCourses.length}</div>
+                  <div className="text-3xl font-bold text-blue-600">{(Array.isArray(user.createdCourses) ? user.createdCourses.length : 0)}</div>
                   <div className="text-sm text-gray-600">Khóa học đã tạo</div>
                 </div>
               </Card>
               
               <Card className="p-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-green-600">{user.enrolledCourses.length}</div>
+                  <div className="text-3xl font-bold text-green-600">{(Array.isArray(user.enrolledCourses) ? user.enrolledCourses.length : 0)}</div>
                   <div className="text-sm text-gray-600">Khóa học đã học</div>
                 </div>
               </Card>
@@ -280,7 +281,7 @@ const AdminUserDetail = () => {
               <Card className="p-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-purple-600">
-                    {user.createdCourses.reduce((total, course) => total + course.students.length, 0)}
+                    {(Array.isArray(user.createdCourses) ? user.createdCourses.reduce((total, course) => total + ((Array.isArray(course.students) ? course.students.length : 0)), 0) : 0)}
                   </div>
                   <div className="text-sm text-gray-600">Tổng học viên</div>
                 </div>
@@ -293,11 +294,11 @@ const AdminUserDetail = () => {
                 Khóa học đã tạo ({user.createdCourses.length})
               </h3>
               
-              {user.createdCourses.length === 0 ? (
+              {(Array.isArray(user.createdCourses) ? user.createdCourses : []).length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Chưa tạo khóa học nào</p>
               ) : (
                 <div className="space-y-4">
-                  {user.createdCourses.map((course) => (
+                  {(Array.isArray(user.createdCourses) ? user.createdCourses : []).map((course) => (
                     <div key={course._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">{course.title}</h4>
@@ -328,11 +329,11 @@ const AdminUserDetail = () => {
                 Khóa học đã đăng ký ({user.enrolledCourses.length})
               </h3>
               
-              {user.enrolledCourses.length === 0 ? (
+              {(Array.isArray(user.enrolledCourses) ? user.enrolledCourses : []).length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Chưa đăng ký khóa học nào</p>
               ) : (
                 <div className="space-y-4">
-                  {user.enrolledCourses.map((enrollment) => (
+                  {(Array.isArray(user.enrolledCourses) ? user.enrolledCourses : []).map((enrollment) => (
                     <div key={enrollment.course._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">{enrollment.course.title}</h4>

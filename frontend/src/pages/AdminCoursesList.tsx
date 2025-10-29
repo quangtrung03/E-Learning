@@ -294,7 +294,7 @@ const AdminCoursesList = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {courses.map((course) => (
+                {(Array.isArray(courses) ? courses : []).map((course) => (
                   <tr key={course._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center">

@@ -108,7 +108,8 @@ const lessonValidation = [
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.get('/courses/:courseId/lessons', protect, getLessonsByCourse);
+// This route will be /api/lessons/by-course/:courseId after mounting
+router.get('/by-course/:courseId', protect, getLessonsByCourse);
 
 /**
  * @swagger
@@ -146,7 +147,7 @@ router.get('/courses/:courseId/lessons', protect, getLessonsByCourse);
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.get('/lessons/:id', protect, getLesson);
+router.get('/:id', protect, getLesson);
 
 // Protected routes - cần authentication
 router.use(protect);
@@ -224,7 +225,8 @@ router.use(protect);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.post('/courses/:courseId/lessons', protect, lessonValidation, createLesson);
+// This route will be /api/lessons/create/:courseId after mounting
+router.post('/create/:courseId', protect, lessonValidation, createLesson);
 
 /**
  * @swagger
@@ -298,8 +300,8 @@ router.post('/courses/:courseId/lessons', protect, lessonValidation, createLesso
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.put('/lessons/:id', updateLesson);
-router.delete('/lessons/:id', deleteLesson);
+router.put('/:id', updateLesson);
+router.delete('/:id', deleteLesson);
 
 /**
  * @swagger
@@ -368,7 +370,7 @@ router.delete('/lessons/:id', deleteLesson);
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.post('/lessons/:id/complete', completeLesson);
-router.delete('/lessons/:id/complete', uncompleteLesson);
+router.post('/:id/complete', completeLesson);
+router.delete('/:id/complete', uncompleteLesson);
 
 module.exports = router;

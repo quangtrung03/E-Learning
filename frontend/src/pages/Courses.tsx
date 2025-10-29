@@ -246,7 +246,7 @@ const Courses = () => {
           </div>
         ) : (
           <div className="grid md:grid-cols-3 gap-6">
-            {featuredCourses.map((course) => (
+            {(Array.isArray(featuredCourses) ? featuredCourses : []).map((course) => (
               <Link key={course._id} to={`/courses/${course._id}`}>
                 <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
                   <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center relative">
@@ -407,7 +407,7 @@ const Courses = () => {
         ) : courses.length > 0 ? (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {courses.map((course) => (
+                {(Array.isArray(courses) ? courses : []).map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
                   <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
                     <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center">
@@ -654,7 +654,7 @@ const Courses = () => {
             <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
               ✅ Yêu cầu trước khi học
             </h3>
-            {formData.requirements.map((req, index) => (
+            {(Array.isArray(formData.requirements) ? formData.requirements : []).map((req, index) => (
               <div key={index} className="flex gap-2">
                 <input
                   type="text"
@@ -690,7 +690,7 @@ const Courses = () => {
             <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
               🎯 Những gì học viên sẽ học được
             </h3>
-            {formData.whatYouWillLearn.map((obj, index) => (
+            {(Array.isArray(formData.whatYouWillLearn) ? formData.whatYouWillLearn : []).map((obj, index) => (
               <div key={index} className="flex gap-2">
                 <input
                   type="text"
@@ -726,7 +726,7 @@ const Courses = () => {
             <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
               🏷️ Tags (tùy chọn)
             </h3>
-            {formData.tags.map((tag, index) => (
+            {(Array.isArray(formData.tags) ? formData.tags : []).map((tag, index) => (
               <div key={index} className="flex gap-2">
                 <input
                   type="text"

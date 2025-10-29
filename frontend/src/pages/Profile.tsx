@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/Button';
 import api from '../services/api';
+import resolveAvatar from '../utils/resolveAvatar';
 
 // Admin Request Section Component
 const AdminRequestSection: React.FC = () => {
@@ -85,7 +86,7 @@ const Profile: React.FC = () => {
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user?.avatar ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${user.avatar}` : null
+    user?.avatar ? (resolveAvatar(user.avatar) || null) : null
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });

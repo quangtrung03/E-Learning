@@ -134,7 +134,7 @@ const MyCourses = () => {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {createdCourses.map((course) => (
+  {(Array.isArray(createdCourses) ? createdCourses : []).map((course) => (
           <Card key={course._id} className="hover:shadow-lg transition-shadow">
             <div className="h-32 bg-gradient-to-r from-primary-400 to-primary-600 rounded-t-xl flex items-center justify-center">
               <span className="text-white text-xl font-bold">
@@ -220,7 +220,7 @@ const MyCourses = () => {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {enrolledCourses.map((course) => (
+  {(Array.isArray(enrolledCourses) ? enrolledCourses : []).map((course) => (
           <Card key={course._id} className="hover:shadow-lg transition-shadow">
             <div className="h-32 bg-gradient-to-r from-blue-400 to-purple-600 rounded-t-xl flex items-center justify-center">
               <span className="text-white text-xl font-bold">

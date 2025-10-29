@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+import resolveAvatar from '../utils/resolveAvatar';
 
 interface AdminRequest {
   _id: string;
@@ -227,21 +228,21 @@ const AdminRequestManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {requests.length === 0 ? (
+              {(Array.isArray(requests) ? requests : []).length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
                     Không có yêu cầu nào
                   </td>
                 </tr>
               ) : (
-                requests.map((request) => (
+                (Array.isArray(requests) ? requests : []).map((request) => (
                   <tr key={request._id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 flex-shrink-0">
                           <img
                             className="h-10 w-10 rounded-full"
-                            src={request.user.avatar || '/default-avatar.png'}
+                            src={resolveAvatar(request.user.avatar) || '/default-avatar.png'}
                             alt=""
                           />
                         </div>

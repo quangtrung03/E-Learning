@@ -93,7 +93,8 @@ const assignmentValidation = [
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.get('/courses/:courseId/assignments', protect, getAssignmentsByCourse);
+// This route will be /api/assignments/by-course/:courseId after mounting
+router.get('/by-course/:courseId', protect, getAssignmentsByCourse);
 
 /**
  * @swagger
@@ -146,7 +147,8 @@ router.get('/courses/:courseId/assignments', protect, getAssignmentsByCourse);
  *       400:
  *         description: Dữ liệu không hợp lệ
  */
-router.post('/courses/:courseId/assignments', protect, requireInstructor, assignmentValidation, createAssignment);
+// This route will be /api/assignments/create/:courseId after mounting  
+router.post('/create/:courseId', protect, requireInstructor, assignmentValidation, createAssignment);
 
 /**
  * @swagger
@@ -169,7 +171,8 @@ router.post('/courses/:courseId/assignments', protect, requireInstructor, assign
  *       404:
  *         description: Không tìm thấy bài tập
  */
-router.get('/assignments/:id', protect, getAssignment);
+// This route will be /api/assignments/:id after mounting
+router.get('/:id', protect, getAssignment);
 
 /**
  * @swagger
@@ -218,7 +221,8 @@ router.get('/assignments/:id', protect, getAssignment);
  *       400:
  *         description: Dữ liệu không hợp lệ
  */
-router.post('/assignments', protect, requireInstructor, assignmentValidation, createAssignment);
+// General create assignment route - /api/assignments/ after mounting
+router.post('/', protect, requireInstructor, assignmentValidation, createAssignment);
 
 /**
  * @swagger
@@ -252,7 +256,8 @@ router.post('/assignments', protect, requireInstructor, assignmentValidation, cr
  *       400:
  *         description: Lỗi khi nộp bài
  */
-router.post('/assignments/:id/submit', protect, submitAssignment);
+// This route will be /api/assignments/:id/submit after mounting
+router.post('/:id/submit', protect, submitAssignment);
 
 /**
  * @swagger
@@ -275,6 +280,7 @@ router.post('/assignments/:id/submit', protect, submitAssignment);
  *       400:
  *         description: Lỗi khi hoàn thành
  */
+// This route will be /api/assignments/submissions/:id/complete after mounting
 router.put('/submissions/:id/complete', protect, completeSubmission);
 
 module.exports = router;

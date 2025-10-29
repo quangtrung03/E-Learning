@@ -39,8 +39,11 @@ const Home = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const response = await courseAPI.getAllCourses();
-        setCourses(response.data.slice(0, 6)); // Show only 6 courses
+        const response = await courseAPI.getAllCourses({ limit: 6 });
+        console.log('Home page API response:', response.data); // Debug log
+        if (response.data.success && response.data.data.courses) {
+          setCourses(response.data.data.courses);
+        }
       } catch (error) {
         console.error('Error fetching courses:', error);
       } finally {
@@ -174,7 +177,7 @@ const Home = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {courses.map((course, index) => (
+              {(Array.isArray(courses) ? courses : []).map((course, index) => (
                 <motion.div
                   key={course._id}
                   initial={{ opacity: 0, y: 20 }}
