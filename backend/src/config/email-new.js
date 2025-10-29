@@ -1,16 +1,12 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-// Create email transporter
+// Set SendGrid API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'your-sendgrid-api-key-here');
+
+// Create email transporter using SendGrid
 const createTransporter = () => {
-  // For Gmail, you need to use App Password (not regular password)
-  // Go to Google Account > Security > 2-Step Verification > App passwords
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER || 'elearnplatform1534@gmail.com',
-      pass: process.env.EMAIL_PASSWORD // App password from Gmail
-    }
-  });
+  // SendGrid handles SMTP internally via API
+  return sgMail;
 };
 
 // Get frontend URL based on environment
@@ -274,17 +270,17 @@ const emailTemplates = {
 const sendEmail = async (to, subject, html) => {
   try {
     const transporter = createTransporter();
-    
-    const mailOptions = {
-      from: `"E-Learning Platform" <${process.env.EMAIL_USER}>`,
+
+    const msg = {
       to: to,
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@yourdomain.com', // Replace with your verified sender
       subject: subject,
       html: html
     };
 
-    const result = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', result.messageId);
-    return { success: true, messageId: result.messageId };
+    const result = await transporter.send(msg);
+    console.log('✅ Email sent successfully via SendGrid:', result[0]?.headers?.['x-message-id']);
+    return { success: true, messageId: result[0]?.headers?.['x-message-id'] };
   } catch (error) {
     console.error('❌ Email sending failed:', error);
     return { success: false, error: error.message };

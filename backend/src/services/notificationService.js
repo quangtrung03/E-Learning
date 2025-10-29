@@ -1,12 +1,15 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 const { Server } = require('socket.io');
 const User = require('../models/User');
+
+// Set SendGrid API key
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'your-sendgrid-api-key-here');
 
 class NotificationService {
   constructor() {
     this.io = null;
-    this.emailTransporter = null;
-    this.initEmailTransporter();
+    this.emailTransporter = sgMail; // Use SendGrid instead of nodemailer
+    // No need to init transporter anymore
   }
 
   // Khởi tạo Socket.IO
@@ -43,28 +46,7 @@ class NotificationService {
     return this.io;
   }
 
-  // Khởi tạo email transporter
-  initEmailTransporter() {
-    if (process.env.EMAIL_SERVICE === 'gmail') {
-      this.emailTransporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD
-        }
-      });
-    } else {
-      this.emailTransporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        secure: process.env.SMTP_PORT == 465,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASSWORD
-        }
-      });
-    }
-  }
+  // Email transporter is now SendGrid (initialized in constructor)
 
   // Gửi thông báo realtime
   async sendRealtimeNotification(userId, notification) {
@@ -106,16 +88,16 @@ class NotificationService {
   // Gửi email
   async sendEmail(to, subject, html, attachments = null) {
     try {
-      const mailOptions = {
-        from: `"E-Learning Platform" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      const msg = {
         to,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@yourdomain.com', // Replace with your verified sender
         subject,
         html,
-        attachments
+        attachments: attachments ? [attachments] : undefined
       };
 
-      const result = await this.emailTransporter.sendMail(mailOptions);
-      console.log(`📧 Email sent successfully to ${to}`);
+      const result = await this.emailTransporter.send(msg);
+      console.log(`📧 Email sent successfully to ${to} via SendGrid`);
       return result;
     } catch (error) {
       console.error('❌ Error sending email:', error);
