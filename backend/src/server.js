@@ -44,13 +44,21 @@ const corsOptions = {
       ? [
           process.env.CORS_ORIGIN,
           process.env.FRONTEND_URL,
-          process.env.PRODUCTION_URL,
-          'https://e-learning-five-puce.vercel.app', // Your actual Vercel domain
-          'https://e-learning-five-puce-git-trung-quangtrung03s-projects.vercel.app'
-        ].filter(Boolean) // Remove undefined values
+          'https://e-learning-five-puce.vercel.app',
+          /^https:\/\/.*\.vercel\.app$/ // Allow all Vercel preview URLs
+        ].filter(Boolean)
       : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'];
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return allowedOrigin === origin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
       callback(null, true);
     } else {
       console.log('🚫 CORS blocked origin:', origin);
