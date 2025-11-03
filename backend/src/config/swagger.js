@@ -16,14 +16,13 @@ const swaggerDefinition = {
     }
   },
   servers: [
-    {
+    ...(process.env.NODE_ENV === 'production' ? [{
+      url: 'https://e-learning-zmif.onrender.com/api',
+      description: 'Production server'
+    }] : [{
       url: 'http://localhost:5000/api',
       description: 'Development server'
-    },
-    {
-      url: 'https://your-production-url.com/api',
-      description: 'Production server'
-    }
+    }])
   ],
   components: {
     securitySchemes: {

@@ -1,7 +1,15 @@
 const sgMail = require('@sendgrid/mail');
 
-// Set SendGrid API key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'your-sendgrid-api-key-here');
+// Set SendGrid API key with validation
+const apiKey = process.env.SENDGRID_API_KEY;
+if (apiKey && apiKey.startsWith('SG.')) {
+  sgMail.setApiKey(apiKey);
+} else if (apiKey) {
+  console.warn('⚠️ SendGrid API key does not start with "SG." - email functionality may not work');
+  sgMail.setApiKey(apiKey);
+} else {
+  console.warn('⚠️ SendGrid API key not found - email functionality disabled');
+}
 
 // Create email transporter using SendGrid
 const createTransporter = () => {
@@ -12,7 +20,7 @@ const createTransporter = () => {
 // Get frontend URL based on environment
 const getFrontendUrl = () => {
   if (process.env.NODE_ENV === 'production') {
-    return process.env.PRODUCTION_URL || process.env.FRONTEND_URL;
+    return process.env.FRONTEND_URL || process.env.PRODUCTION_URL || 'https://e-learning-five-puce.vercel.app';
   }
   return process.env.FRONTEND_URL || 'http://localhost:5173';
 };

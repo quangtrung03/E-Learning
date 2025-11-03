@@ -42,7 +42,10 @@ const requestAdminRole = async (req, res) => {
     await adminRequest.save();
 
     // Gửi email với link validation
-    const validationURL = adminRequest.getValidationURL(process.env.FRONTEND_URL || 'http://localhost:3000');
+    const frontendUrl = process.env.NODE_ENV === 'production' 
+      ? (process.env.FRONTEND_URL || 'https://e-learning-five-puce.vercel.app')
+      : (process.env.FRONTEND_URL || 'http://localhost:3000');
+    const validationURL = adminRequest.getValidationURL(frontendUrl);
     
     const emailResult = await emailService.sendEmail(
       user.email,

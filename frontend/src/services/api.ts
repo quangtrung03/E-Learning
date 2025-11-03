@@ -233,6 +233,49 @@ export const paymentAPI = {
     api.post(`/payments/${paymentId}/refund`, { reason }),
 };
 
+// Admin API calls
+export const adminAPI = {
+  // User management
+  getAllUsers: (params?: { page?: number; limit?: number; role?: string; status?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/admin/users', { params }),
+  getUserById: (userId: string): Promise<AxiosResponse<any>> =>
+    api.get(`/admin/users/${userId}`),
+  updateUserRole: (userId: string, role: string): Promise<AxiosResponse<any>> =>
+    api.put(`/admin/users/${userId}/role`, { role }),
+  updateUserStatus: (userId: string, status: string): Promise<AxiosResponse<any>> =>
+    api.put(`/admin/users/${userId}/status`, { status }),
+  deleteUser: (userId: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/admin/users/${userId}`),
+
+  // Course management
+  getAllCourses: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/admin/courses', { params }),
+  approveCourse: (courseId: string): Promise<AxiosResponse<any>> =>
+    api.put(`/admin/courses/${courseId}/approve`),
+  rejectCourse: (courseId: string, reason: string): Promise<AxiosResponse<any>> =>
+    api.put(`/admin/courses/${courseId}/reject`, { rejectionReason: reason }),
+
+  // Admin requests
+  getAdminRequests: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/admin/requests', { params }),
+  processAdminRequest: (requestId: string, action: 'approve' | 'reject', reason?: string): Promise<AxiosResponse<any>> =>
+    api.put(`/admin/requests/${requestId}`, { action, reason }),
+  
+  // Analytics & Dashboard
+  getDashboardStats: (): Promise<AxiosResponse<any>> =>
+    api.get('/admin/dashboard/stats'),
+  getSystemAnalytics: (params?: { period?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/admin/analytics', { params }),
+    
+  // Payment management
+  getAllPayments: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/admin/payments', { params }),
+  approvePayment: (paymentId: string): Promise<AxiosResponse<any>> =>
+    api.put(`/admin/payments/${paymentId}/approve`),
+  processRefund: (paymentId: string, amount: number): Promise<AxiosResponse<any>> =>
+    api.put(`/admin/payments/${paymentId}/refund`, { amount }),
+};
+
 // Health check
 export const healthAPI = {
   check: () => api.get('/health'),

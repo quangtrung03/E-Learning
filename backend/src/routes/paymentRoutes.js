@@ -62,8 +62,8 @@ const createPaymentValidation = [
     .isMongoId()
     .withMessage('Course ID không hợp lệ'),
   body('paymentMethod.type')
-    .isIn(['credit-card', 'debit-card', 'bank-transfer', 'momo', 'zalopay', 'vnpay', 'paypal'])
-    .withMessage('Phương thức thanh toán không hợp lệ'),
+    .isIn(['manual', 'bank-transfer']) // Temporarily only allow manual payment
+    .withMessage('Phương thức thanh toán không hợp lệ (hiện tại chỉ hỗ trợ chuyển khoản)'),
   body('paymentMethod.provider')
     .isLength({ min: 1 })
     .withMessage('Provider thanh toán là bắt buộc'),

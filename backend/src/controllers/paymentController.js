@@ -121,24 +121,32 @@ const createPaymentIntent = async (req, res) => {
 
     await payment.save();
 
-    // Simulate payment gateway integration
+    // TEMPORARY: Comment payment gateways for production stability
     let paymentGatewayResponse = {};
     let redirectUrl = null;
 
     switch (paymentMethod.provider) {
-      case 'vnpay':
-        paymentGatewayResponse = await createVNPayPayment(payment);
-        redirectUrl = paymentGatewayResponse.redirectUrl;
-        break;
-      case 'momo':
-        paymentGatewayResponse = await createMoMoPayment(payment);
-        redirectUrl = paymentGatewayResponse.payUrl;
-        break;
+      // case 'vnpay':
+      //   paymentGatewayResponse = await createVNPayPayment(payment);
+      //   redirectUrl = paymentGatewayResponse.redirectUrl;
+      //   break;
+      // case 'momo':
+      //   paymentGatewayResponse = await createMoMoPayment(payment);
+      //   redirectUrl = paymentGatewayResponse.payUrl;
+      //   break;
       case 'manual':
+      case 'bank-transfer':
       default:
         paymentGatewayResponse = {
           status: 'pending',
-          message: 'Awaiting manual confirmation'
+          message: 'Thanh toán offline - Vui lòng chuyển khoản theo thông tin bên dưới',
+          bankInfo: {
+            bank: 'Vietcombank',
+            accountNumber: '1234567890',
+            accountName: 'CONG TY E-LEARNING',
+            transferNote: `EL${payment.orderId}`,
+            qrCode: `${process.env.FRONTEND_URL}/payment/qr/${payment.orderId}`
+          }
         };
         break;
     }
@@ -404,19 +412,19 @@ const handlePaymentWebhook = async (req, res) => {
       });
     }
 
-    // Process webhook based on provider
+    // TEMPORARY: Comment payment gateway webhooks for production stability
     let paymentUpdate = null;
     switch (provider) {
-      case 'vnpay':
-        paymentUpdate = await processVNPayWebhook(webhookData);
-        break;
-      case 'momo':
-        paymentUpdate = await processMoMoWebhook(webhookData);
-        break;
+      // case 'vnpay':
+      //   paymentUpdate = await processVNPayWebhook(webhookData);
+      //   break;
+      // case 'momo':
+      //   paymentUpdate = await processMoMoWebhook(webhookData);
+      //   break;
       default:
         return res.status(400).json({
           success: false,
-          message: 'Unsupported payment provider'
+          message: 'Payment gateway webhooks temporarily disabled'
         });
     }
 

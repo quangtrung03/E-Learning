@@ -12,6 +12,9 @@ const cronJobService = require('./services/cronJobService');
 // Load environment variables
 dotenv.config();
 
+// Note: Punycode deprecation warning is from dependencies, not our code
+// This will be resolved when dependencies update to newer Node.js APIs
+
 // Connect to database
 connectDB();
 
@@ -20,7 +23,7 @@ const app = express();
 // Trust proxy for Render deployment (IMPORTANT for rate limiting)
 app.set('trust proxy', 1);
 
-// Middleware for logging
+// Middleware for logging - Production optimized
 app.use((req, res, next) => {
   if (process.env.NODE_ENV === 'development') {
     console.log(`\n🌐 ${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -28,41 +31,49 @@ app.use((req, res, next) => {
     if (req.body && Object.keys(req.body).length > 0) {
       console.log('📦 Body:', JSON.stringify(req.body, null, 2));
     }
-  } else {
-    console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  } else if (process.env.LOG_LEVEL === 'info') {
+    // Only log important requests in production
+    if (req.method !== 'GET' || req.path.includes('/api/')) {
+      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+    }
   }
   next();
 });
 
-// CORS configuration
+// CORS configuration - Production ready
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    const allowedOrigins = process.env.NODE_ENV === 'production' 
-      ? [
-          process.env.CORS_ORIGIN,
-          process.env.FRONTEND_URL,
-          'https://e-learning-five-puce.vercel.app',
-          /^https:\/\/.*\.vercel\.app$/ // Allow all Vercel preview URLs
-        ].filter(Boolean)
-      : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'];
+    // Log origin only in non-production for debugging
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('🔍 CORS Check - Origin:', origin);
+    }
     
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (typeof allowedOrigin === 'string') {
-        return allowedOrigin === origin;
-      } else if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin);
-      }
-      return false;
-    });
+    // Define allowed origins based on environment
+    const allowedOrigins = [
+      // Production domains
+      process.env.CORS_ORIGIN,
+      process.env.FRONTEND_URL,
+      // Development domains (only in dev mode)
+      ...(process.env.NODE_ENV !== 'production' ? [
+        'http://localhost:5173',
+        'http://localhost:3000'
+      ] : [])
+    ].filter(Boolean);
     
-    if (isAllowed) {
+    // Also allow any Vercel deployment
+    const isVercelDomain = /^https:\/\/.*\.vercel\.app$/.test(origin);
+    const isAllowedOrigin = allowedOrigins.includes(origin);
+    
+    if (isAllowedOrigin || isVercelDomain) {
       callback(null, true);
     } else {
-      console.log('🚫 CORS blocked origin:', origin);
-      console.log('✅ Allowed origins:', allowedOrigins);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('🚫 CORS: Origin blocked -', origin);
+        console.log('📋 Allowed origins:', allowedOrigins);
+      }
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -82,7 +93,7 @@ app.use(helmet({
 // CORS - MUST be before rate limiting
 app.use(cors(corsOptions));
 
-// Rate limiting
+// Rate limiting (Fixed deprecated onLimitReached)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: process.env.NODE_ENV === 'production' ? 100 : 1000, // Limit each IP to 100 requests per windowMs in production
@@ -93,14 +104,13 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
+    console.log(`⚠️ Rate limit reached for IP: ${req.ip}`);
     res.status(429).json({
       success: false,
       message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau'
     });
-  },
-  onLimitReached: (req, res) => {
-    console.log(`Rate limit reached for IP: ${req.ip}`);
   }
+  // Removed deprecated onLimitReached
 });
 
 // Middleware để thêm rate limit headers cho tất cả responses
@@ -164,14 +174,19 @@ app.use('*', (req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
-  console.error('\n❌ ERROR OCCURRED:');
-  console.error('📍 Route:', req.method, req.path);
-  console.error('🔍 Error Name:', err.name);
-  console.error('📝 Error Message:', err.message);
-  console.error('📚 Error Stack:', err.stack);
-  
-  if (err.errors) {
-    console.error('🔎 Validation Errors:', err.errors);
+  // Detailed logging only in development
+  if (process.env.NODE_ENV === 'development') {
+    console.error('\n❌ ERROR OCCURRED:');
+    console.error('📍 Route:', req.method, req.path);
+    console.error('🔍 Error Name:', err.name);
+    console.error('📝 Error Message:', err.message);
+    console.error('📚 Error Stack:', err.stack);
+    if (err.errors) {
+      console.error('🔎 Validation Errors:', err.errors);
+    }
+  } else {
+    // Production logging - concise but informative
+    console.error(`${new Date().toISOString()} - ERROR: ${req.method} ${req.path} - ${err.message}`);
   }
   
   let error = { ...err };
@@ -181,7 +196,9 @@ app.use((err, req, res, next) => {
   if (err.name === 'CastError') {
     const message = 'Resource not found';
     error = { message, statusCode: 404 };
-    console.error('🎯 Cast Error - Invalid ObjectId');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('🎯 Cast Error - Invalid ObjectId');
+    }
   }
   
   // Mongoose duplicate key
@@ -190,7 +207,9 @@ app.use((err, req, res, next) => {
     const value = err.keyValue[field];
     const message = `${field} '${value}' đã tồn tại`;
     error = { message, statusCode: 400 };
-    console.error('🔄 Duplicate Key Error:', field, '=', value);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('🔄 Duplicate Key Error:', field, '=', value);
+    }
   }
   
   // Mongoose validation error
@@ -198,23 +217,31 @@ app.use((err, req, res, next) => {
     const messages = Object.values(err.errors).map(val => val.message);
     const message = messages.join(', ');
     error = { message, statusCode: 400 };
-    console.error('✅ Validation Errors:', messages);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('✅ Validation Errors:', messages);
+    }
   }
   
   // JWT errors
   if (err.name === 'JsonWebTokenError') {
     error = { message: 'Token không hợp lệ', statusCode: 401 };
-    console.error('🔐 JWT Error - Invalid token');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('🔐 JWT Error - Invalid token');
+    }
   }
   
   if (err.name === 'TokenExpiredError') {
     error = { message: 'Token đã hết hạn', statusCode: 401 };
-    console.error('⏰ JWT Error - Token expired');
+    if (process.env.NODE_ENV === 'development') {
+      console.error('⏰ JWT Error - Token expired');
+    }
   }
   
-  console.error('📤 Response Status:', error.statusCode || 500);
-  console.error('📤 Response Message:', error.message || 'Server Error');
-  console.error('─'.repeat(50));
+  if (process.env.NODE_ENV === 'development') {
+    console.error('📤 Response Status:', error.statusCode || 500);
+    console.error('📤 Response Message:', error.message || 'Server Error');
+    console.error('─'.repeat(50));
+  }
   
   res.status(error.statusCode || 500).json({
     success: false,
@@ -228,7 +255,12 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🌐 API Health Check: http://localhost:${PORT}/api/health`);
+  if (process.env.NODE_ENV === 'production') {
+    const productionUrl = process.env.API_URL || process.env.RENDER_EXTERNAL_URL || 'https://e-learning-zmif.onrender.com';
+    console.log(`🌐 API Health Check: ${productionUrl}/api/health`);
+  } else {
+    console.log(`🌐 API Health Check: http://localhost:${PORT}/api/health`);
+  }
   
   // Initialize services
   if (process.env.NODE_ENV !== 'test') {
