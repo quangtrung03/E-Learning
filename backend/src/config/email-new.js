@@ -321,7 +321,7 @@ const sendAdminRequestNotification = async (data) => {
     const emailContent = emailTemplates.adminRequest(data);
 
     // Send to admin email
-    const adminEmail = process.env.ADMIN_EMAIL || process.env.EMAIL_USER;
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.SENDGRID_FROM_EMAIL;
 
     return await sendEmail(adminEmail, emailContent.subject, emailContent.html);
   } catch (error) {

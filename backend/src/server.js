@@ -45,8 +45,8 @@ const corsOptions = {
           process.env.CORS_ORIGIN,
           process.env.FRONTEND_URL,
           process.env.PRODUCTION_URL,
-          'https://e-learning-frontend-wine.vercel.app', // Your Vercel domain
-          'https://e-learning-frontend-wine-git-trung-quangtrung03s-projects.vercel.app'
+          'https://e-learning-five-puce.vercel.app', // Your actual Vercel domain
+          'https://e-learning-five-puce-git-trung-quangtrung03s-projects.vercel.app'
         ].filter(Boolean) // Remove undefined values
       : ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:5174'];
     
