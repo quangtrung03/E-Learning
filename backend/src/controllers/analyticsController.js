@@ -741,6 +741,154 @@ function generateCourseRecommendations(analytics, course) {
   return recommendations;
 }
 
+// @desc    Lấy revenue analytics (Admin/Instructor)
+// @route   GET /api/analytics/revenue
+// @access  Private (Admin/Instructor)
+const getRevenueAnalytics = async (req, res) => {
+  try {
+    const Payment = require('../models/Payment');
+    const { timeframe = '30d', courseId } = req.query;
+
+    // Calculate date range
+    let startDate;
+    switch (timeframe) {
+      case '7d':
+        startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case '90d':
+        startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'all':
+        startDate = new Date(0); // All time
+        break;
+      default:
+        startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    let query = {
+      status: 'completed',
+      paidAt: { $gte: startDate }
+    };
+
+    // Filter by course if instructor
+    if (req.user.role === 'teacher') {
+      const courses = await Course.find({ instructor: req.user.id }).select('_id');
+      query.course = { $in: courses.map(c => c._id) };
+    } else if (courseId && req.user.role === 'admin') {
+      query.course = courseId;
+    }
+
+    const payments = await Payment.find(query)
+      .populate('course', 'title price instructor')
+      .populate('user', 'name email')
+      .sort({ paidAt: -1 });
+
+    // Calculate totals
+    const totalRevenue = payments.reduce((sum, p) => sum + p.amount.final, 0);
+    const totalDiscount = payments.reduce((sum, p) => sum + p.amount.discount, 0);
+    const totalTransactions = payments.length;
+    const avgTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
+
+    // Revenue by date
+    const revenueByDate = {};
+    payments.forEach(payment => {
+      const date = payment.paidAt.toISOString().split('T')[0];
+      if (!revenueByDate[date]) {
+        revenueByDate[date] = { revenue: 0, count: 0 };
+      }
+      revenueByDate[date].revenue += payment.amount.final;
+      revenueByDate[date].count += 1;
+    });
+
+    // Revenue by course
+    const revenueByCourse = {};
+    payments.forEach(payment => {
+      const courseId = payment.course._id.toString();
+      const courseTitle = payment.course.title;
+      if (!revenueByCourse[courseId]) {
+        revenueByCourse[courseId] = {
+          courseId,
+          courseTitle,
+          revenue: 0,
+          sales: 0,
+          avgPrice: 0
+        };
+      }
+      revenueByCourse[courseId].revenue += payment.amount.final;
+      revenueByCourse[courseId].sales += 1;
+    });
+
+    // Calculate avg price for each course
+    Object.values(revenueByCourse).forEach(course => {
+      course.avgPrice = course.revenue / course.sales;
+    });
+
+    // Top courses by revenue
+    const topCourses = Object.values(revenueByCourse)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Format currency
+    const formatVND = (amount) => {
+      return new Intl.NumberFormat('vi-VN', {
+        style: 'currency',
+        currency: 'VND',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount);
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalRevenue,
+          totalRevenueFormatted: formatVND(totalRevenue),
+          totalDiscount,
+          totalDiscountFormatted: formatVND(totalDiscount),
+          totalTransactions,
+          avgTransactionValue,
+          avgTransactionValueFormatted: formatVND(avgTransactionValue)
+        },
+        revenueByDate: Object.entries(revenueByDate)
+          .map(([date, data]) => ({
+            date,
+            revenue: data.revenue,
+            revenueFormatted: formatVND(data.revenue),
+            transactions: data.count
+          }))
+          .sort((a, b) => new Date(a.date) - new Date(b.date)),
+        topCourses: topCourses.map(course => ({
+          ...course,
+          revenueFormatted: formatVND(course.revenue),
+          avgPriceFormatted: formatVND(course.avgPrice)
+        })),
+        recentTransactions: payments.slice(0, 20).map(p => ({
+          orderId: p.orderId,
+          course: p.course.title,
+          user: p.user.name,
+          amount: p.amount.final,
+          amountFormatted: formatVND(p.amount.final),
+          discount: p.amount.discount,
+          paidAt: p.paidAt,
+          paymentMethod: p.paymentMethod.type
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Get revenue analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy revenue analytics',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getUserAnalytics,
   getCourseAnalytics,
@@ -754,5 +902,6 @@ module.exports = {
   getLearningPath: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
   exportAnalytics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
   updateLearningProgress,
-  setLearningGoals
+  setLearningGoals,
+  getRevenueAnalytics
 };

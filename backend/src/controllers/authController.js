@@ -258,6 +258,7 @@ const getMe = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
+    const gridfsService = require('../services/gridfsService');
     const { name, phone, bio } = req.body;
     
     // Prepare update object
@@ -266,9 +267,18 @@ const updateProfile = async (req, res) => {
     if (phone) updateData.phone = phone;
     if (bio) updateData.bio = bio;
     
-    // If avatar file is uploaded, add to update data
+    // If avatar file is uploaded, upload to GridFS
     if (req.file) {
-      updateData.avatar = `/uploads/avatars/${req.file.filename}`;
+      const fileInfo = await gridfsService.uploadFile(
+        req.file.buffer,
+        req.file.originalname,
+        req.file.mimetype,
+        { userId: req.user.id, type: 'avatar' }
+      );
+      
+      // Store GridFS filename in user profile
+      updateData.avatar = fileInfo.filename;
+      updateData.avatarFileId = fileInfo.fileId;
     }
     
     const user = await User.findByIdAndUpdate(
@@ -291,7 +301,10 @@ const updateProfile = async (req, res) => {
       success: true,
       message: 'Cập nhật thông tin thành công',
       data: {
-        user
+        user: {
+          ...user.toObject(),
+          avatarUrl: user.avatar ? `/api/files/${user.avatar}` : null
+        }
       }
     });
     

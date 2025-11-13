@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const connectDB = require('./config/database');
+const { initGridFS } = require('./config/gridfs');
 const notificationService = require('./services/notificationService');
 const cronJobService = require('./services/cronJobService');
 
@@ -17,6 +18,12 @@ dotenv.config();
 
 // Connect to database
 connectDB();
+
+// Initialize GridFS after database connection
+const mongoose = require('mongoose');
+mongoose.connection.once('open', () => {
+  initGridFS();
+});
 
 const app = express();
 
@@ -163,6 +170,9 @@ app.use('/api/discussions', require('./routes/discussionRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/study-groups', require('./routes/studyGroupRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+
+// File serving routes (GridFS)
+app.use('/api/files', require('./routes/fileRoutes'));
 
 // 404 Handler
 app.use('*', (req, res) => {

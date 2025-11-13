@@ -126,14 +126,37 @@ const createPaymentIntent = async (req, res) => {
     let redirectUrl = null;
 
     switch (paymentMethod.provider) {
-      // case 'vnpay':
-      //   paymentGatewayResponse = await createVNPayPayment(payment);
-      //   redirectUrl = paymentGatewayResponse.redirectUrl;
-      //   break;
-      // case 'momo':
-      //   paymentGatewayResponse = await createMoMoPayment(payment);
-      //   redirectUrl = paymentGatewayResponse.payUrl;
-      //   break;
+      case 'fake':
+      case 'demo':
+        // Fake payment for demo - auto success
+        paymentGatewayResponse = {
+          status: 'success',
+          message: 'Thanh toán demo thành công',
+          redirectUrl: `${process.env.FRONTEND_URL}/payment/success/${payment.orderId}`
+        };
+        redirectUrl = paymentGatewayResponse.redirectUrl;
+        break;
+        
+      case 'vnpay':
+        // VNPay integration (disabled for now)
+        paymentGatewayResponse = {
+          status: 'pending',
+          message: 'VNPay đang được phát triển',
+          redirectUrl: `${process.env.FRONTEND_URL}/payment/vnpay/${payment.orderId}`
+        };
+        redirectUrl = paymentGatewayResponse.redirectUrl;
+        break;
+        
+      case 'momo':
+        // MoMo integration (disabled for now)
+        paymentGatewayResponse = {
+          status: 'pending',
+          message: 'MoMo đang được phát triển',
+          redirectUrl: `${process.env.FRONTEND_URL}/payment/momo/${payment.orderId}`
+        };
+        redirectUrl = paymentGatewayResponse.redirectUrl;
+        break;
+        
       case 'manual':
       case 'bank-transfer':
       default:
@@ -655,6 +678,170 @@ async function processRefundWithGateway(payment, amount) {
   return { success: true, refundId: `REF_${Date.now()}` };
 }
 
+// @desc    Fake payment success (for demo/testing)
+// @route   POST /api/payments/:orderId/fake-success
+// @access  Private
+const fakePaymentSuccess = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const payment = await Payment.findOne({ orderId })
+      .populate('user', 'name email')
+      .populate('course', 'title price instructor');
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy payment'
+      });
+    }
+
+    // Verify user owns this payment
+    if (payment.user._id.toString() !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền truy cập payment này'
+      });
+    }
+
+    // Check if already completed
+    if (payment.status === 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Payment đã được thanh toán rồi'
+      });
+    }
+
+    // Update payment to completed
+    payment.status = 'completed';
+    payment.paidAt = new Date();
+    payment.paymentGatewayResponse = {
+      ...payment.paymentGatewayResponse,
+      fakeSuccess: true,
+      completedAt: new Date(),
+      message: 'Demo payment - auto completed'
+    };
+    await payment.save();
+
+    // Check if already enrolled
+    const user = await User.findById(payment.user._id);
+    const isEnrolled = user.enrolledCourses.some(
+      enrollment => enrollment.course.toString() === payment.course._id.toString()
+    );
+
+    if (!isEnrolled) {
+      // Enroll user vào course
+      await User.findByIdAndUpdate(payment.user._id, {
+        $push: {
+          enrolledCourses: {
+            course: payment.course._id,
+            enrolledAt: new Date(),
+            progress: 0,
+            status: 'active'
+          }
+        }
+      });
+
+      // Update course students and stats
+      const course = await Course.findById(payment.course._id);
+      const isStudentEnrolled = course.students.some(
+        s => s.student && s.student.toString() === payment.user._id.toString()
+      );
+
+      if (!isStudentEnrolled) {
+        await Course.findByIdAndUpdate(payment.course._id, {
+          $push: {
+            students: {
+              student: payment.user._id,
+              enrolledAt: new Date(),
+              progress: 0
+            }
+          }
+        });
+      }
+    }
+
+    // Use coupon if exists
+    if (payment.couponCode) {
+      const coupon = await Coupon.findOne({ code: payment.couponCode });
+      if (coupon) {
+        await coupon.useCoupon(
+          payment.user._id,
+          payment.amount.discount,
+          payment.amount.final
+        );
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Thanh toán thành công! Bạn đã được ghi danh vào khóa học.',
+      data: {
+        payment: {
+          id: payment._id,
+          orderId: payment.orderId,
+          status: payment.status,
+          paidAt: payment.paidAt,
+          amount: payment.amount
+        },
+        course: {
+          id: payment.course._id,
+          title: payment.course.title,
+          instructor: payment.course.instructor
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Fake payment success error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi xử lý thanh toán',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get payment by orderId (for payment status check)
+// @route   GET /api/payments/order/:orderId
+// @access  Private
+const getPaymentByOrderId = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const payment = await Payment.findOne({ orderId })
+      .populate('user', 'name email')
+      .populate('course', 'title price thumbnail instructor');
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy payment'
+      });
+    }
+
+    // Verify user owns this payment
+    if (payment.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Không có quyền truy cập payment này'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { payment }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy thông tin payment',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createPaymentIntent,
   confirmPayment,
@@ -662,5 +849,7 @@ module.exports = {
   getPayment,
   handlePaymentWebhook,
   getAllPayments,
-  refundPayment
+  refundPayment,
+  fakePaymentSuccess,
+  getPaymentByOrderId
 };

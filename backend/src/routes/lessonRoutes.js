@@ -10,6 +10,8 @@ const {
   uncompleteLesson
 } = require('../controllers/lessonController');
 const { protect } = require('../middleware/auth');
+const { uploadLessonVideo, uploadLessonDocument } = require('../controllers/uploadController');
+const { uploadVideo, uploadDocument } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -372,5 +374,29 @@ router.delete('/:id', deleteLesson);
  */
 router.post('/:id/complete', completeLesson);
 router.delete('/:id/complete', uncompleteLesson);
+
+/**
+ * @route   POST /api/lessons/:id/upload-video
+ * @desc    Upload lesson video to GridFS
+ * @access  Private (Instructor/Admin)
+ */
+router.post(
+  '/:id/upload-video',
+  protect,
+  uploadVideo.single('video'),
+  uploadLessonVideo
+);
+
+/**
+ * @route   POST /api/lessons/:id/upload-document
+ * @desc    Upload lesson document/PDF to GridFS
+ * @access  Private (Instructor/Admin)
+ */
+router.post(
+  '/:id/upload-document',
+  protect,
+  uploadDocument.single('document'),
+  uploadLessonDocument
+);
 
 module.exports = router;

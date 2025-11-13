@@ -18,7 +18,7 @@ const {
   submitAdminRequest
 } = require('../controllers/adminController');
 const { protect } = require('../middleware/auth');
-const upload = require('../middleware/upload');
+const { uploadImage } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -224,7 +224,7 @@ router.get('/me', protect, getMe);
  *       401:
  *         description: Chưa xác thực
  */
-router.put('/update-profile', protect, upload.single('avatar'), updateProfile);
+router.put('/update-profile', protect, uploadImage.single('avatar'), updateProfile);
 
 /**
  * @swagger

@@ -285,6 +285,30 @@ paymentSchema.virtual('netAmount').get(function() {
   return this.amount.final - this.refund.amount;
 });
 
+// Virtuals for formatted amounts
+paymentSchema.virtual('amountFormatted').get(function() {
+  const formatVND = (amount) => {
+    if (!amount) return '0 ₫';
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(amount);
+  };
+
+  return {
+    original: formatVND(this.amount.original),
+    discount: formatVND(this.amount.discount),
+    final: formatVND(this.amount.final),
+    saved: this.amount.discount > 0 ? formatVND(this.amount.discount) : '0 ₫'
+  };
+});
+
+// Enable virtuals in JSON
+paymentSchema.set('toJSON', { virtuals: true });
+paymentSchema.set('toObject', { virtuals: true });
+
 // Indexes for better performance
 paymentSchema.index({ user: 1, status: 1 });
 paymentSchema.index({ course: 1, status: 1 });

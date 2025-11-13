@@ -1,20 +1,11 @@
 const multer = require('multer');
 const path = require('path');
 
-// Configure multer for avatar upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/avatars');
-  },
-  filename: (req, file, cb) => {
-    // Create unique filename: userId_timestamp.extension
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, req.user.id + '_' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Configure multer to store files in memory for GridFS upload
+const storage = multer.memoryStorage();
 
-// File filter for images only
-const fileFilter = (req, file, cb) => {
+// File filter for images
+const imageFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
@@ -22,13 +13,74 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configure multer
-const upload = multer({
+// File filter for videos
+const videoFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('video/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Chỉ chấp nhận file video!'), false);
+  }
+};
+
+// File filter for documents
+const documentFilter = (req, file, cb) => {
+  const allowedTypes = /pdf|doc|docx|ppt|pptx|xls|xlsx|txt|zip/;
+  const ext = path.extname(file.originalname).toLowerCase();
+  const mimetype = file.mimetype;
+  
+  if (allowedTypes.test(ext) || 
+      mimetype.includes('pdf') || 
+      mimetype.includes('document') || 
+      mimetype.includes('spreadsheet') ||
+      mimetype.includes('presentation') ||
+      mimetype.includes('zip')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Chỉ chấp nhận file tài liệu!'), false);
+  }
+};
+
+// File filter for any type (with size limits)
+const anyFileFilter = (req, file, cb) => {
+  cb(null, true);
+};
+
+// Configure multer for different file types
+const uploadImage = multer({
   storage: storage,
-  fileFilter: fileFilter,
+  fileFilter: imageFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 5 * 1024 * 1024 // 5MB limit for images
   }
 });
 
-module.exports = upload;
+const uploadVideo = multer({
+  storage: storage,
+  fileFilter: videoFilter,
+  limits: {
+    fileSize: 500 * 1024 * 1024 // 500MB limit for videos
+  }
+});
+
+const uploadDocument = multer({
+  storage: storage,
+  fileFilter: documentFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for documents
+  }
+});
+
+const uploadAny = multer({
+  storage: storage,
+  fileFilter: anyFileFilter,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB limit for any files
+  }
+});
+
+module.exports = {
+  uploadImage,
+  uploadVideo,
+  uploadDocument,
+  uploadAny
+};

@@ -13,6 +13,8 @@ const {
 } = require('../controllers/courseController');
 const { protect, requireAdmin, requireOwnershipOrAdmin } = require('../middleware/auth');
 const { validateObjectId } = require('../middleware/validation');
+const { uploadCourseThumbnail } = require('../controllers/uploadController');
+const { uploadImage } = require('../middleware/upload');
 
 const router = express.Router();
 
@@ -393,5 +395,17 @@ router.put('/:id/submit', protect, submitCourseForApproval);
  *       200:
  *         description: Lấy danh sách thành công
  */
+
+/**
+ * @route   POST /api/courses/:id/upload-thumbnail
+ * @desc    Upload course thumbnail
+ * @access  Private (Instructor/Admin)
+ */
+router.post(
+  '/:id/upload-thumbnail',
+  protect,
+  uploadImage.single('thumbnail'),
+  uploadCourseThumbnail
+);
 
 module.exports = router;

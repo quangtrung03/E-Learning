@@ -11,7 +11,8 @@ const {
   getDashboardStats,
   getEngagementMetrics,
   getLearningPath,
-  exportAnalytics
+  exportAnalytics,
+  getRevenueAnalytics
 } = require('../controllers/analyticsController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -531,5 +532,8 @@ router.post('/reports', generateReportValidation, generateReport);
  *         description: Không có quyền xuất dữ liệu
  */
 router.get('/export', exportAnalytics);
+
+// Revenue analytics (Admin & Teachers only)
+router.get('/revenue', protect, getRevenueAnalytics);
 
 module.exports = router;

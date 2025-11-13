@@ -42,7 +42,11 @@ const courseSchema = new mongoose.Schema({
     max: [100, 'Giảm giá không được quá 100%']
   },
   thumbnail: {
-    type: String,
+    type: String,  // GridFS filename
+    default: null
+  },
+  thumbnailFileId: {
+    type: String,  // GridFS file ObjectId
     default: null
   },
   duration: {
@@ -131,8 +135,35 @@ courseSchema.index({ price: 1 });
 
 // Virtual để tính giá sau khi giảm giá
 courseSchema.virtual('finalPrice').get(function() {
-  return this.price * (1 - this.discount / 100);
+  return Math.round(this.price * (1 - this.discount / 100));
 });
+
+// Virtual để format giá VND
+courseSchema.virtual('priceFormatted').get(function() {
+  if (!this.price) return '0 ₫';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(this.price);
+});
+
+// Virtual để format giá cuối cùng
+courseSchema.virtual('finalPriceFormatted').get(function() {
+  const finalPrice = this.finalPrice;
+  if (!finalPrice) return '0 ₫';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(finalPrice);
+});
+
+// Enable virtuals in JSON
+courseSchema.set('toJSON', { virtuals: true });
+courseSchema.set('toObject', { virtuals: true });
 
 // Populate instructor khi query
 courseSchema.pre(/^find/, function(next) {

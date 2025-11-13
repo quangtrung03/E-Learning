@@ -7,7 +7,9 @@ const {
   getPayment,
   handlePaymentWebhook,
   getAllPayments,
-  refundPayment
+  refundPayment,
+  fakePaymentSuccess,
+  getPaymentByOrderId
 } = require('../controllers/paymentController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -374,5 +376,11 @@ router.put('/:id/refund', [
   body('reason').isLength({ min: 5, max: 500 }).withMessage('Lý do refund phải có từ 5-500 ký tự'),
   body('refundAmount').optional().isFloat({ min: 0 }).withMessage('Số tiền refund phải >= 0')
 ], refundPayment);
+
+// Fake payment success endpoint (for demo)
+router.post('/:orderId/fake-success', protect, fakePaymentSuccess);
+
+// Get payment by orderId
+router.get('/order/:orderId', protect, getPaymentByOrderId);
 
 module.exports = router;

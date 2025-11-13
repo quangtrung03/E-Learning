@@ -291,6 +291,37 @@ const enrollCourse = async (req, res) => {
         message: 'Bạn đã đăng ký khóa học này rồi'
       });
     }
+
+    // KIỂM TRA THANH TOÁN - Quan trọng!
+    const Payment = require('../models/Payment');
+    
+    // Nếu khóa học có phí, phải kiểm tra payment
+    if (course.price > 0) {
+      const completedPayment = await Payment.findOne({
+        user: req.user.id,
+        course: req.params.id,
+        status: 'completed'
+      });
+
+      if (!completedPayment) {
+        return res.status(402).json({
+          success: false,
+          message: 'Vui lòng thanh toán trước khi đăng ký khóa học này',
+          data: {
+            coursePrice: course.price,
+            coursePriceFinal: course.price * (1 - course.discount / 100),
+            requiresPayment: true
+          }
+        });
+      }
+
+      // Log payment info for verification
+      console.log(`✅ Payment verified for user ${req.user.id} - Course ${req.params.id}`);
+      console.log(`Amount paid: ${completedPayment.amount.final} VND`);
+    } else {
+      // Khóa học miễn phí - cho phép enroll trực tiếp
+      console.log(`🆓 Free course enrollment for user ${req.user.id} - Course ${req.params.id}`);
+    }
     
     // Thêm student vào course
     await Course.findByIdAndUpdate(req.params.id, {
@@ -316,10 +347,18 @@ const enrollCourse = async (req, res) => {
     
     res.status(200).json({
       success: true,
-      message: 'Đăng ký khóa học thành công'
+      message: 'Đăng ký khóa học thành công',
+      data: {
+        course: {
+          id: course._id,
+          title: course.title,
+          price: course.price
+        }
+      }
     });
     
   } catch (error) {
+    console.error('Enroll course error:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi đăng ký khóa học',

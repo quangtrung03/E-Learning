@@ -12,6 +12,15 @@ const answerSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  // File attachments stored in GridFS
+  attachments: [{
+    filename: String,      // GridFS filename
+    fileId: String,        // GridFS file ObjectId
+    originalName: String,
+    mimetype: String,
+    size: Number,
+    uploadedAt: Date
+  }],
   isCorrect: {
     type: Boolean,
     default: false

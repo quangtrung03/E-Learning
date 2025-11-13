@@ -30,6 +30,16 @@ const lessonSchema = new mongoose.Schema({
     enum: ['text', 'video', 'pdf', 'quiz'],
     default: 'text'
   },
+  // Video storage in GridFS
+  video: {
+    filename: String,  // GridFS filename
+    fileId: String,    // GridFS file ObjectId
+    originalName: String,
+    mimetype: String,
+    size: Number,
+    uploadedAt: Date
+  },
+  // Legacy field for backward compatibility (external URLs)
   videoUrl: {
     type: String,
     default: null
