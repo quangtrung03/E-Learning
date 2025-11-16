@@ -224,6 +224,72 @@ const emailTemplates = {
     `
   }),
 
+  // Admin request validation template (send to USER)
+  adminRequestValidation: (data) => ({
+    subject: '👑 Hoàn tất yêu cầu quyền Admin - E-Learning Platform',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Hoàn tất yêu cầu Admin</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; background: white; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; }
+          .content { padding: 30px; }
+          .validation-box { background: #f8f9fa; border: 2px dashed #667eea; padding: 25px; border-radius: 10px; text-align: center; margin: 20px 0; }
+          .button { display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 10px; }
+          .token { font-size: 18px; font-weight: bold; letter-spacing: 2px; color: #667eea; padding: 10px; background: #e8f0fe; border-radius: 5px; margin: 10px 0; word-break: break-all; }
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #666; border-top: 1px solid #eee; }
+          .warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>👑 E-Learning Platform</h1>
+            <p>Yêu cầu quyền quản trị viên</p>
+          </div>
+          <div class="content">
+            <h2>Chào ${data.userName}!</h2>
+            <p>Cảm ơn bạn đã yêu cầu quyền quản trị viên tại E-Learning Platform.</p>
+            <p>Để hoàn tất yêu cầu, vui lòng điền đầy đủ thông tin cá nhân và lý do muốn trở thành Admin.</p>
+            
+            <div class="validation-box">
+              <h3>📝 Điền thông tin chi tiết</h3>
+              <p><strong>Bước 1:</strong> Click vào nút bên dưới (khuyến nghị)</p>
+              <a href="${getFrontendUrl()}/admin/validate/${data.validationToken}" class="button">Điền thông tin ngay</a>
+              
+              <hr style="margin: 20px 0; border: 1px solid #ddd;">
+              
+              <p><strong>Bước 2 (Nếu link không hoạt động):</strong> Sử dụng mã token</p>
+              <p>Truy cập: <strong>${getFrontendUrl()}/admin/validate</strong></p>
+              <p>Nhập mã bên dưới:</p>
+              <div class="token">${data.validationToken}</div>
+            </div>
+            
+            <div class="warning">
+              <p><strong>⚠️ Lưu ý quan trọng:</strong></p>
+              <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Link và mã token có hiệu lực trong <strong>7 ngày</strong></li>
+                <li>Bạn cần điền đầy đủ thông tin: CCCD, SĐT, địa chỉ, nghề nghiệp...</li>
+                <li>Sau khi điền form, yêu cầu sẽ được gửi đến admin để phê duyệt</li>
+                <li>Quá trình phê duyệt có thể mất 1-3 ngày làm việc</li>
+              </ul>
+            </div>
+            
+            <p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi qua email: <strong>${process.env.ADMIN_EMAIL || 'support@elearning.com'}</strong></p>
+          </div>
+          <div class="footer">
+            <p>© 2025 E-Learning Platform. Nếu bạn không yêu cầu quyền admin, vui lòng bỏ qua email này.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `
+  }),
+
   // Password reset template
   passwordReset: (data) => ({
     subject: '🔐 Đặt lại mật khẩu - E-Learning Platform',
@@ -322,6 +388,23 @@ const sendVerificationEmail = async (email, token, name) => {
 };
 
 // Send admin request notification
+// Send admin request validation email to USER
+const sendAdminRequestValidation = async (data) => {
+  try {
+    console.log('📧 Preparing admin request validation email...');
+    console.log('📧 Email:', data.userEmail);
+    console.log('🎫 Token:', data.validationToken);
+
+    const emailContent = emailTemplates.adminRequestValidation(data);
+
+    return await sendEmail(data.userEmail, emailContent.subject, emailContent.html);
+  } catch (error) {
+    console.error('❌ Failed to send admin request validation:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Send admin request notification to ADMIN
 const sendAdminRequestNotification = async (data) => {
   try {
     console.log('📧 Preparing admin request notification...');
@@ -433,6 +516,7 @@ const sendPasswordResetSuccessEmail = async (email, name) => {
 module.exports = {
   sendEmail,
   sendVerificationEmail,
+  sendAdminRequestValidation,
   sendAdminRequestNotification,
   sendWelcomeEmail,
   sendPasswordResetEmail,

@@ -126,19 +126,22 @@ const register = async (req, res, next) => {
         
         console.log('✅ Admin request created with validation token');
         
-        // Gửi email thông báo admin request tới admin
-        const adminEmailResult = await emailService.sendAdminRequestNotification({
+        // GỬI EMAIL CHO USER để điền form chi tiết
+        console.log('📤 Sending validation email to user...');
+        const userValidationEmailResult = await emailService.sendAdminRequestValidation({
           userName: name,
           userEmail: email,
-          requestId: adminRequest._id,
           validationToken: validationToken
         });
         
-        if (adminEmailResult.success) {
-          console.log('✅ Admin notification email sent successfully');
+        if (userValidationEmailResult.success) {
+          console.log('✅ Validation email sent to user successfully');
         } else {
-          console.log('❌ Failed to send admin notification email:', adminEmailResult.error);
+          console.log('❌ Failed to send validation email to user:', userValidationEmailResult.error);
         }
+        
+        // NOTE: Chỉ gửi email cho admin SAU KHI user đã điền form và submit
+        // Không gửi ngay ở đây vì admin request vẫn ở trạng thái pending_validation
       }
       
       res.status(201).json({

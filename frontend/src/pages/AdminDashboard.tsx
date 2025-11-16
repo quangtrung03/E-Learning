@@ -63,6 +63,24 @@ const AdminDashboard = () => {
       const statsResponse = await api.get('/admin/stats');
       console.log('Stats response:', statsResponse.data);
       
+      let pendingAdminRequestsCount = 0;
+      
+      // Fetch admin requests count
+      try {
+        console.log('Fetching admin requests...');
+        const requestsResponse = await api.get('/admin/requests', {
+          params: { status: 'pending_approval', limit: 1 }
+        });
+        console.log('Requests response:', requestsResponse.data);
+        
+        if (requestsResponse.data.success && requestsResponse.data.pagination) {
+          pendingAdminRequestsCount = requestsResponse.data.pagination.total || 0;
+        }
+      } catch (reqError) {
+        console.error('Error fetching admin requests:', reqError);
+        // Continue with default value
+      }
+      
       if (statsResponse.data.success && statsResponse.data.data) {
         const data = statsResponse.data.data;
         setStats({
@@ -71,7 +89,7 @@ const AdminDashboard = () => {
           pendingCourses: data.courses?.pending || 0,
           approvedCourses: data.courses?.approved || 0,
           totalRevenue: 0, // Backend chưa có revenue logic
-          pendingAdminRequests: 0
+          pendingAdminRequests: pendingAdminRequestsCount
         });
       }
       
@@ -286,7 +304,7 @@ const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Admin Requests</p>
-                  <p className="text-3xl font-bold text-indigo-600">-</p>
+                  <p className="text-3xl font-bold text-indigo-600">{stats.pendingAdminRequests}</p>
                 </div>
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
                   <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -220,6 +220,21 @@ const submitAdminRequest = async (req, res) => {
 
     await adminRequest.markAsValidated();
 
+    // GỬI EMAIL CHO ADMIN sau khi user đã điền form đầy đủ
+    console.log('📤 Sending notification email to admin...');
+    const adminEmailResult = await emailService.sendAdminRequestNotification({
+      userName: fullName,
+      userEmail: adminRequest.email,
+      requestId: adminRequest._id,
+      reason: reason
+    });
+    
+    if (adminEmailResult.success) {
+      console.log('✅ Admin notification email sent successfully');
+    } else {
+      console.log('❌ Failed to send admin notification email:', adminEmailResult.error);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Đã gửi yêu cầu thành công! Chúng tôi sẽ xem xét và phản hồi trong thời gian sớm nhất.',
