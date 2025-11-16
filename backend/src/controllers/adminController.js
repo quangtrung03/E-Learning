@@ -912,11 +912,11 @@ const getAdminRequestsForApproval = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const filter = {};
-    if (status && ['pending_approval', 'approved', 'rejected'].includes(status)) {
+    // Support filtering by specific status or show all
+    if (status && status !== 'all' && ['pending_validation', 'pending_approval', 'approved', 'rejected'].includes(status)) {
       filter.status = status;
-    } else {
-      filter.status = { $in: ['pending_approval', 'approved', 'rejected'] };
     }
+    // If status is not provided or is 'all', don't add status filter (show all)
 
     const adminRequests = await AdminRequest.find(filter)
       .populate('user', 'name email avatar')

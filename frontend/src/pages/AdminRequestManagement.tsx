@@ -43,7 +43,7 @@ const AdminRequestManagement: React.FC = () => {
   const [processing, setProcessing] = useState(false);
   
   // Filter states
-  const [statusFilter, setStatusFilter] = useState<string>('pending_approval');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -53,12 +53,18 @@ const AdminRequestManagement: React.FC = () => {
 
   const fetchRequests = async () => {
     try {
+      const params: any = {
+        page: currentPage,
+        limit: 10
+      };
+      
+      // Only add status filter if not 'all'
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+      
       const response = await api.get('/admin/requests', {
-        params: {
-          status: statusFilter,
-          page: currentPage,
-          limit: 10
-        }
+        params
       });
       
       setRequests(response.data.data.requests);
@@ -196,7 +202,8 @@ const AdminRequestManagement: React.FC = () => {
             }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="">Tất cả</option>
+            <option value="all">Tất cả</option>
+            <option value="pending_validation">Chờ xác thực</option>
             <option value="pending_approval">Chờ duyệt</option>
             <option value="approved">Đã duyệt</option>
             <option value="rejected">Từ chối</option>
