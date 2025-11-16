@@ -110,18 +110,28 @@ const register = async (req, res, next) => {
       if (isRequestAdmin) {
         console.log('👑 Processing admin request...');
         
+        // Tạo validation token và expiry cho admin request
+        const crypto = require('crypto');
+        const validationToken = crypto.randomBytes(32).toString('hex');
+        const validationTokenExpires = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+        
         const adminRequest = await AdminRequest.create({
           user: user._id,
-          name,
           email,
+          validationToken,
+          validationTokenExpires,
+          fullName: name,
           reason: 'Yêu cầu quyền quản trị viên khi đăng ký'
         });
+        
+        console.log('✅ Admin request created with validation token');
         
         // Gửi email thông báo admin request tới admin
         const adminEmailResult = await emailService.sendAdminRequestNotification({
           userName: name,
           userEmail: email,
-          requestId: adminRequest._id
+          requestId: adminRequest._id,
+          validationToken: validationToken
         });
         
         if (adminEmailResult.success) {
