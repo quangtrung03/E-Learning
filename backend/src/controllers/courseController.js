@@ -536,6 +536,184 @@ const getMyEnrolledCourses = async (req, res) => {
   }
 };
 
+// @desc    Lấy tất cả học viên đã đăng ký khóa học của instructor
+// @route   GET /api/courses/my-students
+// @access  Private (Instructor/Teacher)
+const getMyStudents = async (req, res) => {
+  try {
+    console.log('🔍 getMyStudents called for user:', req.user._id);
+
+    // Lấy tất cả khóa học của instructor
+    const myCourses = await Course.find({ instructor: req.user._id })
+      .select('title students')
+      .populate({
+        path: 'students.student',
+        select: 'name email avatar createdAt enrolledCourses createdCourses'
+      });
+
+    // Thu thập tất cả học viên unique
+    const studentsMap = new Map();
+    
+    for (const course of myCourses) {
+      for (const enrollment of course.students) {
+        if (enrollment.student) {
+          const studentId = enrollment.student._id.toString();
+          
+          if (!studentsMap.has(studentId)) {
+            studentsMap.set(studentId, {
+              _id: enrollment.student._id,
+              name: enrollment.student.name,
+              email: enrollment.student.email,
+              avatar: enrollment.student.avatar,
+              joinedAt: enrollment.student.createdAt,
+              courses: [],
+              totalCoursesEnrolled: enrollment.student.enrolledCourses?.length || 0,
+              totalCoursesCreated: enrollment.student.createdCourses?.length || 0
+            });
+          }
+          
+          // Thêm thông tin khóa học này vào student
+          studentsMap.get(studentId).courses.push({
+            courseId: course._id,
+            courseTitle: course.title,
+            enrolledAt: enrollment.enrolledAt,
+            progress: enrollment.progress
+          });
+        }
+      }
+    }
+
+    const students = Array.from(studentsMap.values());
+
+    // Lấy thông tin thanh toán cho từng student
+    const Payment = require('../models/Payment');
+    for (const student of students) {
+      const payments = await Payment.find({
+        user: student._id,
+        course: { $in: student.courses.map(c => c.courseId) },
+        status: 'completed'
+      }).select('amount.final createdAt');
+      
+      student.totalPaid = payments.reduce((sum, p) => sum + p.amount.final, 0);
+      student.paymentHistory = payments.map(p => ({
+        amount: p.amount.final,
+        date: p.createdAt
+      }));
+    }
+
+    res.status(200).json({
+      success: true,
+      count: students.length,
+      data: {
+        students
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getMyStudents:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách học viên',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy chi tiết doanh thu từng khóa học của instructor
+// @route   GET /api/courses/my-revenue
+// @access  Private (Instructor/Teacher)
+const getMyRevenue = async (req, res) => {
+  try {
+    console.log('🔍 getMyRevenue called for user:', req.user._id);
+
+    const Payment = require('../models/Payment');
+    const Review = require('../models/Review');
+
+    // Lấy tất cả khóa học của instructor
+    const myCourses = await Course.find({ instructor: req.user._id })
+      .select('title price finalPrice students rating createdAt')
+      .lean();
+
+    const revenueData = [];
+    let totalRevenue = 0;
+
+    for (const course of myCourses) {
+      // Lấy tất cả payments cho khóa học này
+      const payments = await Payment.find({
+        course: course._id,
+        status: 'completed'
+      }).select('amount.final user createdAt').populate('user', 'name email avatar');
+
+      const courseRevenue = payments.reduce((sum, p) => sum + p.amount.final, 0);
+      totalRevenue += courseRevenue;
+
+      // Lấy reviews cho khóa học
+      const reviews = await Review.find({ course: course._id })
+        .select('rating comment user createdAt')
+        .populate('user', 'name avatar')
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+      // Tính doanh thu theo thời gian
+      const revenueByDate = {};
+      const revenueByMonth = {};
+      const revenueByYear = {};
+
+      payments.forEach(payment => {
+        const date = new Date(payment.createdAt);
+        const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+        const yearKey = date.getFullYear().toString(); // YYYY
+
+        revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + payment.amount.final;
+        revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + payment.amount.final;
+        revenueByYear[yearKey] = (revenueByYear[yearKey] || 0) + payment.amount.final;
+      });
+
+      revenueData.push({
+        courseId: course._id,
+        title: course.title,
+        price: course.price,
+        finalPrice: course.finalPrice,
+        studentsCount: course.students?.length || 0,
+        rating: course.rating,
+        revenue: courseRevenue,
+        payments: payments.map(p => ({
+          user: p.user,
+          amount: p.amount.final,
+          date: p.createdAt
+        })),
+        reviews: reviews,
+        analytics: {
+          byDate: Object.entries(revenueByDate).map(([date, amount]) => ({ date, amount })),
+          byMonth: Object.entries(revenueByMonth).map(([month, amount]) => ({ month, amount })),
+          byYear: Object.entries(revenueByYear).map(([year, amount]) => ({ year, amount }))
+        }
+      });
+    }
+
+    // Sort by revenue descending
+    revenueData.sort((a, b) => b.revenue - a.revenue);
+
+    res.status(200).json({
+      success: true,
+      count: revenueData.length,
+      data: {
+        totalRevenue,
+        courses: revenueData
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in getMyRevenue:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy dữ liệu doanh thu',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllCourses,
   getCourse,
@@ -545,5 +723,7 @@ module.exports = {
   enrollCourse,
   submitCourseForApproval,
   getMyCourses,
-  getMyEnrolledCourses
+  getMyEnrolledCourses,
+  getMyStudents,
+  getMyRevenue
 };

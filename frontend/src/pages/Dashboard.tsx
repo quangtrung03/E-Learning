@@ -27,6 +27,56 @@ interface Course {
   progress?: number;
 }
 
+interface Student {
+  _id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  joinedAt: string;
+  courses: {
+    courseId: string;
+    courseTitle: string;
+    enrolledAt: string;
+    progress: number;
+  }[];
+  totalCoursesEnrolled: number;
+  totalCoursesCreated: number;
+  totalPaid: number;
+  paymentHistory: {
+    amount: number;
+    date: string;
+  }[];
+}
+
+interface RevenueData {
+  courseId: string;
+  title: string;
+  price: number;
+  finalPrice: number;
+  studentsCount: number;
+  rating: {
+    average: number;
+    count: number;
+  };
+  revenue: number;
+  payments: {
+    user: {
+      _id: string;
+      name: string;
+      email: string;
+      avatar?: string;
+    };
+    amount: number;
+    date: string;
+  }[];
+  reviews: any[];
+  analytics: {
+    byDate: { date: string; amount: number }[];
+    byMonth: { month: string; amount: number }[];
+    byYear: { year: string; amount: number }[];
+  };
+}
+
 interface UserStats {
   totalCourses: number;
   enrolledCourses: number;
@@ -47,13 +97,25 @@ const Dashboard = () => {
     totalRevenue: 0
   });
   const [recentCourses, setRecentCourses] = useState<Course[]>([]);
-  const [myCourses, setMyCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [modalCourses, setModalCourses] = useState<Course[]>([]);
   const [modalTitle, setModalTitle] = useState('');
   const [createdCourses, setCreatedCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
+  
+  // New states for students and revenue
+  const [showStudentsModal, setShowStudentsModal] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  
+  const [showRevenueModal, setShowRevenueModal] = useState(false);
+  const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [selectedCourse, setSelectedCourse] = useState<RevenueData | null>(null);
+  const [loadingRevenue, setLoadingRevenue] = useState(false);
+  const [revenueTimeframe, setRevenueTimeframe] = useState<'day' | 'month' | 'year'>('month');
 
   useEffect(() => {
     fetchDashboardData();
@@ -114,12 +176,6 @@ const Dashboard = () => {
           setCreatedCourses(userCoursesArr);
           setEnrolledCourses(enrolledCoursesArr);
 
-          // Show mixed courses on dashboard - prioritize enrolled courses, then created courses (defensive)
-          const safeEnrolled = Array.isArray(enrolledCoursesArr) ? enrolledCoursesArr : [];
-          const safeUserCourses = Array.isArray(userCoursesArr) ? userCoursesArr : [];
-          const dashboardCourses = [...safeEnrolled, ...safeUserCourses].slice(0, 4);
-          setMyCourses(dashboardCourses);
-
           // Calculate accurate stats
           const enrolledCount = enrolledCoursesArr.length;
           const createdCount = userCoursesArr.length;
@@ -157,7 +213,6 @@ const Dashboard = () => {
             totalStudents: 0,
             totalRevenue: 0
           });
-          setMyCourses([]);
         }
       } else {
         // Not logged in, show basic stats
@@ -175,7 +230,6 @@ const Dashboard = () => {
       console.error('Lỗi khi lấy dữ liệu dashboard:', error);
       // Set fallback data
       setRecentCourses([]);
-      setMyCourses([]);
       setStats({
         enrolledCourses: 0,
         createdCourses: 0,
@@ -211,6 +265,35 @@ const Dashboard = () => {
     return levels[level] || level;
   };
 
+  const fetchStudents = async () => {
+    try {
+      setLoadingStudents(true);
+      const response = await courseAPI.getMyStudents();
+      if (response.data.success) {
+        setStudents(response.data.data.students);
+      }
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const fetchRevenue = async () => {
+    try {
+      setLoadingRevenue(true);
+      const response = await courseAPI.getMyRevenue();
+      if (response.data.success) {
+        setRevenueData(response.data.data.courses);
+        setTotalRevenue(response.data.data.totalRevenue);
+      }
+    } catch (error) {
+      console.error('Error fetching revenue:', error);
+    } finally {
+      setLoadingRevenue(false);
+    }
+  };
+
   const handleStatsClick = (type: string) => {
     switch (type) {
       case 'enrolled':
@@ -222,6 +305,14 @@ const Dashboard = () => {
         setModalCourses(createdCourses);
         setModalTitle('Khóa học đã tạo');
         setShowCourseModal(true);
+        break;
+      case 'students':
+        fetchStudents();
+        setShowStudentsModal(true);
+        break;
+      case 'revenue':
+        fetchRevenue();
+        setShowRevenueModal(true);
         break;
       default:
         break;
@@ -249,22 +340,9 @@ const Dashboard = () => {
               Xin chào, {user?.name || 'Bạn'}! 👋
             </h1>
             <p className="text-primary-100 text-lg mb-8 max-w-2xl mx-auto">
-              Chào mừng bạn đến với E-Learning Platform. Hãy bắt đầu hành trình học tập của bạn ngay hôm nay!
+              Quản lý khóa học và theo dõi tiến độ học tập của bạn
             </p>
-            <div className="flex gap-4 justify-center">
-              <Link to="/courses">
-                <Button className="bg-white text-primary-600 hover:bg-gray-100 px-8 py-3 rounded-xl font-semibold">
-                  🔍 Khám phá khóa học
-                </Button>
-              </Link>
-              {user && (
-                <Link to="/my-courses">
-                  <Button className="bg-primary-600 text-white hover:bg-primary-700 px-8 py-3 rounded-xl font-semibold">
-                    📚 Khóa học của tôi
-                  </Button>
-                </Link>
-              )}
-            </div>
+            {/* Search bar sẽ được thêm ở đây */}
           </div>
         </div>
       </div>
@@ -320,71 +398,52 @@ const Dashboard = () => {
                   </Card>
                 </div>
 
-                <Card>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Tổng học viên</p>
-                      <p className="text-3xl font-bold text-purple-600">{stats.totalStudents}</p>
+                <div
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handleStatsClick('students')}
+                  tabIndex={0}
+                  role="button"
+                  onKeyPress={e => {
+                    if (e.key === 'Enter' || e.key === ' ') handleStatsClick('students');
+                  }}
+                >
+                  <Card>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Tổng học viên</p>
+                        <p className="text-3xl font-bold text-purple-600">{stats.totalStudents}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span className="text-2xl">👥</span>
+                      </div>
                     </div>
-                    <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">👥</span>
-                    </div>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
 
-                <Card>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Doanh thu</p>
-                      <p className="text-3xl font-bold text-orange-600">{Number(stats?.totalRevenue || 0).toLocaleString('vi-VN')}đ</p>
+                <div
+                  className="cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => handleStatsClick('revenue')}
+                  tabIndex={0}
+                  role="button"
+                  onKeyPress={e => {
+                    if (e.key === 'Enter' || e.key === ' ') handleStatsClick('revenue');
+                  }}
+                >
+                  <Card>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Doanh thu</p>
+                        <p className="text-3xl font-bold text-orange-600">{Number(stats?.totalRevenue || 0).toLocaleString('vi-VN')}đ</p>
+                      </div>
+                      <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                        <span className="text-2xl">💰</span>
+                      </div>
                     </div>
-                    <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <span className="text-2xl">💰</span>
-                    </div>
-                  </div>
-                </Card>
+                  </Card>
+                </div>
               </div>
             </section>
 
-            {/* My Courses Section */}
-            {(Array.isArray(myCourses) && myCourses.length > 0) && (
-              <section className="mb-12">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">📚 Khóa học của tôi</h2>
-                  <Link to="/my-courses">
-                    <Button variant="outline">Xem tất cả</Button>
-                  </Link>
-                </div>
-                <div className="grid md:grid-cols-2 gap-6">
-                  {(Array.isArray(myCourses) ? myCourses.slice(0, 4) : []).map((course) => (
-                    <Card key={course._id} className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-2">{course.title}</h3>
-                          <p className="text-gray-600 text-sm line-clamp-2 mb-3">{course.description}</p>
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
-                              {getCategoryLabel(course.category)}
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                              {getLevelLabel(course.level)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">
-                          {course.students?.length || 0} học viên
-                        </span>
-                        <Link to={`/courses/${course._id}/lessons`}>
-                          <Button size="sm">Quản lý bài học</Button>
-                        </Link>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              </section>
-            )}
           </>
         )}
 
@@ -527,6 +586,309 @@ const Dashboard = () => {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Students Modal */}
+      <Modal
+        isOpen={showStudentsModal}
+        onClose={() => {
+          setShowStudentsModal(false);
+          setSelectedStudent(null);
+        }}
+        title={selectedStudent ? `Chi tiết học viên: ${selectedStudent.name}` : "Danh sách học viên"}
+      >
+        <div className="max-h-[600px] overflow-y-auto">
+          {loadingStudents ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
+              <p className="text-gray-500">Đang tải...</p>
+            </div>
+          ) : selectedStudent ? (
+            // Student Detail View
+            <div className="space-y-6">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setSelectedStudent(null)}
+                className="mb-4"
+              >
+                ← Quay lại danh sách
+              </Button>
+              
+              <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg">
+                <div className="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center text-2xl font-bold text-primary-600">
+                  {selectedStudent.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">{selectedStudent.name}</h3>
+                  <p className="text-gray-600">{selectedStudent.email}</p>
+                  <p className="text-sm text-gray-500">Tham gia: {new Date(selectedStudent.joinedAt).toLocaleDateString('vi-VN')}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="p-4">
+                  <p className="text-sm text-gray-600">Khóa học đã đăng ký</p>
+                  <p className="text-2xl font-bold text-blue-600">{selectedStudent.totalCoursesEnrolled}</p>
+                </Card>
+                <Card className="p-4">
+                  <p className="text-sm text-gray-600">Khóa học đã tạo</p>
+                  <p className="text-2xl font-bold text-green-600">{selectedStudent.totalCoursesCreated}</p>
+                </Card>
+                <Card className="p-4 col-span-2">
+                  <p className="text-sm text-gray-600">Tổng số tiền đã thanh toán</p>
+                  <p className="text-2xl font-bold text-orange-600">{selectedStudent.totalPaid.toLocaleString('vi-VN')}đ</p>
+                </Card>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">Khóa học của bạn ({selectedStudent.courses.length})</h4>
+                <div className="space-y-2">
+                  {selectedStudent.courses.map((course) => (
+                    <div key={course.courseId} className="border rounded-lg p-3 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{course.courseTitle}</p>
+                          <p className="text-sm text-gray-500">Đăng ký: {new Date(course.enrolledAt).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-primary-600">{course.progress}%</div>
+                          <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
+                            <div 
+                              className="bg-primary-600 h-2 rounded-full" 
+                              style={{ width: `${course.progress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selectedStudent.paymentHistory.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">Lịch sử thanh toán</h4>
+                  <div className="space-y-2">
+                    {selectedStudent.paymentHistory.map((payment, index) => (
+                      <div key={index} className="flex justify-between items-center p-2 border-b">
+                        <span className="text-sm text-gray-600">{new Date(payment.date).toLocaleDateString('vi-VN')}</span>
+                        <span className="font-medium text-green-600">+{payment.amount.toLocaleString('vi-VN')}đ</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Students List View
+            students.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Chưa có học viên nào</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {students.map((student) => (
+                  <div 
+                    key={student._id} 
+                    className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => setSelectedStudent(student)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-lg font-bold text-primary-600">
+                          {student.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{student.name}</h3>
+                          <p className="text-sm text-gray-600">{student.email}</p>
+                          <p className="text-xs text-gray-500">{student.courses.length} khóa học</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-orange-600">{student.totalPaid.toLocaleString('vi-VN')}đ</p>
+                        <p className="text-xs text-gray-500">Tổng đã trả</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+        </div>
+      </Modal>
+
+      {/* Revenue Modal */}
+      <Modal
+        isOpen={showRevenueModal}
+        onClose={() => {
+          setShowRevenueModal(false);
+          setSelectedCourse(null);
+        }}
+        title={selectedCourse ? `Chi tiết doanh thu: ${selectedCourse.title}` : `Doanh thu tổng: ${totalRevenue.toLocaleString('vi-VN')}đ`}
+      >
+        <div className="max-h-[600px] overflow-y-auto">
+          {loadingRevenue ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-2"></div>
+              <p className="text-gray-500">Đang tải...</p>
+            </div>
+          ) : selectedCourse ? (
+            // Course Revenue Detail View
+            <div className="space-y-6">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setSelectedCourse(null)}
+                className="mb-4"
+              >
+                ← Quay lại danh sách
+              </Button>
+
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="p-4">
+                  <p className="text-sm text-gray-600">Giá khóa học</p>
+                  <p className="text-xl font-bold text-blue-600">{selectedCourse.finalPrice.toLocaleString('vi-VN')}đ</p>
+                </Card>
+                <Card className="p-4">
+                  <p className="text-sm text-gray-600">Số học viên</p>
+                  <p className="text-xl font-bold text-purple-600">{selectedCourse.studentsCount}</p>
+                </Card>
+                <Card className="p-4">
+                  <p className="text-sm text-gray-600">Tổng doanh thu</p>
+                  <p className="text-xl font-bold text-green-600">{selectedCourse.revenue.toLocaleString('vi-VN')}đ</p>
+                </Card>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-semibold text-gray-900">Biểu đồ doanh thu</h4>
+                  <select 
+                    className="px-3 py-1 border rounded-md text-sm"
+                    value={revenueTimeframe}
+                    onChange={(e) => setRevenueTimeframe(e.target.value as 'day' | 'month' | 'year')}
+                  >
+                    <option value="day">Theo ngày</option>
+                    <option value="month">Theo tháng</option>
+                    <option value="year">Theo năm</option>
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  {(revenueTimeframe === 'day' ? selectedCourse.analytics.byDate :
+                    revenueTimeframe === 'month' ? selectedCourse.analytics.byMonth :
+                    selectedCourse.analytics.byYear
+                  ).slice(0, 10).map((item: any, index: number) => {
+                    const label = item.date || item.month || item.year;
+                    const maxAmount = Math.max(...(revenueTimeframe === 'day' ? selectedCourse.analytics.byDate :
+                      revenueTimeframe === 'month' ? selectedCourse.analytics.byMonth :
+                      selectedCourse.analytics.byYear
+                    ).map((i: any) => i.amount));
+                    const percentage = (item.amount / maxAmount) * 100;
+                    
+                    return (
+                      <div key={index} className="flex items-center space-x-2">
+                        <div className="w-24 text-sm text-gray-600">{label}</div>
+                        <div className="flex-1 bg-gray-200 rounded-full h-6">
+                          <div 
+                            className="bg-gradient-to-r from-green-400 to-green-600 h-6 rounded-full flex items-center justify-end pr-2"
+                            style={{ width: `${percentage}%` }}
+                          >
+                            <span className="text-xs font-medium text-white">{item.amount.toLocaleString('vi-VN')}đ</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-3">Thanh toán gần đây ({selectedCourse.payments.length})</h4>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {selectedCourse.payments.slice(0, 10).map((payment, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 border-b hover:bg-gray-50">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-sm font-bold text-primary-600">
+                          {payment.user.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{payment.user.name}</p>
+                          <p className="text-xs text-gray-500">{new Date(payment.date).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                      </div>
+                      <span className="font-medium text-green-600">{payment.amount.toLocaleString('vi-VN')}đ</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {selectedCourse.reviews.length > 0 && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-3">
+                    Đánh giá (⭐ {selectedCourse.rating.average.toFixed(1)} - {selectedCourse.rating.count} reviews)
+                  </h4>
+                  <div className="space-y-3 max-h-48 overflow-y-auto">
+                    {selectedCourse.reviews.map((review: any) => (
+                      <div key={review._id} className="border rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-sm font-bold text-primary-600">
+                              {review.user?.name?.charAt(0).toUpperCase()}
+                            </div>
+                            <span className="font-medium text-sm">{review.user?.name}</span>
+                          </div>
+                          <div className="text-yellow-500">{'⭐'.repeat(review.rating)}</div>
+                        </div>
+                        {review.comment && (
+                          <p className="text-sm text-gray-700">{review.comment}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            // Revenue List View
+            revenueData.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Chưa có dữ liệu doanh thu</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {revenueData.map((course) => (
+                  <div 
+                    key={course.courseId} 
+                    className="border rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => setSelectedCourse(course)}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">{course.title}</h3>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600">
+                          <span>💵 {course.finalPrice.toLocaleString('vi-VN')}đ</span>
+                          <span>👥 {course.studentsCount} học viên</span>
+                          <span>⭐ {course.rating.average.toFixed(1)}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold text-green-600">{course.revenue.toLocaleString('vi-VN')}đ</p>
+                        <p className="text-xs text-gray-500">Doanh thu</p>
+                      </div>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full" 
+                        style={{ width: `${(course.revenue / totalRevenue) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
         </div>
       </Modal>

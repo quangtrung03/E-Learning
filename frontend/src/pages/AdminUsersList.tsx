@@ -92,17 +92,25 @@ const AdminUsersList = () => {
     }
   };
 
-  const getStatusBadge = (user: User) => {
+  const getRoleBadge = (user: User) => {
     if (user.isAdmin) {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">Admin</span>;
     }
+    // Check if user has created courses -> Teacher
+    if (user.createdCourses && user.createdCourses.length > 0) {
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Teacher</span>;
+    }
+    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">Student</span>;
+  };
+
+  const getStatusBadge = (user: User) => {
     if (!user.isActive) {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Bị khóa</span>;
     }
     if (!user.emailVerified) {
       return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Chưa xác thực</span>;
     }
-    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Hoạt động</span>;
+    return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Đã xác thực</span>;
   };
 
   if (loading) {
@@ -196,6 +204,9 @@ const AdminUsersList = () => {
                     Người dùng
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vai trò
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Trạng thái
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -234,6 +245,9 @@ const AdminUsersList = () => {
                           </div>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getRoleBadge(userData)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(userData)}

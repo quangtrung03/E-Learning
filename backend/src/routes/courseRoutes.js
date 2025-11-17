@@ -9,7 +9,9 @@ const {
   enrollCourse,
   submitCourseForApproval,
   getMyCourses,
-  getMyEnrolledCourses
+  getMyEnrolledCourses,
+  getMyStudents,
+  getMyRevenue
 } = require('../controllers/courseController');
 const { protect, requireAdmin, requireOwnershipOrAdmin } = require('../middleware/auth');
 const { validateObjectId } = require('../middleware/validation');
@@ -137,6 +139,34 @@ router.get('/', getAllCourses);
  *         description: Lấy danh sách thành công
  */
 router.get('/my-courses', protect, getMyCourses);
+
+/**
+ * @swagger
+ * /courses/my-students:
+ *   get:
+ *     summary: Lấy tất cả học viên đã đăng ký khóa học của instructor
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lấy danh sách học viên thành công
+ */
+router.get('/my-students', protect, getMyStudents);
+
+/**
+ * @swagger
+ * /courses/my-revenue:
+ *   get:
+ *     summary: Lấy chi tiết doanh thu từng khóa học
+ *     tags: [Courses]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lấy dữ liệu doanh thu thành công
+ */
+router.get('/my-revenue', protect, getMyRevenue);
 
 /**
  * @swagger

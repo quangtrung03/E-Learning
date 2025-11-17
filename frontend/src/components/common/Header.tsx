@@ -54,12 +54,6 @@ const Header = () => {
                   Dashboard
                 </Link>
                 <Link
-                  to="/dashboard"
-                  className="text-gray-700 hover:text-orange-600 px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  Khóa học của tôi
-                </Link>
-                <Link
                   to="/my-certificates"
                   className="text-gray-700 hover:text-green-600 px-3 py-2 text-sm font-medium transition-colors"
                 >
@@ -157,14 +151,6 @@ const Header = () => {
                 >
                   <Award className="w-4 h-4" />
                   <span>Dashboard</span>
-                </Link>
-                <Link
-                  to="/dashboard"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  <span>Khóa học của tôi</span>
                 </Link>
               </>
             )}

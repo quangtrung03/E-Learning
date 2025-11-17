@@ -117,6 +117,10 @@ export const courseAPI = {
     api.get('/courses/my-courses', { params }),
   getMyEnrolledCourses: (params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
     api.get('/courses/enrolled', { params }),
+  getMyStudents: (): Promise<AxiosResponse<any>> =>
+    api.get('/courses/my-students'),
+  getMyRevenue: (): Promise<AxiosResponse<any>> =>
+    api.get('/courses/my-revenue'),
 };
 
 // Lesson API calls
