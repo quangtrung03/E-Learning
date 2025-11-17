@@ -4,18 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { courseAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
-import { 
-  Award, 
-  TrendingUp, 
-  CheckCircle, 
-  Star,
-  Code,
-  Palette,
-  Briefcase,
-  MessageSquare,
-  Clock,
-  Target
-} from 'lucide-react';
 
 interface Course {
   _id: string;
@@ -58,155 +46,181 @@ const Home = () => {
   };
 
   const categories = [
-    { icon: Code, name: 'Phát Triển Web', color: 'from-blue-500 to-cyan-500', count: '2,500+' },
-    { icon: Palette, name: 'Thiết Kế Đồ Họa', color: 'from-purple-500 to-pink-500', count: '1,800+' },
-    { icon: Briefcase, name: 'Marketing Digital', color: 'from-orange-500 to-red-500', count: '1,200+' },
-    { icon: MessageSquare, name: 'Tiếng Anh Giao Tiếp', color: 'from-green-500 to-emerald-500', count: '900+' }
+    { 
+      name: 'Web Development', 
+      count: '2,500+', 
+      gradient: 'from-blue-600 to-cyan-600',
+      description: 'Build modern web applications'
+    },
+    { 
+      name: 'Data Science', 
+      count: '1,800+', 
+      gradient: 'from-cyan-600 to-blue-600',
+      description: 'Analyze data and build ML models'
+    },
+    { 
+      name: 'UI/UX Design', 
+      count: '1,200+', 
+      gradient: 'from-blue-500 to-cyan-500',
+      description: 'Create beautiful user experiences'
+    },
+    { 
+      name: 'Digital Marketing', 
+      count: '900+', 
+      gradient: 'from-cyan-500 to-blue-500',
+      description: 'Master online marketing strategies'
+    }
   ];
 
   const features = [
     {
-      icon: Award,
-      title: 'Giảng Viên Hàng Đầu',
-      description: 'Học hỏi từ các chuyên gia hàng đầu với nhiều năm kinh nghiệm thực tế'
+      title: 'Expert Instructors',
+      description: 'Learn from industry professionals with years of real-world experience',
+      gradient: 'from-blue-600 to-cyan-600',
+      svg: (
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      )
     },
     {
-      icon: CheckCircle,
-      title: 'Nội Dung Thực Chiến',
-      description: 'Bài học bám sát thực tế công việc, dễ dàng áp dụng ngay sau khóa học'
+      title: 'Practical Content',
+      description: 'Hands-on projects and real-world applications you can use immediately',
+      gradient: 'from-cyan-600 to-blue-600',
+      svg: (
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+        </svg>
+      )
     },
     {
-      icon: Clock,
-      title: 'Hỗ Trợ Tận Tâm 24/7',
-      description: 'Giải đáp hay vướng mắc bất cứ lúc nào, đảm bảo hành trình học tập suôn sẻ'
+      title: '24/7 Support',
+      description: 'Get help whenever you need it with our dedicated support team',
+      gradient: 'from-blue-500 to-cyan-500',
+      svg: (
+        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      )
     }
+  ];
+
+  const instructors = [
+    { name: 'Trần Minh Huy', title: 'Full-Stack Development', experience: '10+ years', initial: 'TH', gradient: 'from-blue-600 to-cyan-600' },
+    { name: 'Dr. Nguyễn An Nhiên', title: 'Data Science', experience: 'PhD Stanford', initial: 'NA', gradient: 'from-cyan-600 to-blue-600' },
+    { name: 'Lê Quang Dũng', title: 'UX/UI Design', experience: 'Lead Designer', initial: 'LD', gradient: 'from-blue-500 to-cyan-500' },
+    { name: 'Hoàng Thu Thảo', title: 'Digital Marketing', experience: '8+ years', initial: 'HT', gradient: 'from-cyan-500 to-blue-500' },
+    { name: 'Phạm Gia Bảo', title: 'Business Strategy', experience: '15+ years', initial: 'PB', gradient: 'from-blue-600 to-cyan-600' },
+    { name: 'Jessica Chen', title: 'Business English', experience: 'MA Linguistics', initial: 'JC', gradient: 'from-cyan-600 to-blue-600' }
   ];
 
   const testimonials = [
     {
-      name: 'Nguyễn Anh A',
-      role: 'Kỹ sư Phần mềm tại FPT',
-      avatar: '👨‍💼',
-      rating: 5,
-      comment: 'Lộ trình học rất bài bản, giảng viên nhiệt tình, tôi đã có công việc mới nhờ các kỹ năng học được ở đây!'
+      name: 'Nguyễn Anh',
+      role: 'Software Engineer at FPT',
+      initial: 'NA',
+      comment: 'The structured curriculum and dedicated instructors helped me land my dream job.',
+      rating: 5
     },
     {
-      name: 'Nguyễn Văn A',
-      role: 'Khóa học thay đổi sự nghiệp',
-      avatar: '👩‍💼',
-      rating: 5,
-      comment: 'Tôi đã tìm thấy đúng khóa học tôi cần. Giáo viên giảng dạy rất dễ hiểu và hỗ trợ tận tình!'
+      name: 'Trần Văn B',
+      role: 'Career Changer',
+      initial: 'TB',
+      comment: 'Found exactly what I needed. The teaching style is clear and support is excellent.',
+      rating: 5
     },
     {
-      name: 'Tên Học Sinh Hạnh Mới Điều',
-      role: 'Vừa tốt nghiệp và tìm được việc',
-      avatar: '👨‍🎓',
-      rating: 5,
-      comment: 'Khóa học giúp tôi tự tin hơn, kiến thức thực tế và cơ hội networking tuyệt vời!'
+      name: 'Lê Thị C',
+      role: 'Recent Graduate',
+      initial: 'LC',
+      comment: 'Boosted my confidence with practical knowledge and great networking opportunities.',
+      rating: 5
     }
   ];
 
   const getCategoryLabel = (category: string) => {
     const map: { [key: string]: string } = {
-      'programming': 'Lập trình',
-      'design': 'Thiết kế',
-      'business': 'Kinh doanh',
+      'programming': 'Programming',
+      'design': 'Design',
+      'business': 'Business',
       'marketing': 'Marketing',
-      'language': 'Ngôn ngữ',
-      'science': 'Khoa học',
-      'other': 'Khác'
+      'language': 'Language',
+      'science': 'Science',
+      'other': 'Other'
     };
     return map[category] || category;
   };
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-600 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
-          <div className="absolute top-40 right-10 w-72 h-72 bg-cyan-200 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
-          <div className="absolute -bottom-8 left-40 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-4000"></div>
+      {/* Hero Section - Simple Backdrop Blur */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-cyan-600 to-blue-700 text-white">
+        {/* Simple decorative blobs */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div className="absolute top-10 left-10 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl"></div>
+          <div className="absolute bottom-10 right-10 w-80 h-80 bg-cyan-300 rounded-full mix-blend-multiply filter blur-3xl"></div>
         </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8">
-              <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                <span className="text-sm font-medium">Hơn 10,000+ học viên tin tưởng</span>
-              </div>
-              
-              <h1 className="text-5xl md:text-6xl font-bold leading-tight">
-                Học hỏi và Phát triển Kỹ Năng
-                <span className="block text-cyan-300 mt-2">Nâng Cao Cho Tương Lai</span>
-              </h1>
-              
-              <p className="text-xl text-blue-100 leading-relaxed">
-                Khám phá hơn 10.000 khóa học chất lượng cao từ các chuyên gia hàng đầu. 
-                Học mọi lúc, mọi nơi với nền tảng E-Learning hiện đại.
-              </p>
-              
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to={isAuthenticated ? "/courses" : "/register"}>
-                  <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 text-lg font-semibold shadow-xl">
-                    🎯 Khám Phá Khóa Học Ngay
-                  </Button>
-                </Link>
-                <Link to={isAuthenticated ? "/dashboard" : "/courses"}>
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
-                    className="border-2 border-white text-white hover:bg-white/10 px-8 py-4 text-lg font-semibold backdrop-blur-sm"
-                  >
-                    ✨ Trải Nghiệm Miễn Phí
-                  </Button>
-                </Link>
-              </div>
-
-              <div className="flex items-center gap-8 pt-4">
-                <div>
-                  <div className="text-3xl font-bold">10K+</div>
-                  <div className="text-blue-200 text-sm">Học viên</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold">500+</div>
-                  <div className="text-blue-200 text-sm">Khóa học</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold">95%</div>
-                  <div className="text-blue-200 text-sm">Hài lòng</div>
-                </div>
-              </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 md:py-32 relative z-10">
+          <div className="text-center space-y-8 max-w-4xl mx-auto">
+            <div className="inline-block px-6 py-2 bg-white/10 backdrop-blur-sm rounded-full border border-white/20">
+              <span className="text-sm font-medium">Trusted by 50,000+ Students Worldwide</span>
             </div>
-
-            <div className="hidden md:block relative">
-              <div className="relative w-full h-[500px]">
-                <div className="absolute inset-0 bg-white/10 backdrop-blur-sm rounded-3xl rotate-6 animate-pulse"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="relative w-full h-full flex items-center justify-center">
-                    <div className="absolute w-64 h-64 bg-gradient-to-br from-cyan-400 to-blue-500 rounded-full opacity-20 animate-ping"></div>
-                    <div className="relative text-center space-y-6">
-                      <div className="text-8xl">👩‍🎓👨‍💻👩‍💼</div>
-                      <div className="text-6xl">💻📚🎯</div>
-                      <div className="text-2xl font-bold">Học tập mọi lúc, mọi nơi</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+            
+            <h1 className="text-5xl md:text-7xl font-bold leading-tight">
+              Master Skills That
+              <span className="block bg-gradient-to-r from-cyan-300 to-blue-200 bg-clip-text text-transparent mt-2">
+                Matter Most
+              </span>
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-blue-50 max-w-3xl mx-auto leading-relaxed">
+              Transform your career with industry-leading courses taught by world-class experts
+            </p>
+            
+            <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
+              <Link to="/courses">
+                <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-10 py-4 text-lg rounded-xl shadow-2xl hover:shadow-cyan-500/50 transition-all">
+                  Explore Courses
+                </Button>
+              </Link>
+              {!isAuthenticated && (
+                <Link to="/register">
+                  <Button size="lg" className="bg-cyan-500 text-white hover:bg-cyan-400 font-semibold px-10 py-4 text-lg rounded-xl shadow-2xl hover:shadow-blue-500/50 transition-all">
+                    Start Free Trial
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Trusted By Section */}
+        {/* Stats Bar */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 relative z-10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Active Students', value: '50,000+' },
+              { label: 'Expert Courses', value: '15,000+' },
+              { label: 'Top Instructors', value: '1,200+' },
+              { label: '5-Star Reviews', value: '98%' }
+            ].map((stat, idx) => (
+              <div key={idx} className="text-center bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20 hover:bg-white/20 transition-all">
+                <div className="text-4xl font-bold mb-2">{stat.value}</div>
+                <div className="text-blue-100 text-sm">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Trusted By */}
         <div className="relative bg-white/10 backdrop-blur-sm border-t border-white/20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <p className="text-center text-blue-100 text-sm font-medium mb-6">
-              Được tin tưởng bởi các đối tác hàng đầu
+              Trusted by Leading Companies
             </p>
-            <div className="flex flex-wrap justify-center items-center gap-12">
+            <div className="flex flex-wrap justify-center items-center gap-8">
               {['Google', 'Microsoft', 'Amazon', 'Meta', 'IBM'].map((brand) => (
-                <div key={brand} className="px-8 py-4 bg-white rounded-xl shadow-lg">
+                <div key={brand} className="px-8 py-4 bg-white rounded-lg shadow-lg">
                   <span className="text-xl font-bold text-gray-800">{brand}</span>
                 </div>
               ))}
@@ -219,30 +233,37 @@ const Home = () => {
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              📌 Danh Mục Khóa Học Hàng Đầu
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Explore Top Categories
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Chọn lĩnh vực bạn muốn phát triển và bắt đầu hành trình học tập ngay hôm nay
+              Choose your path and start your learning journey today
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.map((cat, index) => (
               <Link key={index} to="/courses">
-                <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 cursor-pointer overflow-hidden">
-                  <div className={`h-32 bg-gradient-to-br ${cat.color} flex items-center justify-center relative`}>
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                    <cat.icon className="w-16 h-16 text-white relative z-10" />
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{cat.name}</h3>
-                    <p className="text-gray-600 font-medium">{cat.count} khóa học</p>
-                    <div className="mt-4 text-blue-600 font-medium group-hover:translate-x-2 transition-transform inline-flex items-center">
-                      Khám phá ngay →
+                <div className={`group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400 cursor-pointer`}>
+                  <div className={`h-40 bg-gradient-to-br ${cat.gradient} flex items-center justify-center relative p-6`}>
+                    <div className="text-center text-white">
+                      <div className="text-4xl font-bold mb-2">{String(index + 1).padStart(2, '0')}</div>
+                      <div className="text-sm opacity-90">{cat.count} courses</div>
                     </div>
                   </div>
-                </Card>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                      {cat.name}
+                    </h3>
+                    <p className="text-gray-600 text-sm mb-4">{cat.description}</p>
+                    <div className="flex items-center text-blue-600 font-medium group-hover:translate-x-2 transition-transform">
+                      <span className="mr-2">Explore</span>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
               </Link>
             ))}
           </div>
@@ -253,15 +274,14 @@ const Home = () => {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center px-4 py-2 bg-orange-100 text-orange-600 rounded-full mb-4">
-              <Star className="w-4 h-4 mr-2 fill-current" />
-              <span className="font-semibold">Nổi bật</span>
+            <div className="inline-block px-6 py-2 bg-blue-100 text-blue-600 rounded-full mb-4 font-semibold">
+              Featured
             </div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              🔥 Khóa Học Nổi Bật
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Popular Courses
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Các khóa học được yêu thích và đánh giá cao nhất từ học viên
+              Top-rated courses loved by students worldwide
             </p>
           </div>
 
@@ -281,20 +301,24 @@ const Home = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredCourses.map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
-                  <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 h-full">
-                    <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                      <span className="text-6xl relative z-10">📚</span>
+                  <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 h-full border-0 overflow-hidden">
+                    <div className="relative h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
                       {course.students?.length > 10 && (
-                        <div className="absolute top-3 right-3 px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full">
-                          BEST SELLER
+                        <div className="absolute top-3 right-3 px-3 py-1 bg-cyan-400 text-blue-900 text-xs font-bold rounded-full">
+                          BESTSELLER
                         </div>
                       )}
+                      <div className="text-white text-4xl font-bold">
+                        {getCategoryLabel(course.category).charAt(0)}
+                      </div>
                     </div>
                     <div className="p-5 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                      <div className="flex items-center justify-between">
+                        <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full">
                           {getCategoryLabel(course.category)}
+                        </span>
+                        <span className="text-sm font-medium text-gray-600">
+                          {course.students?.length || 0} students
                         </span>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
@@ -303,33 +327,29 @@ const Home = () => {
                       <p className="text-sm text-gray-600 line-clamp-2">{course.description}</p>
                       <div className="flex items-center justify-between pt-2">
                         <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                          <span className="text-yellow-400">★</span>
                           <span className="text-sm font-bold">{course.rating.average.toFixed(1)}</span>
                           <span className="text-xs text-gray-500">({course.rating.count})</span>
                         </div>
                         <div className="text-sm text-gray-600">
-                          👥 {course.students?.length || 0}
+                          {course.level}
                         </div>
                       </div>
-                      <div className="pt-2 border-t">
-                        <div className="flex items-center justify-between">
-                          {course.finalPrice < course.price ? (
-                            <>
-                              <div>
-                                <span className="text-2xl font-bold text-blue-600">
-                                  {course.finalPrice.toLocaleString('vi-VN')}đ
-                                </span>
-                                <span className="text-sm text-gray-400 line-through ml-2">
-                                  {course.price.toLocaleString('vi-VN')}đ
-                                </span>
-                              </div>
-                            </>
-                          ) : (
+                      <div className="pt-3 border-t">
+                        {course.finalPrice < course.price ? (
+                          <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-bold text-blue-600">
+                              {course.finalPrice.toLocaleString('vi-VN')}đ
+                            </span>
+                            <span className="text-sm text-gray-400 line-through">
                               {course.price.toLocaleString('vi-VN')}đ
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <span className="text-2xl font-bold text-blue-600">
+                            {course.price.toLocaleString('vi-VN')}đ
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Card>
@@ -340,344 +360,245 @@ const Home = () => {
 
           <div className="text-center mt-12">
             <Link to="/courses">
-              <Button size="lg" variant="outline" className="px-8 py-4">
-                Xem tất cả khóa học →
+              <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-semibold">
+                View All Courses
               </Button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Learning Paths Section */}
-      <section className="py-20 bg-gradient-to-br from-purple-50 to-blue-50">
+      {/* Learning Paths */}
+      <section className="py-20 bg-gradient-to-br from-gray-900 to-gray-800 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-600 rounded-full mb-4">
-              <Target className="w-4 h-4 mr-2" />
-              <span className="font-semibold">Lộ trình học</span>
-            </div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              🎯 Lộ Trình Học Tập
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Structured Learning Paths
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Học theo lộ trình được thiết kế bài bản, từ cơ bản đến nâng cao
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+              Follow our curated paths designed to take you from beginner to expert
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-8">
-            <Card className="group hover:shadow-2xl transition-all duration-300 overflow-hidden">
-              <div className="relative h-64 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white space-y-4">
-                  <div className="text-6xl">💻</div>
-                  <h3 className="text-3xl font-bold">Full-stack Developer</h3>
-                  <p className="text-blue-100">12 khóa học • 6 tháng</p>
+            <Card className="bg-gradient-to-br from-blue-600 to-cyan-600 border-0 text-white p-8">
+              <div className="text-5xl font-bold text-white/20 mb-4">01</div>
+              <h3 className="text-3xl font-bold mb-4">Full-Stack Development</h3>
+              <p className="text-blue-100 mb-6">Master both frontend and backend development with modern technologies</p>
+              <div className="space-y-2 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-cyan-300 rounded-full"></div>
+                  <span>6 courses • 120 hours</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-cyan-300 rounded-full"></div>
+                  <span>Beginner to Advanced</span>
                 </div>
               </div>
-              <div className="p-8">
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  Trở thành lập trình viên Full-stack với HTML, CSS, JavaScript, React, Node.js và Database
-                </p>
-                <Button className="w-full">Xem chi tiết lộ trình</Button>
-              </div>
+              <Link to="/courses">
+                <Button className="bg-white text-blue-600 hover:bg-blue-50 font-semibold">
+                  Start Learning
+                </Button>
+              </Link>
             </Card>
 
-            <Card className="group hover:shadow-2xl transition-all duration-300 overflow-hidden">
-              <div className="relative h-64 bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white space-y-4">
-                  <div className="text-6xl">📊</div>
-                  <h3 className="text-3xl font-bold">Data Analyst</h3>
-                  <p className="text-purple-100">10 khóa học • 5 tháng</p>
+            <Card className="bg-gradient-to-br from-cyan-600 to-blue-600 border-0 text-white p-8">
+              <div className="text-5xl font-bold text-white/20 mb-4">02</div>
+              <h3 className="text-3xl font-bold mb-4">Data Science & AI</h3>
+              <p className="text-cyan-100 mb-6">Learn data analysis, machine learning, and artificial intelligence</p>
+              <div className="space-y-2 mb-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
+                  <span>8 courses • 150 hours</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-300 rounded-full"></div>
+                  <span>Intermediate to Expert</span>
                 </div>
               </div>
-              <div className="p-8">
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  Làm chủ phân tích dữ liệu với Excel, SQL, Python, Power BI và kỹ năng visualization
-                </p>
-                <Button className="w-full">Xem chi tiết lộ trình</Button>
-              </div>
+              <Link to="/courses">
+                <Button className="bg-white text-cyan-600 hover:bg-cyan-50 font-semibold">
+                  Start Learning
+                </Button>
+              </Link>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* Why Choose Us Section */}
-      <section className="py-20 bg-white">
+      {/* Why Choose Us */}
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              ✨ Tại Sao Chọn Chúng Tôi
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Why Choose Us
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Những lý do khiến hàng nghìn học viên tin tưởng và lựa chọn nền tảng của chúng tôi
+              Everything you need to succeed in your learning journey
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <Card key={index} className="text-center p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-2">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-6">
-                  <feature.icon className="w-10 h-10 text-white" />
+            {features.map((feature, idx) => (
+              <div key={idx} className="group backdrop-blur-sm border rounded-2xl p-8 transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400">
+                <div className={`w-14 h-14 rounded-xl bg-gradient-to-r ${feature.gradient} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
+                  {feature.svg}
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-4">{feature.title}</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3 group-hover:text-blue-600 transition-colors">{feature.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{feature.description}</p>
-              </Card>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Top Instructors Section */}
+      {/* Technologies & Skills */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-flex items-center px-4 py-2 bg-purple-100 text-purple-600 rounded-full mb-4">
-              <Award className="w-4 h-4 mr-2" />
-              <span className="font-semibold">Đội ngũ chuyên gia</span>
-            </div>
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              👨‍🏫 Giảng Viên Hàng Đầu
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Master In-Demand Technologies
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Học từ các chuyên gia hàng đầu với nhiều năm kinh nghiệm thực tế tại các tập đoàn lớn
+              Learn the most popular and sought-after technologies in the industry
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Instructor 1: Trần Minh Huy */}
-            <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-              <div className="relative h-80 bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-6xl border-4 border-white/40">
-                    👨‍💻
-                  </div>
-                  <div className="px-4">
-                    <h3 className="text-2xl font-bold mb-2">Trần Minh Huy</h3>
-                    <p className="text-blue-100 font-medium">Chuyên gia Phát triển Full-Stack</p>
-                  </div>
-                </div>
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
+            {[
+              { name: 'React', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/react/react-original.svg', category: 'Frontend' },
+              { name: 'Node.js', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/nodejs/nodejs-original.svg', category: 'Backend' },
+              { name: 'Python', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/python/python-original.svg', category: 'Language' },
+              { name: 'TypeScript', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/typescript/typescript-original.svg', category: 'Language' },
+              { name: 'MongoDB', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/mongodb/mongodb-original.svg', category: 'Database' },
+              { name: 'Docker', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/docker/docker-original.svg', category: 'DevOps' },
+              { name: 'AWS', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/amazonwebservices/amazonwebservices-plain-wordmark.svg', category: 'Cloud' },
+              { name: 'Firebase', icon: 'https://www.vectorlogo.zone/logos/firebase/firebase-icon.svg', category: 'Backend' },
+              { name: 'Figma', icon: 'https://www.vectorlogo.zone/logos/figma/figma-icon.svg', category: 'Design' },
+              { name: 'Git', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/git/git-original.svg', category: 'Tools' },
+              { name: 'Next.js', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/nextjs/nextjs-original.svg', category: 'Framework' },
+              { name: 'Vue.js', icon: 'https://raw.githubusercontent.com/devicons/devicon/master/icons/vuejs/vuejs-original.svg', category: 'Frontend' }
+            ].map((tech, index) => (
+              <div 
+                key={index}
+                className="group flex flex-col items-center p-6 backdrop-blur-sm bg-white/80 border border-gray-200 rounded-2xl hover:border-blue-400 hover:scale-110 transition-all duration-300 cursor-pointer"
+                title={`${tech.name} - ${tech.category}`}
+              >
+                <img 
+                  src={tech.icon} 
+                  alt={tech.name} 
+                  className="w-16 h-16 mb-3 group-hover:scale-110 transition-transform duration-300"
+                />
+                <span className="text-sm font-semibold text-gray-700 group-hover:text-blue-600 transition-colors">
+                  {tech.name}
+                </span>
+                <span className="text-xs text-gray-500 mt-1">{tech.category}</span>
               </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed text-center">
-                  "Với 10 năm kinh nghiệm tại các startup công nghệ, anh Huy tập trung vào các dự án thực tế và tư duy giải quyết vấn đề, giúp bạn xây dựng ứng dụng hoàn chỉnh từ A-Z."
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">💻 Full-Stack</span>
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">10+ năm</span>
-                </div>
-              </div>
-            </Card>
+            ))}
+          </div>
 
-            {/* Instructor 2: Dr. Nguyễn An Nhiên */}
-            <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-              <div className="relative h-80 bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-6xl border-4 border-white/40">
-                    👩‍🔬
-                  </div>
-                  <div className="px-4">
-                    <h3 className="text-2xl font-bold mb-2">Dr. Nguyễn An Nhiên</h3>
-                    <p className="text-purple-100 font-medium">Tiến sĩ Khoa học Dữ liệu</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed text-center">
-                  "Tốt nghiệp từ Đại học Stanford, cô An Nhiên có đam mê biến những con số phức tạp thành các quyết định kinh doanh thông minh và dễ hiểu cho mọi người."
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
-                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">📊 Data Science</span>
-                  <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full font-medium">🎓 PhD Stanford</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Instructor 3: Lê Quang Dũng */}
-            <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-              <div className="relative h-80 bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-6xl border-4 border-white/40">
-                    👨‍🎨
-                  </div>
-                  <div className="px-4">
-                    <h3 className="text-2xl font-bold mb-2">Lê Quang Dũng</h3>
-                    <p className="text-orange-100 font-medium">Giám đốc Sáng tạo & UX/UI</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed text-center">
-                  "Anh Dũng là Giám đốc Sáng tạo tại Z-Creative. Anh sẽ hướng dẫn bạn cách tư duy thiết kế lấy người dùng làm trung tâm và xây dựng một portfolio ấn tượng."
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
-                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full font-medium">🎨 UX/UI Design</span>
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full font-medium">Creative Director</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Instructor 4: Hoàng Thu Thảo */}
-            <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-              <div className="relative h-80 bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-6xl border-4 border-white/40">
-                    👩‍💼
-                  </div>
-                  <div className="px-4">
-                    <h3 className="text-2xl font-bold mb-2">Hoàng Thu Thảo</h3>
-                    <p className="text-green-100 font-medium">Chuyên gia Digital Marketing</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed text-center">
-                  "Chuyên gia Google Ads & SEO với 8 năm kinh nghiệm thực chiến. Chị Thảo nổi tiếng với các case study thành công về tăng trưởng doanh thu cho doanh nghiệp vừa và nhỏ."
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full font-medium">📈 Marketing</span>
-                  <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">8+ năm</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Instructor 5: Phạm Gia Bảo */}
-            <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-              <div className="relative h-80 bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-6xl border-4 border-white/40">
-                    👨‍💼
-                  </div>
-                  <div className="px-4">
-                    <h3 className="text-2xl font-bold mb-2">Phạm Gia Bảo</h3>
-                    <p className="text-indigo-100 font-medium">Chuyên gia Quản trị & Lãnh đạo</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed text-center">
-                  "Hơn 15 năm kinh nghiệm quản lý cấp cao tại các tập đoàn đa quốc gia. Thầy Bảo chuyên sâu về kỹ năng lãnh đạo, xây dựng chiến lược và quản trị nhân sự hiệu quả."
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
-                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full font-medium">👔 Leadership</span>
-                  <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full font-medium">15+ năm</span>
-                </div>
-              </div>
-            </Card>
-
-            {/* Instructor 6: Jessica Chen */}
-            <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 overflow-hidden">
-              <div className="relative h-80 bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all"></div>
-                <div className="relative text-center text-white">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-6xl border-4 border-white/40">
-                    👩‍🏫
-                  </div>
-                  <div className="px-4">
-                    <h3 className="text-2xl font-bold mb-2">Jessica Chen</h3>
-                    <p className="text-pink-100 font-medium">Chuyên gia Giao tiếp & Tiếng Anh</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6">
-                <p className="text-gray-700 leading-relaxed text-center">
-                  "Thạc sĩ Ngôn ngữ học ứng dụng, Jessica giúp hàng ngàn học viên phá bỏ rào cản ngôn ngữ, tự tin thuyết trình và đàm phán trong môi trường quốc tế."
-                </p>
-                <div className="mt-4 flex items-center justify-center gap-2 text-sm text-gray-600">
-                  <span className="px-3 py-1 bg-pink-100 text-pink-700 rounded-full font-medium">🗣️ English</span>
-                  <span className="px-3 py-1 bg-rose-100 text-rose-700 rounded-full font-medium">🎓 MA</span>
-                </div>
-              </div>
-            </Card>
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">And many more technologies to explore!</p>
+            <Link to="/courses">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold">
+                View All Courses
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-cyan-50">
+      {/* Top Instructors */}
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
-              💬 Cảm Nhận Học Viên
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Learn From The Best
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Hàng nghìn học viên đã thành công với chúng tôi. Đây là câu chuyện của họ
+              Our instructors are industry leaders and experts in their fields
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {instructors.map((instructor, idx) => (
+              <div key={idx} className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400">
+                <div className={`h-32 bg-gradient-to-br ${instructor.gradient} flex items-center justify-center relative`}>
+                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <span className="text-3xl font-bold bg-gradient-to-br from-blue-600 to-cyan-600 bg-clip-text text-transparent">{instructor.initial}</span>
+                  </div>
+                </div>
+                <div className="p-6 text-center">
+                  <h3 className="text-xl font-bold text-gray-900 mb-1 group-hover:text-blue-600 transition-colors">{instructor.name}</h3>
+                  <p className="text-blue-600 font-medium mb-2">{instructor.title}</p>
+                  <div className="inline-block px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                    {instructor.experience}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Student Success Stories
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              See what our students have achieved
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="p-8 hover:shadow-xl transition-all duration-300">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-3xl">
-                    {testimonial.avatar}
+            {testimonials.map((testimonial, idx) => (
+              <div key={idx} className="backdrop-blur-sm border rounded-2xl p-8 transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400">
+                <div className="flex gap-1 mb-4">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                  ))}
+                </div>
+                <p className="text-gray-700 leading-relaxed mb-6 italic">"{testimonial.comment}"</p>
+                <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg font-bold text-white">{testimonial.initial}</span>
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-900">{testimonial.name}</h4>
                     <p className="text-sm text-gray-600">{testimonial.role}</p>
                   </div>
                 </div>
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <p className="text-gray-700 leading-relaxed italic">"{testimonial.comment}"</p>
-              </Card>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-600 text-white relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-20 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
-          <div className="absolute bottom-20 right-20 w-96 h-96 bg-cyan-200 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
-        </div>
-
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-5xl font-bold mb-6">
-            Sẵn sàng khai phá tiềm năng của bạn?
+      {/* Final CTA */}
+      <section className="py-20 bg-gradient-to-br from-blue-600 via-cyan-600 to-blue-700 text-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-4xl md:text-5xl font-bold mb-6">
+            Ready to Start Learning?
           </h2>
-          <p className="text-2xl text-blue-100 mb-12 leading-relaxed">
-            Tham gia SkillStream ngay hôm nay. Bắt đầuc hành trình học tập và phát triển sự nghiệp của bạn!
+          <p className="text-xl text-blue-100 mb-8">
+            Join thousands of students already learning with us
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to={isAuthenticated ? "/courses" : "/register"}>
-              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 px-12 py-6 text-xl font-bold shadow-2xl">
-                🚀 Đăng Ký Khóa Học Đầu Tiên
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <Link to="/register">
+              <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 font-semibold px-10 py-4 text-lg rounded-xl shadow-2xl">
+                Get Started Now
               </Button>
             </Link>
             <Link to="/courses">
-              <Button 
-                size="lg" 
-                variant="outline" 
-                className="border-2 border-white text-white hover:bg-white/10 px-12 py-6 text-xl font-bold backdrop-blur-sm"
-              >
-                📚 Khám Phá Khóa Học
+              <Button size="lg" className="bg-cyan-500 text-white hover:bg-cyan-400 font-semibold px-10 py-4 text-lg rounded-xl shadow-2xl">
+                Browse Courses
               </Button>
             </Link>
-          </div>
-
-          <div className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
-            <div>
-              <div className="text-4xl font-bold mb-2">10K+</div>
-              <div className="text-blue-200">Học viên</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold mb-2">500+</div>
-              <div className="text-blue-200">Khóa học</div>
-            </div>
-            <div>
-              <div className="text-4xl font-bold mb-2">5K+</div>
-              <div className="text-blue-200">Chứng chỉ</div>
-            </div>
           </div>
         </div>
       </section>
