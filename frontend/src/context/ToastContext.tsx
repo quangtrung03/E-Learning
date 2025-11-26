@@ -67,6 +67,8 @@ const ToastContainer: React.FC = () => {
 };
 
 const ToastItem: React.FC<{ toast: Toast; onRemove: (id: string) => void }> = ({ toast, onRemove }) => {
+  const duration = toast.duration || 5000; // default 5 seconds
+
   const getToastStyles = () => {
     switch (toast.type) {
       case 'success':
@@ -98,27 +100,38 @@ const ToastItem: React.FC<{ toast: Toast; onRemove: (id: string) => void }> = ({
   };
 
   return (
-    <div className={`max-w-sm w-full border rounded-lg p-4 shadow-lg transition-all duration-300 transform hover:scale-105 ${getToastStyles()}`}>
-      <div className="flex items-start">
-        <div className="flex-shrink-0 text-lg mr-3">
-          {getIcon()}
+    <div className={`max-w-sm w-full border rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 overflow-hidden ${getToastStyles()}`}>
+      <div className="p-4">
+        <div className="flex items-start">
+          <div className="flex-shrink-0 text-lg mr-3">
+            {getIcon()}
+          </div>
+          <div className="flex-1">
+            <h4 className="font-medium text-sm">
+              {toast.title}
+            </h4>
+            {toast.message && (
+              <p className="mt-1 text-sm opacity-90">
+                {toast.message}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => onRemove(toast.id)}
+            className="flex-shrink-0 ml-2 text-lg opacity-60 hover:opacity-100 transition-opacity"
+          >
+            ×
+          </button>
         </div>
-        <div className="flex-1">
-          <h4 className="font-medium text-sm">
-            {toast.title}
-          </h4>
-          {toast.message && (
-            <p className="mt-1 text-sm opacity-90">
-              {toast.message}
-            </p>
-          )}
-        </div>
-        <button
-          onClick={() => onRemove(toast.id)}
-          className="flex-shrink-0 ml-2 text-lg opacity-60 hover:opacity-100 transition-opacity"
-        >
-          ×
-        </button>
+      </div>
+      {/* Progress Bar - Thanh tiến trình màu tím */}
+      <div className="h-1 bg-gray-200 relative overflow-hidden">
+        <div 
+          className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-purple-600 animate-shrink"
+          style={{
+            animation: `shrinkProgress ${duration}ms linear forwards`
+          }}
+        />
       </div>
     </div>
   );
