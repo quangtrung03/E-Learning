@@ -1,8 +1,27 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { courseAPI } from '../services/api';
+import { courseAPI, contentAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+
+interface Category {
+  _id: string;
+  name: string;
+  slug: string;
+  description: string;
+  count: string;
+  imageUrl: string;
+  gradient: string;
+}
+
+interface Instructor {
+  _id: string;
+  name: string;
+  title: string;
+  experience: string;
+  imageUrl: string;
+  gradient: string;
+}
 
 interface Course {
   _id: string;
@@ -24,64 +43,43 @@ interface Course {
 
 const Home = () => {
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
   useEffect(() => {
-    fetchFeaturedCourses();
+    fetchData();
   }, []);
 
-  const fetchFeaturedCourses = async () => {
+  const fetchData = async () => {
     try {
-      const response = await courseAPI.getAllCourses({ limit: 8, sort: 'newest' });
-      if (response.data.success && response.data.data.courses) {
-        setFeaturedCourses(response.data.data.courses);
+      const [coursesRes, categoriesRes, instructorsRes] = await Promise.all([
+        courseAPI.getAllCourses({ limit: 8, sort: 'newest' }),
+        contentAPI.getCategories(),
+        contentAPI.getInstructors()
+      ]);
+      
+      if (coursesRes.data.success && coursesRes.data.data.courses) {
+        setFeaturedCourses(coursesRes.data.data.courses);
+      }
+      
+      if (categoriesRes.data.success) {
+        setCategories(categoriesRes.data.data);
+      }
+      
+      if (instructorsRes.data.success) {
+        setInstructors(instructorsRes.data.data);
       }
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const categories = [
-    { 
-      name: 'Web Development', 
-      count: '2,500+', 
-      gradient: 'from-blue-600 to-cyan-600',
-      description: 'Build modern web applications',
-      image: '/src/assets/developweb.jpg'
-    },
-    { 
-      name: 'Data Science', 
-      count: '1,800+', 
-      gradient: 'from-cyan-600 to-blue-600',
-      description: 'Analyze data and build ML models',
-      image: '/src/assets/datasience.jpg'
-    },
-    { 
-      name: 'UI/UX Design', 
-      count: '1,200+', 
-      gradient: 'from-blue-500 to-cyan-500',
-      description: 'Create beautiful user experiences',
-      image: '/src/assets/uiux.jpg'
-    },
-    { 
-      name: 'Digital Marketing', 
-      count: '900+', 
-      gradient: 'from-cyan-500 to-blue-500',
-      description: 'Master online marketing strategies',
-      image: '/src/assets/digital.png'
-    }
-  ];
 
-  const instructors = [
-    { name: 'Trần Minh Huy', title: 'Full-Stack Development', experience: '10+ years', image: '/src/assets/huy.png', gradient: 'from-blue-600 to-cyan-600' },
-    { name: 'Dr. Nguyễn An Nhiên', title: 'Data Science', experience: 'PhD Stanford', image: '/src/assets/nhien.png', gradient: 'from-cyan-600 to-blue-600' },
-    { name: 'Lê Quang Dũng', title: 'UX/UI Design', experience: 'Lead Designer', image: '/src/assets/dung.png', gradient: 'from-blue-500 to-cyan-500' },
-    { name: 'Hoàng Thu Thảo', title: 'Digital Marketing', experience: '8+ years', image: '/src/assets/thao.png', gradient: 'from-cyan-500 to-blue-500' },
-    { name: 'Phạm Gia Bảo', title: 'Business Strategy', experience: '15+ years', image: '/src/assets/bao.png', gradient: 'from-blue-600 to-cyan-600' },
-    { name: 'Nguyễn Thị Linh', title: 'Business English', experience: 'MA Linguistics', image: '/src/assets/linh.png', gradient: 'from-cyan-600 to-blue-600' }
-  ];
 
   const testimonials = [
     {
@@ -189,7 +187,7 @@ const Home = () => {
                 <div className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white border-gray-200 hover:border-blue-400 cursor-pointer shadow-lg hover:shadow-2xl">
                   <div className="h-48 relative overflow-hidden">
                     <img 
-                      src={cat.image} 
+                      src={`${API_URL}${cat.imageUrl}`} 
                       alt={cat.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
@@ -386,7 +384,7 @@ const Home = () => {
               <div key={idx} className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400 shadow-lg hover:shadow-2xl">
                 <div className={`h-64 bg-gradient-to-br ${instructor.gradient} flex items-center justify-center relative overflow-hidden`}>
                   <img 
-                    src={instructor.image} 
+                    src={`${API_URL}${instructor.imageUrl}`} 
                     alt={instructor.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />

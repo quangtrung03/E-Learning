@@ -280,6 +280,12 @@ export const adminAPI = {
     api.put(`/admin/payments/${paymentId}/refund`, { amount }),
 };
 
+// Content API
+export const contentAPI = {
+  getCategories: () => api.get('/categories'),
+  getInstructors: () => api.get('/instructors'),
+};
+
 // Health check
 export const healthAPI = {
   check: () => api.get('/health'),

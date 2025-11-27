@@ -59,6 +59,8 @@ const Courses = () => {
     tags: ['']
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [priceType, setPriceType] = useState<string>('free');
+  const [durationType, setDurationType] = useState<string>('custom');
 
   const categories = [
     { value: '', label: 'Tất cả danh mục' },
@@ -621,30 +623,91 @@ const Courses = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Giá khóa học (VNĐ) *
                 </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  value={formData.price}
-                  onChange={(e) => handleInputChange('price', parseInt(e.target.value) || 0)}
-                  placeholder="0"
-                />
+                <div className="space-y-2">
+                  <select
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    value={priceType}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setPriceType(value);
+                      if (value !== 'custom') {
+                        handleInputChange('price', parseInt(value));
+                      }
+                    }}
+                  >
+                    <option value="free">Miễn phí</option>
+                    <option value="299000">299,000 VNĐ (Khóa ngắn)</option>
+                    <option value="499000">499,000 VNĐ (Phổ biến)</option>
+                    <option value="799000">799,000 VNĐ (Trung cấp)</option>
+                    <option value="999000">999,000 VNĐ</option>
+                    <option value="1499000">1,499,000 VNĐ (Nâng cao)</option>
+                    <option value="1990000">1,990,000 VNĐ</option>
+                    <option value="2990000">2,990,000 VNĐ (Premium)</option>
+                    <option value="custom">Tùy chỉnh...</option>
+                  </select>
+                  {priceType === 'custom' && (
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      value={formData.price}
+                      onChange={(e) => handleInputChange('price', parseInt(e.target.value) || 0)}
+                      placeholder="Nhập giá tùy chỉnh"
+                    />
+                  )}
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Thời lượng (phút) *
+                  Thời lượng *
                 </label>
-                <input
-                  type="number"
-                  required
-                  min="1"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  value={formData.duration}
-                  onChange={(e) => handleInputChange('duration', parseInt(e.target.value) || 0)}
-                  placeholder="120"
-                />
+                <div className="space-y-2">
+                  <select
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    value={durationType}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setDurationType(value);
+                      if (value !== 'custom') {
+                        handleInputChange('duration', parseInt(value));
+                      }
+                    }}
+                  >
+                    <option value="30">30 phút (Video ngắn)</option>
+                    <option value="60">1 giờ</option>
+                    <option value="90">1.5 giờ</option>
+                    <option value="120">2 giờ</option>
+                    <option value="180">3 giờ</option>
+                    <option value="240">4 giờ</option>
+                    <option value="300">5 giờ</option>
+                    <option value="360">6 giờ</option>
+                    <option value="480">8 giờ (Một ngày)</option>
+                    <option value="600">10 giờ</option>
+                    <option value="720">12 giờ</option>
+                    <option value="900">15 giờ</option>
+                    <option value="1200">20 giờ (Khóa dài)</option>
+                    <option value="1800">30 giờ</option>
+                    <option value="2400">40 giờ (Khóa chuyên sâu)</option>
+                    <option value="3000">50 giờ</option>
+                    <option value="3600">60 giờ (Bootcamp)</option>
+                    <option value="custom">Tùy chỉnh...</option>
+                  </select>
+                  {durationType === 'custom' && (
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        value={formData.duration}
+                        onChange={(e) => handleInputChange('duration', parseInt(e.target.value) || 0)}
+                        placeholder="Nhập số phút"
+                      />
+                      <span className="flex items-center px-3 text-gray-600 text-sm">phút</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </section>

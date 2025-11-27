@@ -171,8 +171,15 @@ app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/study-groups', require('./routes/studyGroupRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 
+// Content routes
+app.use('/api/categories', require('./routes/categoryRoutes'));
+app.use('/api/instructors', require('./routes/instructorRoutes'));
+
 // File serving routes (GridFS)
 app.use('/api/files', require('./routes/fileRoutes'));
+
+// Static file serving for uploads
+app.use('/uploads', express.static('uploads'));
 
 // 404 Handler
 app.use('*', (req, res) => {
