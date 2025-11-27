@@ -835,7 +835,6 @@ const CourseDetail = () => {
             )}
           </div>
         </div>
-        </div>
         )}
 
         {/* Reviews Tab */}

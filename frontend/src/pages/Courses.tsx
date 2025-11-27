@@ -101,14 +101,6 @@ const Courses = () => {
     { value: 'advanced', label: 'Nâng cao' }
   ];
 
-  const sortOptions = [
-    { value: 'newest', label: 'Mới nhất' },
-    { value: 'oldest', label: 'Cũ nhất' },
-    { value: 'price-low', label: 'Giá thấp' },
-    { value: 'price-high', label: 'Giá cao' },
-    { value: 'rating', label: 'Đánh giá cao' }
-  ];
-
   useEffect(() => {
     if (activeTab === 'browse') {
       fetchCourses();
@@ -168,11 +160,6 @@ const Courses = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFilterChange = (key: string, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-    setPagination(prev => ({ ...prev, page: 1 }));
   };
 
   const handleAdvancedFilterChange = (newFilters: typeof filters) => {
