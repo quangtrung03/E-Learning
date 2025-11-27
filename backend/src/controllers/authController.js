@@ -280,18 +280,31 @@ const updateProfile = async (req, res) => {
     if (phone) updateData.phone = phone;
     if (bio) updateData.bio = bio;
     
-    // If avatar file is uploaded, upload to GridFS
+    // If avatar file is uploaded, upload to Cloudinary
     if (req.file) {
-      const fileInfo = await gridfsService.uploadFile(
-        req.file.buffer,
-        req.file.originalname,
-        req.file.mimetype,
-        { userId: req.user.id, type: 'avatar' }
-      );
+      const { uploadImage } = require('../config/cloudinary');
       
-      // Store GridFS filename in user profile
-      updateData.avatar = fileInfo.filename;
-      updateData.avatarFileId = fileInfo.fileId;
+      // Create temp file path from buffer
+      const path = require('path');
+      const fs = require('fs').promises;
+      const tempPath = path.join(__dirname, '../../uploads/temp', `${Date.now()}-${req.file.originalname}`);
+      
+      // Ensure temp directory exists
+      await fs.mkdir(path.dirname(tempPath), { recursive: true });
+      await fs.writeFile(tempPath, req.file.buffer);
+      
+      try {
+        // Upload to Cloudinary
+        const cloudinaryUrl = await uploadImage(tempPath, 'avatars');
+        updateData.avatar = cloudinaryUrl;
+        
+        // Clean up temp file
+        await fs.unlink(tempPath);
+      } catch (uploadError) {
+        // Clean up temp file on error
+        try { await fs.unlink(tempPath); } catch (e) {}
+        throw uploadError;
+      }
     }
     
     const user = await User.findByIdAndUpdate(
@@ -316,7 +329,7 @@ const updateProfile = async (req, res) => {
       data: {
         user: {
           ...user.toObject(),
-          avatarUrl: user.avatar ? `/api/files/${user.avatar}` : null
+          avatarUrl: user.avatar || null // Cloudinary URL already complete
         }
       }
     });

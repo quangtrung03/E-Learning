@@ -31,11 +31,7 @@ const userSchema = new mongoose.Schema({
     default: false
   },
   avatar: {
-    type: String,  // GridFS filename
-    default: null
-  },
-  avatarFileId: {
-    type: String,  // GridFS file ObjectId
+    type: String,  // Cloudinary URL
     default: null
   },
   phone: {

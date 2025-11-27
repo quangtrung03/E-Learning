@@ -142,7 +142,7 @@ const AssignmentDetail: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error starting assignment:', error);
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi bắt đầu làm bài');
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi xảy ra khi bắt đầu làm bài' });
     } finally {
       setSubmitting(false);
     }
@@ -200,7 +200,7 @@ const AssignmentDetail: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error submitting assignment:', error);
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi nộp bài');
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi xảy ra khi nộp bài' });
     } finally {
       setSubmitting(false);
     }

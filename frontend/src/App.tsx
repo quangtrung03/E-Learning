@@ -22,6 +22,11 @@ import AdminRequestForm from './pages/AdminRequestForm';
 import AdminRequestManagement from './pages/AdminRequestManagement';
 import AssignmentDetail from './pages/AssignmentDetail';
 import MyCertificates from './pages/MyCertificates';
+import Messages from './pages/MessagesEnhanced';
+import StudyGroups from './pages/StudyGroups';
+import StudyGroupDetail from './pages/StudyGroupDetail';
+import StudyGroupCreate from './pages/StudyGroupCreate';
+import LearningAnalytics from './pages/LearningAnalytics';
 import { useAuth } from './context/AuthContext';
 
 // Protected Route Component
@@ -184,6 +189,46 @@ function App() {
             element={
               <ProtectedRoute>
                 <MyCertificates />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/messages" 
+            element={
+              <ProtectedRoute>
+                <Messages />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/study-groups" 
+            element={
+              <ProtectedRoute>
+                <StudyGroups />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/study-groups/create" 
+            element={
+              <ProtectedRoute>
+                <StudyGroupCreate />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/study-groups/:id" 
+            element={
+              <ProtectedRoute>
+                <StudyGroupDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/analytics" 
+            element={
+              <ProtectedRoute>
+                <LearningAnalytics />
               </ProtectedRoute>
             } 
           />

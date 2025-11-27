@@ -45,12 +45,12 @@ const anyFileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
-// Configure multer for different file types
+// Configure multer for different file types with Cloudinary free tier limits
 const uploadImage = multer({
   storage: storage,
   fileFilter: imageFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit for images
+    fileSize: 10 * 1024 * 1024 // 10MB limit for images (Cloudinary free tier)
   }
 });
 
@@ -58,7 +58,7 @@ const uploadVideo = multer({
   storage: storage,
   fileFilter: videoFilter,
   limits: {
-    fileSize: 500 * 1024 * 1024 // 500MB limit for videos
+    fileSize: 100 * 1024 * 1024 // 100MB limit for videos (Cloudinary free tier)
   }
 });
 

@@ -155,13 +155,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Routes
+// API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/lessons', require('./routes/lessonRoutes'));
 app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/certificates', require('./routes/certificateRoutes'));
+app.use('/api/upload', require('./routes/uploadRoutes'));
 
 // New feature routes
 app.use('/api/payments', require('./routes/paymentRoutes'));
@@ -170,6 +171,7 @@ app.use('/api/discussions', require('./routes/discussionRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/study-groups', require('./routes/studyGroupRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/messages', require('./routes/messageRoutes'));
 
 // Content routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
@@ -281,9 +283,14 @@ const server = app.listen(PORT, () => {
   
   // Initialize services
   if (process.env.NODE_ENV !== 'test') {
-    // Initialize Socket.IO for real-time notifications
+    // Initialize Socket.IO for real-time features
+    const { initializeSocket } = require('./services/socketService');
+    initializeSocket(server);
+    console.log('📡 Socket.IO initialized for real-time messaging');
+    
+    // Initialize Socket.IO for notifications (legacy)
     notificationService.initSocketIO(server);
-    console.log('📡 Socket.IO initialized for real-time notifications');
+    console.log('📡 Notification Socket.IO initialized');
     
     // Initialize cron jobs
     cronJobService.init();

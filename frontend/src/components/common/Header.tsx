@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, LogOut, Menu, X, Home, Award } from "lucide-react";
+import { BookOpen, User, LogOut, Menu, X, Home, Award, MessageCircle, Users, BarChart } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useState } from "react";
 
@@ -58,6 +58,27 @@ const Header = () => {
                   className="text-gray-700 hover:text-green-600 px-3 py-2 text-sm font-medium transition-colors"
                 >
                   Chứng chỉ
+                </Link>
+                <Link
+                  to="/messages"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Tin nhắn</span>
+                </Link>
+                <Link
+                  to="/study-groups"
+                  className="text-gray-700 hover:text-purple-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Nhóm học</span>
+                </Link>
+                <Link
+                  to="/analytics"
+                  className="text-gray-700 hover:text-green-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                >
+                  <BarChart className="w-4 h-4" />
+                  <span>Phân tích</span>
                 </Link>
                 {user?.isAdmin && (
                   <Link
@@ -151,6 +172,30 @@ const Header = () => {
                 >
                   <Award className="w-4 h-4" />
                   <span>Dashboard</span>
+                </Link>
+                <Link
+                  to="/messages"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Tin nhắn</span>
+                </Link>
+                <Link
+                  to="/study-groups"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Nhóm học</span>
+                </Link>
+                <Link
+                  to="/analytics"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <BarChart className="w-4 h-4" />
+                  <span>Phân tích</span>
                 </Link>
               </>
             )}

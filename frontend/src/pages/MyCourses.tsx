@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { courseAPI } from '../services/api';
 import { Button } from '../components/ui';
 import { Card } from '../components/ui';
+import { useToast } from '../context/ToastContext';
 
 interface Course {
   _id: string;
@@ -30,6 +31,7 @@ interface Course {
 }
 
 const MyCourses = () => {
+  const toast = useToast();
   const [createdCourses, setCreatedCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [activeTab, setActiveTab] = useState<'created' | 'enrolled'>('created');
@@ -85,11 +87,11 @@ const MyCourses = () => {
   const handleSubmitForApproval = async (courseId: string) => {
     try {
       await courseAPI.submitCourseForApproval(courseId);
-      alert('Đã gửi khóa học để admin duyệt!');
+      toast.showToast({ type: 'success', title: 'Đã gửi khóa học để admin duyệt!' });
       fetchMyCourses(); // Refresh danh sách
     } catch (error: any) {
       console.error('Lỗi khi gửi khóa học để duyệt:', error);
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi gửi khóa học để duyệt');
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi xảy ra khi gửi khóa học để duyệt' });
     }
   };
 

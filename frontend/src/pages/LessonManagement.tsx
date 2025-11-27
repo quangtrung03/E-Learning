@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { courseAPI, lessonAPI } from '../services/api';
+import { courseAPI, lessonAPI, uploadAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
@@ -49,6 +50,14 @@ const LessonManagement = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toastContext = useToast();
+  
+  // Toast helper functions
+  const toast = {
+    success: (message: string) => toastContext.showToast({ type: 'success', title: message }),
+    error: (message: string) => toastContext.showToast({ type: 'error', title: message }),
+    info: (message: string) => toastContext.showToast({ type: 'info', title: message }),
+  };
   
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -57,6 +66,18 @@ const LessonManagement = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Video upload state
+  const [videoInputType, setVideoInputType] = useState<'url' | 'file'>('url');
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState<string>('');
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+
+  // Resource upload state
+  const [resourceUploadIndex, setResourceUploadIndex] = useState<number | null>(null);
+  const [resourceUploadProgress, setResourceUploadProgress] = useState<number>(0);
+  const [isUploadingResource, setIsUploadingResource] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -136,6 +157,110 @@ const LessonManagement = () => {
     }));
   };
 
+  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (100MB)
+      if (file.size > 100 * 1024 * 1024) {
+        toast.error('Kích thước video không được vượt quá 100MB');
+        return;
+      }
+      // Validate file type
+      const validTypes = ['video/mp4', 'video/webm', 'video/mov'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Vui lòng chọn file video hợp lệ (MP4, WebM, MOV)');
+        return;
+      }
+      setVideoFile(file);
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setVideoPreview(previewUrl);
+    }
+  };
+
+  const handleVideoUpload = async () => {
+    if (!videoFile) return;
+    
+    try {
+      setIsUploadingVideo(true);
+      setVideoUploadProgress(0);
+      
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', videoFile);
+      
+      const response = await uploadAPI.uploadVideo(formDataUpload, (progress) => {
+        setVideoUploadProgress(progress);
+      });
+      
+      if (response.data.success) {
+        setFormData(prev => ({
+          ...prev,
+          videoUrl: response.data.data.url
+        }));
+        toast.success('Upload video thành công!');
+      }
+    } catch (error: any) {
+      console.error('Error uploading video:', error);
+      toast.error(error.response?.data?.message || 'Lỗi khi upload video');
+    } finally {
+      setIsUploadingVideo(false);
+      setVideoUploadProgress(0);
+    }
+  };
+
+  const clearVideo = () => {
+    setVideoFile(null);
+    setVideoPreview('');
+    if (videoPreview) {
+      URL.revokeObjectURL(videoPreview);
+    }
+    setFormData(prev => ({ ...prev, videoUrl: '' }));
+  };
+
+  const handleResourceFileUpload = async (index: number, file: File) => {
+    try {
+      // Validate file size (10MB for documents)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Kích thước file không được vượt quá 10MB');
+        return;
+      }
+
+      setIsUploadingResource(true);
+      setResourceUploadIndex(index);
+      setResourceUploadProgress(0);
+
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
+
+      // Use uploadImage endpoint for documents (Cloudinary supports PDF/DOC)
+      const response = await uploadAPI.uploadImage(formDataUpload, (progress) => {
+        setResourceUploadProgress(progress);
+      });
+
+      if (response.data.success) {
+        // Update resource with uploaded URL and file name
+        handleResourceChange(index, 'url', response.data.data.url);
+        if (!formData.resources[index].name) {
+          handleResourceChange(index, 'name', file.name);
+        }
+        // Auto-detect file type
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (ext === 'pdf') handleResourceChange(index, 'type', 'pdf');
+        else if (ext === 'doc' || ext === 'docx') handleResourceChange(index, 'type', 'doc');
+        else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext || '')) handleResourceChange(index, 'type', 'image');
+
+        toast.success(`Upload ${file.name} thành công!`);
+      }
+    } catch (error: any) {
+      console.error('Error uploading resource:', error);
+      toast.error(error.response?.data?.message || 'Lỗi khi upload tài liệu');
+    } finally {
+      setIsUploadingResource(false);
+      setResourceUploadIndex(null);
+      setResourceUploadProgress(0);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -149,6 +274,8 @@ const LessonManagement = () => {
       resources: []
     });
     setEditingLesson(null);
+    setVideoInputType('url');
+    clearVideo();
     setShowCreateForm(false);
   };
 
@@ -172,7 +299,7 @@ const LessonManagement = () => {
       resetForm();
       
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi tạo bài học');
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo bài học');
     } finally {
       setCreating(false);
     }
@@ -200,7 +327,7 @@ const LessonManagement = () => {
       resetForm();
       
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật bài học');
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật bài học');
     } finally {
       setCreating(false);
     }
@@ -219,7 +346,7 @@ const LessonManagement = () => {
       setLessons(lessonsResponse.data.data.lessons || []);
       
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi xóa bài học');
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa bài học');
     }
   };
 
@@ -442,19 +569,134 @@ const LessonManagement = () => {
                     </select>
                   </div>
 
-                  {/* Video URL */}
+                  {/* Video Section */}
                   {formData.contentType === 'video' && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        URL Video
+                    <div className="space-y-4">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Video bài học *
                       </label>
-                      <input
-                        type="url"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                        value={formData.videoUrl}
-                        onChange={(e) => handleInputChange('videoUrl', e.target.value)}
-                        placeholder="https://youtube.com/watch?v=..."
-                      />
+
+                      {/* Radio buttons for input type */}
+                      <div className="flex gap-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="videoInputType"
+                            value="url"
+                            checked={videoInputType === 'url'}
+                            onChange={(e) => setVideoInputType(e.target.value as 'url' | 'file')}
+                            className="w-4 h-4 text-primary-600"
+                          />
+                          <span className="text-sm text-gray-700">Liên kết URL (YouTube, Vimeo...)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="videoInputType"
+                            value="file"
+                            checked={videoInputType === 'file'}
+                            onChange={(e) => setVideoInputType(e.target.value as 'url' | 'file')}
+                            className="w-4 h-4 text-primary-600"
+                          />
+                          <span className="text-sm text-gray-700">Upload file video</span>
+                        </label>
+                      </div>
+
+                      {/* URL Input */}
+                      {videoInputType === 'url' && (
+                        <input
+                          type="url"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          value={formData.videoUrl}
+                          onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+                          placeholder="https://youtube.com/watch?v=... hoặc https://vimeo.com/..."
+                        />
+                      )}
+
+                      {/* File Upload */}
+                      {videoInputType === 'file' && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="file"
+                              accept="video/mp4,video/webm,video/mov"
+                              onChange={handleVideoFileChange}
+                              className="hidden"
+                              id="video-upload"
+                            />
+                            <label
+                              htmlFor="video-upload"
+                              className="px-4 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors"
+                            >
+                              <span className="text-gray-700">🎥 Chọn video</span>
+                            </label>
+                            {videoFile && (
+                              <Button
+                                type="button"
+                                onClick={handleVideoUpload}
+                                disabled={isUploadingVideo || !!formData.videoUrl}
+                                variant="primary"
+                                size="sm"
+                              >
+                                {isUploadingVideo ? 'Đang upload...' : formData.videoUrl ? '✓ Đã upload' : '⬆️ Upload'}
+                              </Button>
+                            )}
+                          </div>
+
+                          {/* Video file info */}
+                          {videoFile && (
+                            <div className="bg-gray-50 p-3 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-gray-900">{videoFile.name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
+                                  </p>
+                                </div>
+                                {!formData.videoUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={clearVideo}
+                                    className="text-red-500 hover:text-red-700"
+                                    title="Xóa video"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Upload progress */}
+                          {isUploadingVideo && (
+                            <div className="space-y-1">
+                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${videoUploadProgress}%` }}
+                                />
+                              </div>
+                              <p className="text-sm text-gray-600 text-center">{videoUploadProgress}%</p>
+                            </div>
+                          )}
+
+                          {/* Success message */}
+                          {formData.videoUrl && videoInputType === 'file' && (
+                            <div className="flex items-center gap-2 text-green-600">
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              <span className="text-sm font-medium">Video đã được upload thành công</span>
+                            </div>
+                          )}
+
+                          <p className="text-xs text-gray-500">
+                            Định dạng: MP4, WebM, MOV. Kích thước tối đa: 100MB
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -534,41 +776,80 @@ const LessonManagement = () => {
                     </div>
                     
                     {(Array.isArray(formData.resources) ? formData.resources : []).map((resource, index) => (
-                      <div key={index} className="flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          placeholder="Tên tài liệu"
-                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                          value={resource.name}
-                          onChange={(e) => handleResourceChange(index, 'name', e.target.value)}
-                        />
-                        <input
-                          type="url"
-                          placeholder="URL"
-                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                          value={resource.url}
-                          onChange={(e) => handleResourceChange(index, 'url', e.target.value)}
-                        />
-                        <select
-                          className="px-2 py-1 text-sm border border-gray-300 rounded"
-                          value={resource.type}
-                          onChange={(e) => handleResourceChange(index, 'type', e.target.value)}
-                        >
-                          <option value="pdf">PDF</option>
-                          <option value="doc">DOC</option>
-                          <option value="image">Hình ảnh</option>
-                          <option value="link">Link</option>
-                          <option value="other">Khác</option>
-                        </select>
-                        <button
-                          type="button"
-                          onClick={() => handleResourceRemove(index)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                          </svg>
-                        </button>
+                      <div key={index} className="space-y-2 mb-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Tên tài liệu"
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                            value={resource.name}
+                            onChange={(e) => handleResourceChange(index, 'name', e.target.value)}
+                          />
+                          <select
+                            className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                            value={resource.type}
+                            onChange={(e) => handleResourceChange(index, 'type', e.target.value)}
+                          >
+                            <option value="pdf">PDF</option>
+                            <option value="doc">DOC</option>
+                            <option value="image">Hình ảnh</option>
+                            <option value="link">Link</option>
+                            <option value="other">Khác</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => handleResourceRemove(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                            title="Xóa tài liệu"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                          </button>
+                        </div>
+
+                        {/* URL or File Upload */}
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="url"
+                            placeholder="Nhập URL hoặc upload file"
+                            className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+                            value={resource.url}
+                            onChange={(e) => handleResourceChange(index, 'url', e.target.value)}
+                          />
+                          <div className="flex gap-1">
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleResourceFileUpload(index, file);
+                              }}
+                              className="hidden"
+                              id={`resource-upload-${index}`}
+                            />
+                            <label
+                              htmlFor={`resource-upload-${index}`}
+                              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded cursor-pointer hover:bg-gray-50 transition-colors"
+                              title="Upload file"
+                            >
+                              📎 File
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Upload progress */}
+                        {isUploadingResource && resourceUploadIndex === index && (
+                          <div className="space-y-1">
+                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-gradient-to-r from-green-500 to-emerald-500 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${resourceUploadProgress}%` }}
+                              />
+                            </div>
+                            <p className="text-xs text-gray-600 text-center">{resourceUploadProgress}%</p>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

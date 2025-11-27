@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Button, Card } from '../components/ui';
+import { ConfirmDialog } from '../components/ui';
 import api from '../services/api';
 
 interface Course {
@@ -38,8 +40,12 @@ interface Course {
 const AdminCoursesList = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const toast = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 20,
@@ -131,18 +137,34 @@ const AdminCoursesList = () => {
     }
   };
 
-  const handleDeleteCourse = async (courseId: string) => {
-    const ok = window.confirm('Bạn có chắc muốn xoá khóa học này? Hành động này không thể hoàn tác.');
-    if (!ok) return;
+  const handleDeleteCourse = (courseId: string) => {
+    setDeletingCourseId(courseId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteCourse = async () => {
+    if (!deletingCourseId) return;
 
     try {
-      await api.delete(`/admin/courses/${courseId}`);
+      setIsDeleting(true);
+      await api.delete(`/admin/courses/${deletingCourseId}`);
       // Remove from UI
-      setCourses(prev => prev.filter(c => c._id !== courseId));
+      setCourses(prev => prev.filter(c => c._id !== deletingCourseId));
       setPagination(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+      toast.showToast({
+        type: 'success',
+        title: 'Đã xoá khóa học thành công'
+      });
+      setShowDeleteDialog(false);
+      setDeletingCourseId(null);
     } catch (error) {
       console.error('Lỗi khi xoá khóa học:', error);
-      alert('Xoá khóa học thất bại. Vui lòng thử lại.');
+      toast.showToast({
+        type: 'error',
+        title: 'Xoá khóa học thất bại. Vui lòng thử lại.'
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -412,6 +434,22 @@ const AdminCoursesList = () => {
           )}
         </Card>
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setDeletingCourseId(null);
+        }}
+        onConfirm={confirmDeleteCourse}
+        title="Xác nhận xoá khóa học"
+        message="Bạn có chắc muốn xoá khóa học này? Hành động này không thể hoàn tác."
+        confirmText="Xoá"
+        cancelText="Huỷ"
+        confirmVariant="danger"
+        icon="warning"
+        isProcessing={isDeleting}
+      />
     </div>
   );
 };

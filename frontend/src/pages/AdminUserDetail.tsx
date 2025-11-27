@@ -3,6 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { ConfirmDialog } from '../components/ui';
 import api from '../services/api';
 import resolveAvatar from '../utils/resolveAvatar';
 
@@ -47,6 +48,8 @@ const AdminUserDetail = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [showAdminDialog, setShowAdminDialog] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) {
@@ -88,20 +91,25 @@ const AdminUserDetail = () => {
     }
   };
 
-  const handleMakeAdmin = async () => {
+  const handleMakeAdmin = () => {
     if (!user) return;
-    
-    const confirm = window.confirm('Bạn có chắc muốn cấp quyền admin cho user này?');
-    if (!confirm) return;
+    setShowAdminDialog(true);
+  };
+
+  const confirmMakeAdmin = async () => {
+    if (!user) return;
 
     try {
+      setIsProcessing(true);
       setActionLoading('make-admin');
       await api.put(`/admin/users/${user._id}/make-admin`);
       setUser(prev => prev ? { ...prev, isAdmin: true, adminRequestPending: false } : null);
+      setShowAdminDialog(false);
     } catch (error) {
       console.error('Lỗi khi cấp quyền admin:', error);
     } finally {
       setActionLoading(null);
+      setIsProcessing(false);
     }
   };
 
@@ -367,6 +375,19 @@ const AdminUserDetail = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showAdminDialog}
+        onClose={() => setShowAdminDialog(false)}
+        onConfirm={confirmMakeAdmin}
+        title="Xác nhận cấp quyền Admin"
+        message="Bạn có chắc muốn cấp quyền admin cho user này? Người dùng sẽ có toàn quyền quản trị hệ thống."
+        confirmText="Cấp quyền"
+        cancelText="Huỷ"
+        confirmVariant="warning"
+        icon="warning"
+        isProcessing={isProcessing}
+      />
     </div>
   );
 };

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { courseAPI } from '../services/api';
+import { courseAPI, uploadAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import AdvancedSearchFilters from '../components/ui/AdvancedSearchFilters';
+import { useToast } from '../context/ToastContext';
 
 interface Course {
   _id: string;
@@ -27,6 +29,15 @@ interface Course {
 
 const Courses = () => {
   const navigate = useNavigate();
+  const toastContext = useToast();
+  
+  // Toast helper functions
+  const toast = {
+    success: (message: string) => toastContext.showToast({ type: 'success', title: message }),
+    error: (message: string) => toastContext.showToast({ type: 'error', title: message }),
+    info: (message: string) => toastContext.showToast({ type: 'info', title: message }),
+  };
+  
   const [activeTab, setActiveTab] = useState<'browse' | 'create'>('browse');
   const [courses, setCourses] = useState<Course[]>([]);
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
@@ -36,8 +47,13 @@ const Courses = () => {
     search: '',
     category: '',
     level: '',
+    priceMin: 0,
+    priceMax: 10000000,
+    rating: 0,
+    isFree: null as boolean | null,
     sort: 'newest'
   });
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 9,
@@ -54,6 +70,7 @@ const Courses = () => {
     price: 0,
     discount: 0,
     duration: 0,
+    thumbnail: '',
     requirements: [''],
     whatYouWillLearn: [''],
     tags: ['']
@@ -61,6 +78,10 @@ const Courses = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [priceType, setPriceType] = useState<string>('free');
   const [durationType, setDurationType] = useState<string>('custom');
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   const categories = [
     { value: '', label: 'Tất cả danh mục' },
@@ -112,7 +133,7 @@ const Courses = () => {
   const fetchCourses = async () => {
     try {
       setLoading(true);
-      const params = {
+      const params: any = {
         page: pagination.page,
         limit: pagination.limit,
         sort: filters.sort,
@@ -120,6 +141,18 @@ const Courses = () => {
         ...(filters.category && { category: filters.category }),
         ...(filters.level && { level: filters.level })
       };
+      
+      // Advanced filters
+      if (filters.priceMin > 0) params.minPrice = filters.priceMin;
+      if (filters.priceMax < 10000000) params.maxPrice = filters.priceMax;
+      if (filters.rating > 0) params.minRating = filters.rating;
+      if (filters.isFree !== null) {
+        if (filters.isFree) {
+          params.maxPrice = 0;
+        } else {
+          params.minPrice = 1;
+        }
+      }
       
       const response = await courseAPI.getAllCourses(params);
       if (response.data.success) {
@@ -137,8 +170,13 @@ const Courses = () => {
     }
   };
 
-  const handleFilterChange = (key: string, value: string) => {
+  const handleFilterChange = (key: string, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const handleAdvancedFilterChange = (newFilters: typeof filters) => {
+    setFilters(newFilters);
     setPagination(prev => ({ ...prev, page: 1 }));
   };
 
@@ -189,6 +227,65 @@ const Courses = () => {
   };
 
 
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('Kích thước ảnh không được vượt quá 10MB');
+        return;
+      }
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Vui lòng chọn file ảnh hợp lệ');
+        return;
+      }
+      setThumbnailFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setThumbnailPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleThumbnailUpload = async () => {
+    if (!thumbnailFile) return;
+    
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+      
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', thumbnailFile);
+      
+      const response = await uploadAPI.uploadImage(formDataUpload, (progress) => {
+        setUploadProgress(progress);
+      });
+      
+      if (response.data.success) {
+        setFormData(prev => ({
+          ...prev,
+          thumbnail: response.data.data.url
+        }));
+        toast.success('Upload ảnh thành công!');
+      }
+    } catch (error: any) {
+      console.error('Error uploading thumbnail:', error);
+      toast.error(error.response?.data?.message || 'Lỗi khi upload ảnh');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const clearThumbnail = () => {
+    setThumbnailFile(null);
+    setThumbnailPreview('');
+    setFormData(prev => ({ ...prev, thumbnail: '' }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await handleCreateCourse('pending');
@@ -200,7 +297,11 @@ const Courses = () => {
       setFormLoading(true);
       // Validate
       if (!formData.title.trim() || !formData.description.trim()) {
-        alert('Vui lòng điền đầy đủ thông tin bắt buộc');
+        toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+        return;
+      }
+      if (!formData.thumbnail && status === 'pending') {
+        toast.error('Vui lòng upload ảnh minh họa cho khóa học');
         return;
       }
       // Filter empty values
@@ -213,12 +314,12 @@ const Courses = () => {
       };
       const response = await courseAPI.createCourse(courseData);
       if (response.data.success) {
-        alert(status === 'draft' ? 'Đã lưu bản nháp!' : 'Tạo khóa học thành công!');
+        toast.success(status === 'draft' ? 'Đã lưu bản nháp!' : 'Tạo khóa học thành công!');
         navigate('/my-courses');
       }
     } catch (error: any) {
       console.error('Error creating course:', error);
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi tạo khóa học');
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo khóa học');
     } finally {
       setFormLoading(false);
     }
@@ -295,88 +396,13 @@ const Courses = () => {
         )}
       </Card>
 
-      {/* Filters */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">🔍 Tìm kiếm nâng cao</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tìm kiếm
-            </label>
-            <input
-              type="text"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              placeholder="Tìm khóa học..."
-              value={filters.search}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Danh mục
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={filters.category}
-              onChange={(e) => handleFilterChange('category', e.target.value)}
-            >
-              {categories.map(category => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Cấp độ
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={filters.level}
-              onChange={(e) => handleFilterChange('level', e.target.value)}
-            >
-              {levels.map(level => (
-                <option key={level.value} value={level.value}>
-                  {level.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sắp xếp
-            </label>
-            <select
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={filters.sort}
-              onChange={(e) => handleFilterChange('sort', e.target.value)}
-            >
-              {sortOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <Button
-              onClick={() => {
-                setFilters({ search: '', category: '', level: '', sort: 'newest' });
-                setPagination(prev => ({ ...prev, page: 1 }));
-              }}
-              variant="outline"
-              className="w-full"
-            >
-              Xóa bộ lọc
-            </Button>
-          </div>
-        </div>
-      </Card>
+      {/* Advanced Search Filters */}
+      <AdvancedSearchFilters
+        filters={filters}
+        onFilterChange={handleAdvancedFilterChange}
+        isOpen={filtersOpen}
+        onToggle={() => setFiltersOpen(!filtersOpen)}
+      />
 
       {/* Results */}
       <section>
@@ -523,7 +549,17 @@ const Courses = () => {
             </p>
             <Button
               onClick={() => {
-                setFilters({ search: '', category: '', level: '', sort: 'newest' });
+                const resetFilters = {
+                  search: '',
+                  category: '',
+                  level: '',
+                  priceMin: 0,
+                  priceMax: 10000000,
+                  rating: 0,
+                  isFree: null as boolean | null,
+                  sort: 'newest'
+                };
+                setFilters(resetFilters);
                 setPagination(prev => ({ ...prev, page: 1 }));
               }}
             >
@@ -581,6 +617,92 @@ const Courses = () => {
                   onChange={(e) => handleInputChange('description', e.target.value)}
                   placeholder="Mô tả chi tiết về nội dung và mục tiêu của khóa học"
                 />
+              </div>
+
+              {/* Thumbnail Upload */}
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Ảnh minh họa khóa học *
+                </label>
+                <div className="space-y-3">
+                  {/* File input */}
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleThumbnailChange}
+                      className="hidden"
+                      id="thumbnail-upload"
+                    />
+                    <label
+                      htmlFor="thumbnail-upload"
+                      className="px-4 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors"
+                    >
+                      <span className="text-gray-700">📁 Chọn ảnh</span>
+                    </label>
+                    {thumbnailFile && (
+                      <Button
+                        type="button"
+                        onClick={handleThumbnailUpload}
+                        disabled={isUploading || !!formData.thumbnail}
+                        variant="primary"
+                        size="sm"
+                      >
+                        {isUploading ? 'Đang upload...' : formData.thumbnail ? '✓ Đã upload' : '⬆️ Upload'}
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Preview */}
+                  {thumbnailPreview && (
+                    <div className="relative inline-block">
+                      <img
+                        src={thumbnailPreview}
+                        alt="Preview"
+                        className="h-48 w-auto object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      {!formData.thumbnail && (
+                        <button
+                          type="button"
+                          onClick={clearThumbnail}
+                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
+                          title="Xóa ảnh"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Upload progress */}
+                  {isUploading && (
+                    <div className="space-y-1">
+                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                      <p className="text-sm text-gray-600 text-center">{uploadProgress}%</p>
+                    </div>
+                  )}
+
+                  {/* Success message */}
+                  {formData.thumbnail && (
+                    <div className="flex items-center gap-2 text-green-600">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <span className="text-sm font-medium">Ảnh đã được upload thành công</span>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-gray-500">
+                    Định dạng: JPG, PNG, GIF. Kích thước tối đa: 10MB. Khuyến nghị: 1200x800px
+                  </p>
+                </div>
               </div>
 
               <div>

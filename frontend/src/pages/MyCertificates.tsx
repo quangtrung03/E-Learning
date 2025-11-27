@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui';
@@ -31,6 +32,7 @@ interface Certificate {
 
 const MyCertificates: React.FC = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCertificate, setSelectedCertificate] = useState<Certificate | null>(null);
@@ -77,7 +79,7 @@ const MyCertificates: React.FC = () => {
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(shareUrl);
-        alert('Đã copy link chia sẻ vào clipboard!');
+        toast.showToast({ type: 'success', title: 'Đã copy link chia sẻ vào clipboard!' });
       } catch (error) {
         console.log('Error copying to clipboard:', error);
       }

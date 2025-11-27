@@ -2,9 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
-// Update the import path below if Card is located elsewhere, for example:
 import { Card } from '../components/ui/Card';
-// Or, if Card does not exist, create it at '../components/ui/Card.tsx' or the correct path.
+import { ConfirmDialog } from '../components/ui';
 import api from '../services/api';
 import resolveAvatar from '../utils/resolveAvatar';
 
@@ -56,6 +55,8 @@ const AdminCourseDetail = () => {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
     if (!currentUser?.isAdmin) {
@@ -83,20 +84,25 @@ const AdminCourseDetail = () => {
     }
   };
 
-  const handleApproveCourse = async () => {
+  const handleApproveCourse = () => {
     if (!course) return;
-    
-    const confirm = window.confirm('Bạn có chắc muốn duyệt khóa học này?');
-    if (!confirm) return;
+    setShowApproveDialog(true);
+  };
+
+  const confirmApproveCourse = async () => {
+    if (!course) return;
 
     try {
+      setIsProcessing(true);
       setActionLoading('approve');
       await api.put(`/admin/courses/${course._id}/approve`);
       setCourse(prev => prev ? { ...prev, status: 'approved', approvedAt: new Date() } : null);
+      setShowApproveDialog(false);
     } catch (error) {
       console.error('Lỗi khi duyệt khóa học:', error);
     } finally {
       setActionLoading(null);
+      setIsProcessing(false);
     }
   };
 
@@ -482,6 +488,19 @@ const AdminCourseDetail = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showApproveDialog}
+        onClose={() => setShowApproveDialog(false)}
+        onConfirm={confirmApproveCourse}
+        title="Xác nhận duyệt khóa học"
+        message="Bạn có chắc muốn duyệt khóa học này? Khóa học sẽ được hiển thị công khai cho học viên."
+        confirmText="Duyệt"
+        cancelText="Huỷ"
+        confirmVariant="primary"
+        icon="question"
+        isProcessing={isProcessing}
+      />
     </div>
   );
 };

@@ -172,7 +172,7 @@ export const certificateAPI = {
 // Discussion API calls
 export const discussionAPI = {
   getDiscussionsByCourse: (courseId: string, params?: { page?: number; limit?: number; category?: string }): Promise<AxiosResponse<any>> =>
-    api.get(`/courses/${courseId}/discussions`, { params }),
+    api.get(`/discussions/course/${courseId}`, { params }),
   getDiscussion: (id: string): Promise<AxiosResponse<any>> =>
     api.get(`/discussions/${id}`),
   createDiscussion: (discussionData: any): Promise<AxiosResponse<any>> =>
@@ -188,7 +188,7 @@ export const discussionAPI = {
 // Review API calls
 export const reviewAPI = {
   getReviewsByCourse: (courseId: string, params?: { page?: number; limit?: number; sort?: string }): Promise<AxiosResponse<any>> =>
-    api.get(`/courses/${courseId}/reviews`, { params }),
+    api.get(`/reviews/course/${courseId}`, { params }),
   createReview: (reviewData: any): Promise<AxiosResponse<any>> =>
     api.post('/reviews', reviewData),
   updateReview: (id: string, reviewData: any): Promise<AxiosResponse<any>> =>
@@ -235,6 +235,22 @@ export const paymentAPI = {
     api.get('/payments/history', { params }),
   requestRefund: (paymentId: string, reason: string): Promise<AxiosResponse<any>> =>
     api.post(`/payments/${paymentId}/refund`, { reason }),
+};
+
+// Message API calls
+export const messageAPI = {
+  getConversations: (): Promise<AxiosResponse<any>> =>
+    api.get('/messages/conversations'),
+  getOrCreateConversation: (userId: string): Promise<AxiosResponse<any>> =>
+    api.post('/messages/conversations', { userId }),
+  getMessages: (conversationId: string, params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get(`/messages/conversations/${conversationId}`, { params }),
+  sendMessage: (conversationId: string, content: string, type?: string): Promise<AxiosResponse<any>> =>
+    api.post(`/messages/conversations/${conversationId}`, { content, type }),
+  markAsRead: (conversationId: string): Promise<AxiosResponse<any>> =>
+    api.put(`/messages/conversations/${conversationId}/read`),
+  deleteMessage: (messageId: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/messages/${messageId}`),
 };
 
 // Admin API calls
@@ -284,6 +300,36 @@ export const adminAPI = {
 export const contentAPI = {
   getCategories: () => api.get('/categories'),
   getInstructors: () => api.get('/instructors'),
+};
+
+// Upload API
+export const uploadAPI = {
+  uploadImage: (formData: FormData, onProgress?: (progress: number) => void) => {
+    return api.post('/upload/image', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+  },
+  uploadVideo: (formData: FormData, onProgress?: (progress: number) => void) => {
+    return api.post('/upload/video', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+  },
 };
 
 // Health check

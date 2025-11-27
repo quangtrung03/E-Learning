@@ -42,11 +42,7 @@ const courseSchema = new mongoose.Schema({
     max: [100, 'Giảm giá không được quá 100%']
   },
   thumbnail: {
-    type: String,  // GridFS filename
-    default: null
-  },
-  thumbnailFileId: {
-    type: String,  // GridFS file ObjectId
+    type: String,  // Cloudinary URL
     default: null
   },
   duration: {

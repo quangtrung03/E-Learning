@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { courseAPI, lessonAPI } from '../services/api';
+import { courseAPI, lessonAPI, reviewAPI, discussionAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 
@@ -62,6 +63,7 @@ const CourseDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -72,6 +74,26 @@ const CourseDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEnrolled, setIsEnrolled] = useState(false);
   const [userProgress, setUserProgress] = useState(0);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'lessons' | 'reviews' | 'discussions'>('lessons');
+  
+  // Reviews state
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [userReview, setUserReview] = useState<any>(null);
+  
+  // Discussions state
+  const [discussions, setDiscussions] = useState<any[]>([]);
+  const [discussionsLoading, setDiscussionsLoading] = useState(false);
+  const [showDiscussionForm, setShowDiscussionForm] = useState(false);
+  const [discussionForm, setDiscussionForm] = useState({ title: '', content: '', category: 'general' });
+  const [submittingDiscussion, setSubmittingDiscussion] = useState(false);
+  const [selectedDiscussion, setSelectedDiscussion] = useState<any>(null);
+  const [replyContent, setReplyContent] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -150,6 +172,129 @@ const CourseDetail = () => {
     }
   };
 
+  // Fetch reviews
+  const fetchReviews = async () => {
+    if (!id) return;
+    try {
+      setReviewsLoading(true);
+      const response = await reviewAPI.getReviewsByCourse(id, { page: 1, limit: 50 });
+      if (response.data.success) {
+        setReviews(response.data.data.reviews || []);
+        const myReview = response.data.data.reviews?.find((r: any) => r.user?._id === user?._id);
+        setUserReview(myReview);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  // Fetch discussions
+  const fetchDiscussions = async () => {
+    if (!id) return;
+    try {
+      setDiscussionsLoading(true);
+      const response = await discussionAPI.getDiscussionsByCourse(id, { page: 1, limit: 50 });
+      if (response.data.success) {
+        setDiscussions(response.data.data.discussions || []);
+      }
+    } catch (error) {
+      console.error('Error fetching discussions:', error);
+    } finally {
+      setDiscussionsLoading(false);
+    }
+  };
+
+  // Load data when tab changes
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      fetchReviews();
+    } else if (activeTab === 'discussions') {
+      fetchDiscussions();
+    }
+  }, [activeTab, id]);
+
+  // Submit review
+  const handleSubmitReview = async () => {
+    if (!reviewForm.comment.trim() || !isEnrolled) {
+      toast.showToast({ type: 'error', title: 'Vui lòng nhập nội dung đánh giá' });
+      return;
+    }
+
+    try {
+      setSubmittingReview(true);
+      await reviewAPI.createReview({
+        courseId: id,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment
+      });
+      
+      toast.showToast({ type: 'success', title: 'Đã gửi đánh giá thành công!' });
+      setShowReviewForm(false);
+      setReviewForm({ rating: 5, comment: '' });
+      fetchReviews();
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi khi gửi đánh giá' });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  // Submit discussion
+  const handleSubmitDiscussion = async () => {
+    if (!discussionForm.title.trim() || !discussionForm.content.trim()) {
+      toast.showToast({ type: 'error', title: 'Vui lòng điền đầy đủ thông tin' });
+      return;
+    }
+
+    try {
+      setSubmittingDiscussion(true);
+      await discussionAPI.createDiscussion({
+        courseId: id,
+        title: discussionForm.title,
+        content: discussionForm.content,
+        category: discussionForm.category
+      });
+      
+      toast.showToast({ type: 'success', title: 'Đã tạo thảo luận thành công!' });
+      setShowDiscussionForm(false);
+      setDiscussionForm({ title: '', content: '', category: 'general' });
+      fetchDiscussions();
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi khi tạo thảo luận' });
+    } finally {
+      setSubmittingDiscussion(false);
+    }
+  };
+
+  // Submit reply
+  const handleSubmitReply = async (discussionId: string) => {
+    if (!replyContent.trim()) {
+      toast.showToast({ type: 'error', title: 'Vui lòng nhập nội dung trả lời' });
+      return;
+    }
+
+    try {
+      await discussionAPI.replyToDiscussion(discussionId, replyContent);
+      toast.showToast({ type: 'success', title: 'Đã gửi trả lời!' });
+      setReplyContent('');
+      fetchDiscussions();
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi khi gửi trả lời' });
+    }
+  };
+
+  // Toggle like discussion
+  const handleLikeDiscussion = async (discussionId: string) => {
+    try {
+      await discussionAPI.likeDiscussion(discussionId);
+      fetchDiscussions();
+    } catch (error) {
+      console.error('Error liking discussion:', error);
+    }
+  };
+
   const handleEnroll = async () => {
     if (!user) {
       navigate('/login');
@@ -167,7 +312,7 @@ const CourseDetail = () => {
       setLessons(lessonsResponse.data.data.lessons);
       
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký khóa học');
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi xảy ra khi đăng ký khóa học' });
     } finally {
       setEnrolling(false);
     }
@@ -175,7 +320,7 @@ const CourseDetail = () => {
 
   const handleLessonClick = async (lesson: Lesson) => {
     if (!lesson.isPreview && !isEnrolled) {
-      alert('Bạn cần đăng ký khóa học để xem bài học này');
+      toast.showToast({ type: 'warning', title: 'Bạn cần đăng ký khóa học để xem bài học này' });
       return;
     }
 
@@ -198,7 +343,7 @@ const CourseDetail = () => {
       }
     } catch (error: any) {
       console.error('Error loading lesson:', error);
-      alert(error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tải bài học');
+      toast.showToast({ type: 'error', title: error.response?.data?.message || error.message || 'Có lỗi xảy ra khi tải bài học' });
     } finally {
       setLessonLoading(false);
     }
@@ -228,7 +373,7 @@ const CourseDetail = () => {
       }));
       
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi đánh dấu hoàn thành');
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi xảy ra khi đánh dấu hoàn thành' });
     }
   };
 
@@ -253,7 +398,7 @@ const CourseDetail = () => {
       }));
       
     } catch (error: any) {
-      alert(error.response?.data?.message || 'Có lỗi xảy ra khi hủy hoàn thành');
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi xảy ra khi hủy hoàn thành' });
     }
   };
 
@@ -429,6 +574,43 @@ const CourseDetail = () => {
 
       {/* Course Content */}
       <div className="container-custom py-8">
+        {/* Tabs */}
+        <div className="mb-6 border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('lessons')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'lessons'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              📚 Bài học ({lessons.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('reviews')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'reviews'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              ⭐ Đánh giá ({reviews.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('discussions')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                activeTab === 'discussions'
+                  ? 'border-primary-500 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              💬 Thảo luận ({discussions.length})
+            </button>
+          </nav>
+        </div>
+
+        {activeTab === 'lessons' && (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Lesson Sidebar */}
           <div className="lg:col-span-1">
@@ -653,8 +835,343 @@ const CourseDetail = () => {
             )}
           </div>
         </div>
+        </div>
+        )}
+
+        {/* Reviews Tab */}
+        {activeTab === 'reviews' && (
+          <div className="max-w-4xl mx-auto">
+            {/* Review Actions */}
+            {isEnrolled && !userReview && (
+              <Card className="p-6 mb-6">
+                {!showReviewForm ? (
+                  <Button onClick={() => setShowReviewForm(true)} className="w-full">
+                    ✍️ Viết đánh giá của bạn
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Đánh giá khóa học</h3>
+                    
+                    {/* Rating Stars */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">Đánh giá:</span>
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                          className="focus:outline-none"
+                        >
+                          <svg
+                            className={`w-8 h-8 ${
+                              star <= reviewForm.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                            />
+                          </svg>
+                        </button>
+                      ))}
+                      <span className="ml-2 text-sm text-gray-600">({reviewForm.rating} sao)</span>
+                    </div>
+
+                    {/* Comment */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nhận xét của bạn
+                      </label>
+                      <textarea
+                        value={reviewForm.comment}
+                        onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
+                        rows={5}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Chia sẻ trải nghiệm của bạn về khóa học..."
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleSubmitReview}
+                        disabled={submittingReview}
+                        className="flex-1"
+                      >
+                        {submittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowReviewForm(false);
+                          setReviewForm({ rating: 5, comment: '' });
+                        }}
+                        variant="outline"
+                      >
+                        Huỷ
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Reviews List */}
+            {reviewsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+                <p className="text-gray-600 mt-4">Đang tải đánh giá...</p>
+              </div>
+            ) : reviews.length === 0 ? (
+              <Card className="p-12 text-center">
+                <div className="text-6xl text-gray-300 mb-4">⭐</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có đánh giá</h3>
+                <p className="text-gray-600">Hãy là người đầu tiên đánh giá khóa học này!</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {reviews.map((review: any) => (
+                  <Card key={review._id} className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary-600 font-semibold">
+                          {review.user?.name?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{review.user?.name || 'Ẩn danh'}</h4>
+                            <div className="flex items-center gap-1 mt-1">
+                              {[...Array(5)].map((_, i) => (
+                                <svg
+                                  key={i}
+                                  className={`w-4 h-4 ${
+                                    i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                                  }`}
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-sm text-gray-500">
+                            {new Date(review.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 whitespace-pre-wrap">{review.comment}</p>
+                        
+                        {review.helpful?.length > 0 && (
+                          <div className="mt-3 text-sm text-gray-500">
+                            👍 {review.helpful.length} người thấy hữu ích
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Discussions Tab */}
+        {activeTab === 'discussions' && (
+          <div className="max-w-4xl mx-auto">
+            {/* Discussion Actions */}
+            {isEnrolled && (
+              <Card className="p-6 mb-6">
+                {!showDiscussionForm ? (
+                  <Button onClick={() => setShowDiscussionForm(true)} className="w-full">
+                    💬 Tạo thảo luận mới
+                  </Button>
+                ) : (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold">Tạo thảo luận mới</h3>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Tiêu đề
+                      </label>
+                      <input
+                        type="text"
+                        value={discussionForm.title}
+                        onChange={(e) => setDiscussionForm({ ...discussionForm, title: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Nhập tiêu đề thảo luận..."
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Danh mục
+                      </label>
+                      <select
+                        value={discussionForm.category}
+                        onChange={(e) => setDiscussionForm({ ...discussionForm, category: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      >
+                        <option value="general">Chung</option>
+                        <option value="question">Câu hỏi</option>
+                        <option value="announcement">Thông báo</option>
+                        <option value="technical">Kỹ thuật</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nội dung
+                      </label>
+                      <textarea
+                        value={discussionForm.content}
+                        onChange={(e) => setDiscussionForm({ ...discussionForm, content: e.target.value })}
+                        rows={5}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        placeholder="Nhập nội dung thảo luận..."
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleSubmitDiscussion}
+                        disabled={submittingDiscussion}
+                        className="flex-1"
+                      >
+                        {submittingDiscussion ? 'Đang tạo...' : 'Tạo thảo luận'}
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowDiscussionForm(false);
+                          setDiscussionForm({ title: '', content: '', category: 'general' });
+                        }}
+                        variant="outline"
+                      >
+                        Huỷ
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {/* Discussions List */}
+            {discussionsLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+                <p className="text-gray-600 mt-4">Đang tải thảo luận...</p>
+              </div>
+            ) : discussions.length === 0 ? (
+              <Card className="p-12 text-center">
+                <div className="text-6xl text-gray-300 mb-4">💬</div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có thảo luận</h3>
+                <p className="text-gray-600">Hãy là người đầu tiên tạo thảo luận!</p>
+              </Card>
+            ) : (
+              <div className="space-y-4">
+                {discussions.map((discussion: any) => (
+                  <Card key={discussion._id} className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-primary-600 font-semibold">
+                          {discussion.author?.name?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-900">{discussion.title}</h4>
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">
+                                {discussion.category}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {discussion.author?.name} • {new Date(discussion.createdAt).toLocaleDateString('vi-VN')}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        <p className="text-gray-700 whitespace-pre-wrap mb-3">{discussion.content}</p>
+                        
+                        <div className="flex items-center gap-4 text-sm">
+                          <button
+                            onClick={() => handleLikeDiscussion(discussion._id)}
+                            className="flex items-center gap-1 text-gray-600 hover:text-primary-600"
+                          >
+                            👍 {discussion.likes?.length || 0}
+                          </button>
+                          <button
+                            onClick={() => setSelectedDiscussion(
+                              selectedDiscussion?._id === discussion._id ? null : discussion
+                            )}
+                            className="text-gray-600 hover:text-primary-600"
+                          >
+                            💬 {discussion.replies?.length || 0} trả lời
+                          </button>
+                          <span className="text-gray-500">👁 {discussion.views || 0} lượt xem</span>
+                        </div>
+
+                        {/* Replies */}
+                        {selectedDiscussion?._id === discussion._id && (
+                          <div className="mt-4 pt-4 border-t border-gray-200">
+                            {/* Reply Form */}
+                            {isEnrolled && (
+                              <div className="mb-4">
+                                <textarea
+                                  value={replyContent}
+                                  onChange={(e) => setReplyContent(e.target.value)}
+                                  rows={3}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-sm"
+                                  placeholder="Viết trả lời..."
+                                />
+                                <Button
+                                  onClick={() => handleSubmitReply(discussion._id)}
+                                  size="sm"
+                                  className="mt-2"
+                                >
+                                  Gửi trả lời
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Replies List */}
+                            {discussion.replies?.map((reply: any) => (
+                              <div key={reply._id} className="flex gap-3 mb-3">
+                                <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <span className="text-gray-600 text-sm">
+                                    {reply.author?.name?.charAt(0) || 'U'}
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="bg-gray-50 rounded-lg p-3">
+                                    <p className="text-sm font-medium text-gray-900">
+                                      {reply.author?.name || 'Ẩn danh'}
+                                    </p>
+                                    <p className="text-sm text-gray-700 mt-1">{reply.content}</p>
+                                  </div>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {new Date(reply.createdAt).toLocaleDateString('vi-VN')}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Course Details Sections */}
+        {activeTab === 'lessons' && (
         <div className="mt-12 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* What you'll learn */}
           {course.whatYouWillLearn && (Array.isArray(course.whatYouWillLearn) ? course.whatYouWillLearn.length > 0 : false) && (
@@ -690,6 +1207,7 @@ const CourseDetail = () => {
             </Card>
           )}
         </div>
+        )}
       </div>
     </div>
   );

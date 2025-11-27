@@ -1,6 +1,8 @@
 const Course = require('../models/Course');
 const Lesson = require('../models/Lesson');
-const gridfsService = require('../services/gridfsService');
+const { uploadImage, deleteImage, getPublicIdFromUrl, cloudinary } = require('../config/cloudinary');
+const fs = require('fs');
+const path = require('path');
 
 /**
  * @desc    Upload course thumbnail
@@ -33,38 +35,37 @@ const uploadCourseThumbnail = async (req, res) => {
       });
     }
 
-    // Delete old thumbnail if exists
-    if (course.thumbnailFileId) {
+    // Delete old thumbnail from Cloudinary if exists
+    if (course.thumbnail && course.thumbnail.includes('cloudinary')) {
       try {
-        await gridfsService.deleteFile(course.thumbnailFileId);
+        const publicId = getPublicIdFromUrl(course.thumbnail);
+        if (publicId) {
+          await deleteImage(publicId);
+        }
       } catch (error) {
-        console.log('Old thumbnail not found or already deleted');
+        console.log('Old thumbnail not found or already deleted:', error.message);
       }
     }
 
-    // Upload new thumbnail
-    const fileInfo = await gridfsService.uploadFile(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype,
-      { 
-        courseId: course._id,
-        userId: req.user._id,
-        type: 'course-thumbnail' 
-      }
-    );
+    // Upload new thumbnail to Cloudinary
+    const tempPath = path.join('/tmp', `${Date.now()}-${req.file.originalname}`);
+    fs.writeFileSync(tempPath, req.file.buffer);
+    
+    const cloudinaryUrl = await uploadImage(tempPath, 'course-thumbnails');
+    
+    // Clean up temp file
+    fs.unlinkSync(tempPath);
 
     // Update course
-    course.thumbnail = fileInfo.filename;
-    course.thumbnailFileId = fileInfo.fileId;
+    course.thumbnail = cloudinaryUrl;
+    course.thumbnailFileId = null; // Not using GridFS anymore
     await course.save();
 
     res.status(200).json({
       success: true,
       message: 'Upload thumbnail thành công',
       data: {
-        thumbnailUrl: `/api/files/${fileInfo.filename}`,
-        fileId: fileInfo.fileId
+        thumbnailUrl: cloudinaryUrl
       }
     });
 
@@ -110,36 +111,43 @@ const uploadLessonVideo = async (req, res) => {
       });
     }
 
-    // Delete old video if exists
-    if (lesson.video && lesson.video.fileId) {
+    // Delete old video from Cloudinary if exists
+    if (lesson.video && lesson.video.url && lesson.video.url.includes('cloudinary')) {
       try {
-        await gridfsService.deleteFile(lesson.video.fileId);
+        const publicId = getPublicIdFromUrl(lesson.video.url);
+        if (publicId) {
+          await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+        }
       } catch (error) {
-        console.log('Old video not found or already deleted');
+        console.log('Old video not found or already deleted:', error.message);
       }
     }
 
-    // Upload new video
-    const fileInfo = await gridfsService.uploadFile(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype,
-      { 
-        lessonId: lesson._id,
-        courseId: lesson.course._id,
-        userId: req.user._id,
-        type: 'lesson-video' 
-      }
-    );
+    // Upload new video to Cloudinary
+    const tempPath = path.join('/tmp', `${Date.now()}-${req.file.originalname}`);
+    fs.writeFileSync(tempPath, req.file.buffer);
+    
+    const result = await cloudinary.uploader.upload(tempPath, {
+      folder: 'elearning/lesson-videos',
+      resource_type: 'video',
+      transformation: [
+        { quality: 'auto:good' },
+        { fetch_format: 'auto' }
+      ]
+    });
+    
+    // Clean up temp file
+    fs.unlinkSync(tempPath);
 
     // Update lesson
     lesson.video = {
-      filename: fileInfo.filename,
-      fileId: fileInfo.fileId,
-      originalName: fileInfo.originalName,
-      mimetype: fileInfo.mimetype,
-      size: fileInfo.size,
-      uploadedAt: fileInfo.uploadedAt
+      url: result.secure_url,
+      publicId: result.public_id,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      duration: result.duration || 0,
+      uploadedAt: new Date()
     };
     lesson.contentType = 'video';
     
@@ -149,7 +157,7 @@ const uploadLessonVideo = async (req, res) => {
       success: true,
       message: 'Upload video thành công',
       data: {
-        videoUrl: `/api/files/${fileInfo.filename}`,
+        videoUrl: result.secure_url,
         video: lesson.video
       }
     });
@@ -196,18 +204,18 @@ const uploadLessonDocument = async (req, res) => {
       });
     }
 
-    // Upload document
-    const fileInfo = await gridfsService.uploadFile(
-      req.file.buffer,
-      req.file.originalname,
-      req.file.mimetype,
-      { 
-        lessonId: lesson._id,
-        courseId: lesson.course._id,
-        userId: req.user._id,
-        type: 'lesson-document' 
-      }
-    );
+    // Upload document to Cloudinary
+    const tempPath = path.join('/tmp', `${Date.now()}-${req.file.originalname}`);
+    fs.writeFileSync(tempPath, req.file.buffer);
+    
+    const result = await cloudinary.uploader.upload(tempPath, {
+      folder: 'elearning/lesson-documents',
+      resource_type: 'raw', // For PDFs and other documents
+      format: path.extname(req.file.originalname).slice(1) // Remove dot from extension
+    });
+    
+    // Clean up temp file
+    fs.unlinkSync(tempPath);
 
     // Add to resources
     if (!lesson.resources) {
@@ -215,12 +223,13 @@ const uploadLessonDocument = async (req, res) => {
     }
 
     lesson.resources.push({
-      name: fileInfo.originalName,
-      url: fileInfo.filename,  // Store GridFS filename
-      type: fileInfo.mimetype.includes('pdf') ? 'pdf' : 
-            fileInfo.mimetype.includes('doc') ? 'doc' : 'other',
-      fileId: fileInfo.fileId,
-      uploadedAt: fileInfo.uploadedAt
+      name: req.file.originalname,
+      url: result.secure_url,
+      publicId: result.public_id,
+      type: req.file.mimetype.includes('pdf') ? 'pdf' : 
+            req.file.mimetype.includes('doc') ? 'doc' : 'other',
+      size: req.file.size,
+      uploadedAt: new Date()
     });
 
     await lesson.save();
@@ -229,7 +238,7 @@ const uploadLessonDocument = async (req, res) => {
       success: true,
       message: 'Upload tài liệu thành công',
       data: {
-        documentUrl: `/api/files/${fileInfo.filename}`,
+        documentUrl: result.secure_url,
         resource: lesson.resources[lesson.resources.length - 1]
       }
     });
