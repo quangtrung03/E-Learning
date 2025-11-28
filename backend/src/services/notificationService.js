@@ -12,37 +12,17 @@ class NotificationService {
     // No need to init transporter anymore
   }
 
-  // Khởi tạo Socket.IO
+  // Set Socket.IO instance (shared from socketService)
+  setSocketIO(io) {
+    this.io = io;
+    console.log('✅ NotificationService connected to Socket.IO');
+    // Note: Event listeners are handled by socketService to avoid duplicate initialization
+    return this.io;
+  }
+
+  // Deprecated: Use setSocketIO instead
   initSocketIO(server) {
-    this.io = new Server(server, {
-      cors: {
-        origin: process.env.NODE_ENV === 'production' 
-          ? [process.env.CORS_ORIGIN, process.env.FRONTEND_URL].filter(Boolean)
-          : [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://localhost:3000'].filter(Boolean),
-        credentials: true
-      }
-    });
-
-    this.io.on('connection', (socket) => {
-      console.log(`🔌 User connected: ${socket.id}`);
-
-      // Join user room for personalized notifications
-      socket.on('join-user', (userId) => {
-        socket.join(`user-${userId}`);
-        console.log(`👤 User ${userId} joined their room`);
-      });
-
-      // Join course room for course-specific notifications
-      socket.on('join-course', (courseId) => {
-        socket.join(`course-${courseId}`);
-        console.log(`📚 Joined course room: ${courseId}`);
-      });
-
-      socket.on('disconnect', () => {
-        console.log(`🔌 User disconnected: ${socket.id}`);
-      });
-    });
-
+    console.warn('⚠️  notificationService.initSocketIO is deprecated. Use setSocketIO instead.');
     return this.io;
   }
 

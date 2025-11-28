@@ -227,12 +227,14 @@ export const analyticsAPI = {
 
 // Payment API calls
 export const paymentAPI = {
-  createPaymentIntent: (courseId: string, paymentData: any): Promise<AxiosResponse<any>> =>
-    api.post('/payments/create-intent', { courseId, ...paymentData }),
-  confirmPayment: (paymentIntentId: string): Promise<AxiosResponse<any>> =>
-    api.post(`/payments/${paymentIntentId}/confirm`),
-  getPaymentHistory: (params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
-    api.get('/payments/history', { params }),
+  createPayment: (paymentData: { courseId: string; amount: number; paymentMethod: string }): Promise<AxiosResponse<any>> =>
+    api.post('/payments/create', paymentData),
+  verifyPayment: (params: any): Promise<AxiosResponse<any>> =>
+    api.post('/payments/verify', params),
+  getMyPayments: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/payments/my-payments', { params }),
+  getPayment: (id: string): Promise<AxiosResponse<any>> =>
+    api.get(`/payments/${id}`),
   requestRefund: (paymentId: string, reason: string): Promise<AxiosResponse<any>> =>
     api.post(`/payments/${paymentId}/refund`, { reason }),
 };

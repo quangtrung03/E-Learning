@@ -27,6 +27,9 @@ import StudyGroups from './pages/StudyGroups';
 import StudyGroupDetail from './pages/StudyGroupDetail';
 import StudyGroupCreate from './pages/StudyGroupCreate';
 import LearningAnalytics from './pages/LearningAnalytics';
+import PaymentCheckout from './pages/PaymentCheckout';
+import PaymentHistory from './pages/PaymentHistory';
+import PaymentReturn from './pages/PaymentReturn';
 import { useAuth } from './context/AuthContext';
 
 // Protected Route Component
@@ -229,6 +232,32 @@ function App() {
             element={
               <ProtectedRoute>
                 <LearningAnalytics />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Payment Routes */}
+          <Route 
+            path="/payment/checkout/:courseId" 
+            element={
+              <ProtectedRoute>
+                <PaymentCheckout />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/payment/history" 
+            element={
+              <ProtectedRoute>
+                <PaymentHistory />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/payment/return" 
+            element={
+              <ProtectedRoute>
+                <PaymentReturn />
               </ProtectedRoute>
             } 
           />

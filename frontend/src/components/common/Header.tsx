@@ -61,32 +61,28 @@ const Header = () => {
                 </Link>
                 <Link
                   to="/messages"
-                  className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                  className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium transition-colors"
                 >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>Tin nhắn</span>
+                  Tin nhắn
                 </Link>
                 <Link
                   to="/study-groups"
-                  className="text-gray-700 hover:text-purple-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                  className="text-gray-700 hover:text-purple-600 px-3 py-2 text-sm font-medium transition-colors"
                 >
-                  <Users className="w-4 h-4" />
-                  <span>Nhóm học</span>
+                  Nhóm học
                 </Link>
                 <Link
                   to="/analytics"
-                  className="text-gray-700 hover:text-green-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                  className="text-gray-700 hover:text-green-600 px-3 py-2 text-sm font-medium transition-colors"
                 >
-                  <BarChart className="w-4 h-4" />
-                  <span>Phân tích</span>
+                  Phân tích
                 </Link>
                 {user?.isAdmin && (
                   <Link
                     to="/admin"
-                    className="text-gray-700 hover:text-purple-600 px-3 py-2 text-sm font-medium transition-colors flex items-center space-x-1"
+                    className="text-gray-700 hover:text-purple-600 px-3 py-2 text-sm font-medium transition-colors"
                   >
-                    <Award className="w-4 h-4" />
-                    <span>Quản trị</span>
+                    Quản trị
                   </Link>
                 )}
               </>

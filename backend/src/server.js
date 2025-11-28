@@ -283,14 +283,15 @@ const server = app.listen(PORT, () => {
   
   // Initialize services
   if (process.env.NODE_ENV !== 'test') {
-    // Initialize Socket.IO for real-time features
-    const { initializeSocket } = require('./services/socketService');
+    // Initialize Socket.IO for real-time features (SINGLE INSTANCE)
+    const { initializeSocket, getIO } = require('./services/socketService');
     initializeSocket(server);
     console.log('📡 Socket.IO initialized for real-time messaging');
     
-    // Initialize Socket.IO for notifications (legacy)
-    notificationService.initSocketIO(server);
-    console.log('📡 Notification Socket.IO initialized');
+    // Share Socket.IO instance with notification service
+    const io = getIO();
+    notificationService.setSocketIO(io);
+    console.log('📡 Notification service connected to Socket.IO');
     
     // Initialize cron jobs
     cronJobService.init();
