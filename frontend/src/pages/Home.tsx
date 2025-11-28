@@ -47,8 +47,6 @@ const Home = () => {
   const [instructors, setInstructors] = useState<Instructor[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -187,9 +185,12 @@ const Home = () => {
                 <div className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white border-gray-200 hover:border-blue-400 cursor-pointer shadow-lg hover:shadow-2xl">
                   <div className="h-48 relative overflow-hidden">
                     <img 
-                      src={`${API_URL}${cat.imageUrl}`} 
+                      src={cat.imageUrl} 
                       alt={cat.name}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://via.placeholder.com/400x300?text=' + cat.name;
+                      }}
                     />
                   </div>
                   <div className="p-6">
@@ -384,9 +385,12 @@ const Home = () => {
               <div key={idx} className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400 shadow-lg hover:shadow-2xl">
                 <div className={`h-64 bg-gradient-to-br ${instructor.gradient} flex items-center justify-center relative overflow-hidden`}>
                   <img 
-                    src={`${API_URL}${instructor.imageUrl}`} 
+                    src={instructor.imageUrl} 
                     alt={instructor.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    onError={(e) => {
+                      e.currentTarget.src = 'https://via.placeholder.com/400x300?text=' + instructor.name;
+                    }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
