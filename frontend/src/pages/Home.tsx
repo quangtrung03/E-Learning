@@ -123,7 +123,7 @@ const Home = () => {
         {/* Background Image */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="/src/assets/background2.jpg" 
+            src="https://res.cloudinary.com/dtv6qnrwy/image/upload/v1764396833/elearning/hero-backgrounds/dxj1reyn3t3em6uymicv.jpg" 
             alt="Learning Background" 
             className="w-full h-full object-cover"
           />
@@ -330,7 +330,7 @@ const Home = () => {
               { name: 'Microsoft', logo: 'https://www.vectorlogo.zone/logos/microsoft/microsoft-icon.svg', field: 'Enterprise' },
               { name: 'Amazon', logo: 'https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg', field: 'E-Commerce' },
               { name: 'Apple', logo: 'https://www.vectorlogo.zone/logos/apple/apple-icon.svg', field: 'Innovation' },
-              { name: 'Meta', logo: 'https://www.vectorlogo.zone/logos/meta/meta-icon.svg', field: 'Social Media' },
+              { name: 'Facebook', logo: 'https://www.vectorlogo.zone/logos/facebook/facebook-icon.svg', field: 'Social Media' },
               { name: 'Netflix', logo: 'https://www.vectorlogo.zone/logos/netflix/netflix-icon.svg', field: 'Streaming' },
               { name: 'Adobe', logo: 'https://www.vectorlogo.zone/logos/adobe/adobe-icon.svg', field: 'Creative' },
               { name: 'Salesforce', logo: 'https://www.vectorlogo.zone/logos/salesforce/salesforce-icon.svg', field: 'CRM' },
