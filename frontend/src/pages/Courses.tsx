@@ -129,9 +129,9 @@ const Courses = () => {
   const fetchDraftCourses = async () => {
     try {
       setDraftsLoading(true);
-      const response = await courseAPI.getCreatedCourses();
+      const response = await courseAPI.getMyCourses({ status: 'draft' });
       if (response.data.success) {
-        const drafts = response.data.data.filter((course: any) => course.status === 'draft');
+        const drafts = response.data.data || [];
         setDraftCourses(drafts);
       }
     } catch (error) {
@@ -236,10 +236,6 @@ const Courses = () => {
 
   // This function is no longer needed as validation moved to onChange
   // Keeping it for backward compatibility but it does nothing
-  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Validation and upload now handled in onChange directly
-  };
-
   const handleThumbnailUpload = async () => {
     if (!thumbnailFile) return;
     

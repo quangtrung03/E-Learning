@@ -29,6 +29,7 @@ interface CourseParams {
   search?: string;
   minPrice?: number;
   maxPrice?: number;
+  status?: string;
 }
 
 // Create axios instance
