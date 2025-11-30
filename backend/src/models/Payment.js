@@ -164,7 +164,7 @@ const paymentSchema = new mongoose.Schema({
     },
     interval: {
       type: String,
-      enum: ['monthly', 'yearly'],
+      enum: ['monthly', 'yearly', null],
       default: null
     },
     nextPaymentDate: {
