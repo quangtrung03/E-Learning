@@ -56,12 +56,30 @@ const StudyGroupCreate = () => {
 
   const fetchCourses = async () => {
     try {
-      const response = await courseAPI.getAllCourses({ limit: 100 });
+      const response = await courseAPI.getAllCourses({ limit: 100, status: 'approved' });
+      console.log('Courses API response:', response.data);
+      
       if (response.data.success) {
-        setCourses(response.data.data.courses || []);
+        const coursesData = response.data.data?.courses || response.data.data || [];
+        console.log('Parsed courses:', coursesData);
+        setCourses(Array.isArray(coursesData) ? coursesData : []);
+        
+        if (coursesData.length === 0) {
+          toast.showToast({
+            type: 'warning',
+            title: 'Không có khóa học',
+            message: 'Hiện chưa có khóa học nào được phê duyệt'
+          });
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching courses:', error);
+      toast.showToast({
+        type: 'error',
+        title: 'Lỗi tải khóa học',
+        message: error.response?.data?.message || 'Không thể tải danh sách khóa học'
+      });
+      setCourses([]);
     }
   };
 
@@ -151,18 +169,37 @@ const StudyGroupCreate = () => {
   };
 
   const handleSubmit = async () => {
-    if (!validateStep(step)) return;
+    if (!validateStep(step)) {
+      console.log('Validation failed at step:', step);
+      return;
+    }
 
     try {
       setLoading(true);
 
+      // Map formData.course to courseId for backend compatibility
+      const { course, ...restFormData } = formData;
+      
+      if (!course) {
+        toast.showToast({
+          type: 'error',
+          title: 'Thiếu thông tin',
+          message: 'Vui lòng chọn khóa học'
+        });
+        setLoading(false);
+        return;
+      }
+
       const submitData = {
-        ...formData,
+        ...restFormData,
+        courseId: course, // Backend expects courseId not course
         creator: user?._id,
         members: [user?._id]
       };
 
+      console.log('📤 Submitting study group data:', submitData);
       const response = await studyGroupAPI.createStudyGroup(submitData);
+      console.log('✅ Study group created:', response.data);
 
       if (response.data.success) {
         toast.showToast({
@@ -173,10 +210,21 @@ const StudyGroupCreate = () => {
         navigate(`/study-groups/${response.data.data.group._id}`);
       }
     } catch (error: any) {
+      console.error('❌ Error creating study group:', error);
+      console.error('Error response:', error.response?.data);
+      
+      let errorMessage = 'Đã có lỗi xảy ra';
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        // Show validation errors
+        errorMessage = error.response.data.errors.map((e: any) => e.msg).join(', ');
+      }
+      
       toast.showToast({
         type: 'error',
         title: 'Không thể tạo nhóm học',
-        message: error.response?.data?.message || 'Đã có lỗi xảy ra'
+        message: errorMessage
       });
     } finally {
       setLoading(false);

@@ -516,6 +516,11 @@ const CourseDetail = () => {
                   <p className="text-3xl font-bold text-primary-600">
                     {course.finalPrice?.toLocaleString('vi-VN')}đ
                   </p>
+                  {(course.finalPrice || 0) === 0 && (
+                    <span className="inline-block mt-2 px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
+                      MIỄN PHÍ
+                    </span>
+                  )}
                 </div>
                 
                 {isEnrolled ? (
@@ -537,13 +542,31 @@ const CourseDetail = () => {
                     </div>
                   </div>
                 ) : (
-                  <Button
-                    onClick={handleEnroll}
-                    disabled={enrolling}
-                    className="w-full text-lg py-3"
-                  >
-                    {enrolling ? 'Đang đăng ký...' : 'Đăng ký học ngay'}
-                  </Button>
+                  <div className="space-y-3">
+                    {/* Nút Thanh toán cho khóa học có phí */}
+                    {(course.finalPrice || 0) > 0 ? (
+                      <>
+                        <Button
+                          onClick={() => navigate(`/payment/${id}`)}
+                          className="w-full text-lg py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                        >
+                          💳 Thanh toán ngay
+                        </Button>
+                        <p className="text-center text-xs text-gray-500">
+                          Thanh toán an toàn • Hoàn tiền 30 ngày
+                        </p>
+                      </>
+                    ) : (
+                      /* Nút Đăng ký miễn phí */
+                      <Button
+                        onClick={handleEnroll}
+                        disabled={enrolling}
+                        className="w-full text-lg py-3"
+                      >
+                        {enrolling ? 'Đang đăng ký...' : '🎉 Đăng ký miễn phí'}
+                      </Button>
+                    )}
+                  </div>
                 )}
                 
                 <div className="mt-6 space-y-3 text-sm">
@@ -841,7 +864,24 @@ const CourseDetail = () => {
         {activeTab === 'reviews' && (
           <div className="max-w-4xl mx-auto">
             {/* Review Actions */}
-            {isEnrolled && !userReview && (
+            {!isEnrolled ? (
+              <Card className="p-6 mb-6 bg-blue-50 border-blue-200">
+                <div className="text-center">
+                  <p className="text-blue-900 mb-4">
+                    🔒 Bạn cần đăng ký khóa học để viết đánh giá
+                  </p>
+                  <Button onClick={() => navigate(`/payment/${id}`)} className="bg-blue-600 hover:bg-blue-700">
+                    Đăng ký ngay
+                  </Button>
+                </div>
+              </Card>
+            ) : userReview ? (
+              <Card className="p-6 mb-6 bg-green-50 border-green-200">
+                <p className="text-green-900 text-center">
+                  ✅ Bạn đã đánh giá khóa học này
+                </p>
+              </Card>
+            ) : (
               <Card className="p-6 mb-6">
                 {!showReviewForm ? (
                   <Button onClick={() => setShowReviewForm(true)} className="w-full">

@@ -38,11 +38,13 @@ const Courses = () => {
     info: (message: string) => toastContext.showToast({ type: 'info', title: message }),
   };
   
-  const [activeTab, setActiveTab] = useState<'browse' | 'create'>('browse');
+  const [activeTab, setActiveTab] = useState<'browse' | 'create' | 'drafts'>('browse');
   const [courses, setCourses] = useState<Course[]>([]);
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
+  const [draftCourses, setDraftCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredLoading, setFeaturedLoading] = useState(true);
+  const [draftsLoading, setDraftsLoading] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
     category: '',
@@ -105,6 +107,8 @@ const Courses = () => {
     if (activeTab === 'browse') {
       fetchCourses();
       fetchFeaturedCourses();
+    } else if (activeTab === 'drafts') {
+      fetchDraftCourses();
     }
   }, [activeTab, filters, pagination.page]);
 
@@ -119,6 +123,22 @@ const Courses = () => {
       console.error('Error fetching featured courses:', error);
     } finally {
       setFeaturedLoading(false);
+    }
+  };
+
+  const fetchDraftCourses = async () => {
+    try {
+      setDraftsLoading(true);
+      const response = await courseAPI.getCreatedCourses();
+      if (response.data.success) {
+        const drafts = response.data.data.filter((course: any) => course.status === 'draft');
+        setDraftCourses(drafts);
+      }
+    } catch (error) {
+      console.error('Error fetching draft courses:', error);
+      toast.error('Không thể tải bản nháp');
+    } finally {
+      setDraftsLoading(false);
     }
   };
 
@@ -214,29 +234,10 @@ const Courses = () => {
   };
 
 
+  // This function is no longer needed as validation moved to onChange
+  // Keeping it for backward compatibility but it does nothing
   const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file size (10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Kích thước ảnh không được vượt quá 10MB');
-        e.target.value = ''; // Reset input
-        return;
-      }
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast.error('Vui lòng chọn file ảnh hợp lệ');
-        e.target.value = ''; // Reset input
-        return;
-      }
-      setThumbnailFile(file);
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setThumbnailPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    // Validation and upload now handled in onChange directly
   };
 
   const handleThumbnailUpload = async () => {
@@ -254,15 +255,22 @@ const Courses = () => {
       });
       
       if (response.data.success) {
+        const uploadedUrl = response.data.data.url;
         setFormData(prev => ({
           ...prev,
-          thumbnail: response.data.data.url
+          thumbnail: uploadedUrl
         }));
+        // Keep preview but clear file since it's now uploaded
+        setThumbnailFile(null);
         toast.success('Upload ảnh thành công!');
+        console.log('✅ Ảnh đã lưu vào Cloudinary:', uploadedUrl);
       }
     } catch (error: any) {
       console.error('Error uploading thumbnail:', error);
       toast.error(error.response?.data?.message || 'Lỗi khi upload ảnh');
+      // Reset on error
+      setThumbnailFile(null);
+      setThumbnailPreview('');
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -278,6 +286,54 @@ const Courses = () => {
     if (fileInput) fileInput.value = '';
   };
 
+  const loadDraftForEdit = (draft: Course) => {
+    const draftThumbnail = (draft as any).thumbnail || '';
+    
+    console.log('📝 Loading draft for edit:', {
+      courseId: draft._id,
+      title: draft.title,
+      hasThumbnail: !!draftThumbnail,
+      thumbnailUrl: draftThumbnail
+    });
+    
+    setFormData({
+      title: draft.title,
+      description: draft.description,
+      category: draft.category,
+      level: draft.level,
+      price: draft.price,
+      discount: draft.discount || 0,
+      duration: draft.duration,
+      thumbnail: draftThumbnail,
+      requirements: (draft as any).requirements || [''],
+      whatYouWillLearn: (draft as any).whatYouWillLearn || [''],
+      tags: (draft as any).tags || ['']
+    });
+    
+    if (draftThumbnail) {
+      setThumbnailPreview(draftThumbnail);
+      console.log('✅ Thumbnail loaded from draft:', draftThumbnail);
+    }
+    
+    setPriceType(draft.price === 0 ? 'free' : 'custom');
+    setDurationType('custom');
+    setActiveTab('create');
+    toast.info('Đã tải bản nháp' + (draftThumbnail ? ' (có ảnh)' : ' (chưa có ảnh)'));
+  };
+
+  const deleteDraft = async (courseId: string) => {
+    if (!confirm('Bạn có chắc muốn xóa bản nháp này?')) return;
+    
+    try {
+      await courseAPI.deleteCourse(courseId);
+      toast.success('Đã xóa bản nháp');
+      fetchDraftCourses();
+    } catch (error: any) {
+      console.error('Error deleting draft:', error);
+      toast.error(error.response?.data?.message || 'Không thể xóa bản nháp');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await handleCreateCourse('pending');
@@ -287,13 +343,9 @@ const Courses = () => {
   const handleCreateCourse = async (status: 'pending' | 'draft') => {
     try {
       setFormLoading(true);
-      // Validate
+      // Validate - chỉ kiểm tra title và description
       if (!formData.title.trim() || !formData.description.trim()) {
-        toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
-        return;
-      }
-      if (!formData.thumbnail && status === 'pending') {
-        toast.error('Vui lòng upload ảnh minh họa cho khóa học');
+        toast.error('Vui lòng điền đầy đủ thông tin bắt buộc (Tiêu đề và Mô tả)');
         return;
       }
       // Filter empty values
@@ -304,8 +356,17 @@ const Courses = () => {
         tags: formData.tags.filter(tag => tag.trim()),
         status
       };
+      
+      // Debug: Log thumbnail URL before sending
+      console.log('📤 Sending course data:', {
+        title: courseData.title,
+        thumbnail: courseData.thumbnail,
+        hasThumbnail: !!courseData.thumbnail
+      });
+      
       const response = await courseAPI.createCourse(courseData);
       if (response.data.success) {
+        console.log('✅ Course created successfully:', response.data);
         toast.success(status === 'draft' ? 'Đã lưu bản nháp!' : 'Tạo khóa học thành công!');
         navigate('/my-courses');
       }
@@ -563,6 +624,108 @@ const Courses = () => {
     </div>
   );
 
+  const renderDraftsTab = () => (
+    <div className="max-w-7xl mx-auto">
+      <Card className="p-8">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">
+            📝 Bản nháp của tôi
+          </h2>
+          <p className="text-gray-600">
+            Các khóa học đang được soạn thảo
+          </p>
+        </div>
+
+        {draftsLoading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((item) => (
+              <Card key={item} className="animate-pulse">
+                <div className="h-48 bg-gray-200 rounded-t-xl"></div>
+                <div className="p-6">
+                  <div className="h-4 bg-gray-200 rounded mb-4"></div>
+                  <div className="h-6 bg-gray-200 rounded mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded"></div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : draftCourses.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {draftCourses.map((course) => (
+              <Card key={course._id} className="hover:shadow-lg transition-all duration-300">
+                <div className="h-48 bg-gradient-to-br from-gray-400 to-gray-600 rounded-t-xl flex items-center justify-center relative">
+                  <span className="text-white text-4xl font-bold">
+                    {course.title.charAt(0)}
+                  </span>
+                  <div className="absolute top-3 right-3 px-3 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full">
+                    NHÁP
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                      {getCategoryLabel(course.category)}
+                    </span>
+                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
+                      {getLevelLabel(course.level)}
+                    </span>
+                  </div>
+                  
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
+                    {course.title}
+                  </h3>
+                  
+                  <p className="text-gray-600 mb-4 line-clamp-2">
+                    {course.description}
+                  </p>
+                  
+                  <div className="flex items-center justify-between mb-4 text-sm text-gray-500">
+                    <span>{course.duration} phút</span>
+                    <span>{course.price.toLocaleString('vi-VN')}đ</span>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => loadDraftForEdit(course)}
+                      className="flex-1 bg-primary-600 hover:bg-primary-700 text-white"
+                      size="sm"
+                    >
+                      ✏️ Chỉnh sửa
+                    </Button>
+                    <Button
+                      onClick={() => deleteDraft(course._id)}
+                      variant="outline"
+                      className="text-red-600 border-red-600 hover:bg-red-50"
+                      size="sm"
+                    >
+                      🗑️
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="text-center py-16">
+            <div className="text-6xl mb-4">📝</div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">
+              Chưa có bản nháp nào
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Bắt đầu tạo khóa học và lưu bản nháp để tiếp tục sau
+            </p>
+            <Button
+              onClick={() => setActiveTab('create')}
+              className="bg-primary-600 hover:bg-primary-700 text-white"
+            >
+              ✨ Tạo khóa học mới
+            </Button>
+          </Card>
+        )}
+      </Card>
+    </div>
+  );
+
   const renderCreateTab = () => (
     <div className="max-w-4xl mx-auto">
       <Card className="p-8">
@@ -614,35 +777,54 @@ const Courses = () => {
               {/* Thumbnail Upload */}
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Ảnh minh họa khóa học *
+                  Ảnh minh họa khóa học (tùy chọn)
                 </label>
                 <div className="space-y-3">
-                  {/* File input */}
+                  {/* File input - Auto upload on select */}
                   <div className="flex items-center gap-3">
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={handleThumbnailChange}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // Validate file size (10MB)
+                          if (file.size > 10 * 1024 * 1024) {
+                            toast.error('Kích thước ảnh không được vượt quá 10MB');
+                            e.target.value = '';
+                            return;
+                          }
+                          // Validate file type
+                          if (!file.type.startsWith('image/')) {
+                            toast.error('Vui lòng chọn file ảnh hợp lệ');
+                            e.target.value = '';
+                            return;
+                          }
+                          
+                          setThumbnailFile(file);
+                          
+                          // Create preview
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setThumbnailPreview(reader.result as string);
+                            // Auto upload immediately after preview is ready
+                            handleThumbnailUpload();
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
                       className="hidden"
                       id="thumbnail-upload"
+                      disabled={isUploading}
                     />
                     <label
                       htmlFor="thumbnail-upload"
-                      className="px-4 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors"
+                      className={`px-4 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <span className="text-gray-700">📁 Chọn ảnh</span>
+                      <span className="text-gray-700">
+                        {isUploading ? '⏳ Đang upload...' : formData.thumbnail ? '✓ Đã có ảnh - Chọn ảnh khác' : '📁 Chọn ảnh'}
+                      </span>
                     </label>
-                    {thumbnailFile && (
-                      <Button
-                        type="button"
-                        onClick={handleThumbnailUpload}
-                        disabled={isUploading || !!formData.thumbnail}
-                        variant="primary"
-                        size="sm"
-                      >
-                        {isUploading ? 'Đang upload...' : formData.thumbnail ? '✓ Đã upload' : '⬆️ Upload'}
-                      </Button>
-                    )}
                   </div>
 
                   {/* Preview - Show uploaded image or local preview */}
@@ -690,7 +872,7 @@ const Courses = () => {
                   )}
 
                   <p className="text-xs text-gray-500">
-                    Định dạng: JPG, PNG, GIF. Kích thước tối đa: 10MB. Khuyến nghị: 1200x800px
+                    <span className="font-medium">Ảnh sẽ tự động upload khi bạn chọn file.</span> Định dạng: JPG, PNG, GIF. Kích thước tối đa: 10MB. Khuyến nghị: 1200x800px
                   </p>
                 </div>
               </div>
@@ -988,6 +1170,16 @@ const Courses = () => {
                 🔍 Tìm kiếm khóa học
               </button>
               <button
+                onClick={() => setActiveTab('drafts')}
+                className={`px-8 py-4 rounded-xl font-medium transition-all ${
+                  activeTab === 'drafts'
+                    ? 'bg-white text-primary-600 shadow-lg transform scale-105'
+                    : 'bg-primary-600 text-white hover:bg-primary-700'
+                }`}
+              >
+                📝 Bản nháp ({draftCourses.length})
+              </button>
+              <button
                 onClick={() => setActiveTab('create')}
                 className={`px-8 py-4 rounded-xl font-medium transition-all ${
                   activeTab === 'create'
@@ -1003,7 +1195,9 @@ const Courses = () => {
       </div>
 
       <div className="container-custom py-8">
-        {activeTab === 'browse' ? renderBrowseTab() : renderCreateTab()}
+        {activeTab === 'browse' && renderBrowseTab()}
+        {activeTab === 'drafts' && renderDraftsTab()}
+        {activeTab === 'create' && renderCreateTab()}
       </div>
     </div>
   );

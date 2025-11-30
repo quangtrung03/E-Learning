@@ -15,7 +15,7 @@ const getAllCourses = async (req, res) => {
     // Filtering
     let query = { 
       isPublished: true,
-      status: 'approved'
+      status: req.query.status || 'approved' // Allow override from query params
     };
     
     if (req.query.category) {
