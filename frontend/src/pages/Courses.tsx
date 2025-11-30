@@ -220,11 +220,13 @@ const Courses = () => {
       // Validate file size (10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast.error('Kích thước ảnh không được vượt quá 10MB');
+        e.target.value = ''; // Reset input
         return;
       }
       // Validate file type
       if (!file.type.startsWith('image/')) {
         toast.error('Vui lòng chọn file ảnh hợp lệ');
+        e.target.value = ''; // Reset input
         return;
       }
       setThumbnailFile(file);
@@ -271,6 +273,9 @@ const Courses = () => {
     setThumbnailFile(null);
     setThumbnailPreview('');
     setFormData(prev => ({ ...prev, thumbnail: '' }));
+    // Reset file input
+    const fileInput = document.getElementById('thumbnail-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -640,26 +645,24 @@ const Courses = () => {
                     )}
                   </div>
 
-                  {/* Preview */}
-                  {thumbnailPreview && (
+                  {/* Preview - Show uploaded image or local preview */}
+                  {(thumbnailPreview || formData.thumbnail) && (
                     <div className="relative inline-block">
                       <img
-                        src={thumbnailPreview}
+                        src={thumbnailPreview || formData.thumbnail}
                         alt="Preview"
                         className="h-48 w-auto object-cover rounded-lg border-2 border-gray-200"
                       />
-                      {!formData.thumbnail && (
-                        <button
-                          type="button"
-                          onClick={clearThumbnail}
-                          className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
-                          title="Xóa ảnh"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={clearThumbnail}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
+                        title="Xóa ảnh"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
                     </div>
                   )}
 
@@ -677,7 +680,7 @@ const Courses = () => {
                   )}
 
                   {/* Success message */}
-                  {formData.thumbnail && (
+                  {formData.thumbnail && !isUploading && (
                     <div className="flex items-center gap-2 text-green-600">
                       <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
