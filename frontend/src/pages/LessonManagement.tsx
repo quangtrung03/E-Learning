@@ -23,7 +23,7 @@ interface Lesson {
   }>;
 }
 
-import { Course, Enrollment } from '../types/course';
+import type { Course } from '../types/course';
 
 const LessonManagement = () => {
   const { courseId } = useParams<{ courseId: string }>();
