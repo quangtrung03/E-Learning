@@ -5,6 +5,10 @@ const User = require('../models/User');
 const Lesson = require('../models/Lesson');
 const Assignment = require('../models/Assignment');
 const Certificate = require('../models/Certificate');
+const Enrollment = require('../models/Enrollment');
+const Payment = require('../models/Payment');
+const Submission = require('../models/Submission');
+const { getUserEnrollment } = require('../utils/enrollmentHelpers');
 
 // @desc    Lấy analytics của user
 // @route   GET /api/analytics/user
@@ -79,10 +83,7 @@ const getUserAnalytics = async (req, res) => {
     // Nếu có courseId, lấy thêm thông tin course specific
     let courseSpecificData = null;
     if (courseId) {
-      const user = await User.findById(req.user.id);
-      const enrollment = user.enrolledCourses.find(
-        e => e.course.toString() === courseId
-      );
+      const enrollment = await getUserEnrollment(req.user.id, courseId);
 
       if (enrollment) {
         const course = await Course.findById(courseId)
@@ -889,18 +890,989 @@ const getRevenueAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Lấy analytics cho instructor dashboard
+// @route   GET /api/analytics/instructor
+// @access  Private (Instructor only)
+const getInstructorAnalytics = async (req, res) => {
+  try {
+    const instructorId = req.user.id;
+    const { timeRange = '30' } = req.query; // days
+
+    // Lấy tất cả courses của instructor
+    const instructorCourses = await Course.find({ instructor: instructorId })
+      .select('_id title price students createdAt');
+
+    const courseIds = instructorCourses.map(c => c._id);
+
+    // Tính toán thời gian
+    const dateFrom = new Date();
+    dateFrom.setDate(dateFrom.getDate() - parseInt(timeRange));
+
+    // Tổng revenue
+    const payments = await Payment.find({
+      course: { $in: courseIds },
+      status: 'completed',
+      createdAt: { $gte: dateFrom }
+    }).select('amount.final createdAt course');
+
+    const totalRevenue = payments.reduce((sum, p) => sum + p.amount.final, 0);
+
+    // Tổng students (unique)
+    const enrollments = await Enrollment.find({
+      course: { $in: courseIds },
+      status: 'active'
+    }).select('user course enrolledAt');
+
+    const uniqueStudents = new Set(enrollments.map(e => e.user.toString())).size;
+
+    // Course stats (từng course)
+    const courseStats = await Promise.all(
+      instructorCourses.map(async (course) => {
+        const courseEnrollments = enrollments.filter(e => 
+          e.course.toString() === course._id.toString()
+        );
+        const coursePayments = payments.filter(p => 
+          p.course.toString() === course._id.toString()
+        );
+        const courseRevenue = coursePayments.reduce((sum, p) => sum + p.amount.final, 0);
+
+        // Average completion rate
+        const analytics = await LearningAnalytics.find({ course: course._id })
+          .select('completionRate');
+        const avgCompletion = analytics.length > 0
+          ? analytics.reduce((sum, a) => sum + a.completionRate, 0) / analytics.length
+          : 0;
+
+        return {
+          courseId: course._id,
+          title: course.title,
+          price: course.price,
+          studentsCount: courseEnrollments.length,
+          revenue: courseRevenue,
+          averageCompletion: Math.round(avgCompletion),
+          createdAt: course.createdAt
+        };
+      })
+    );
+
+    // Recent payments (last 10)
+    const recentPayments = await Payment.find({
+      course: { $in: courseIds },
+      status: 'completed'
+    })
+      .populate('user', 'name email avatar')
+      .populate('course', 'title')
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select('amount.final user course createdAt');
+
+    // Revenue by date (for chart)
+    const revenueByDate = {};
+    payments.forEach(payment => {
+      const date = payment.createdAt.toISOString().split('T')[0];
+      revenueByDate[date] = (revenueByDate[date] || 0) + payment.amount.final;
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalRevenue,
+        totalStudents: uniqueStudents,
+        totalCourses: instructorCourses.length,
+        courseStats: courseStats.sort((a, b) => b.revenue - a.revenue),
+        recentPayments,
+        revenueByDate: Object.entries(revenueByDate).map(([date, amount]) => ({
+          date,
+          amount
+        })).sort((a, b) => new Date(a.date) - new Date(b.date))
+      }
+    });
+
+  } catch (error) {
+    console.error('Get instructor analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy instructor analytics',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Track user activity (page views, video watch time)
+// @route   POST /api/analytics/track
+// @access  Private
+const trackActivity = async (req, res) => {
+  try {
+    const { activityType, courseId, lessonId, duration, metadata } = req.body;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!activityType || !courseId) {
+      return res.status(400).json({
+        success: false,
+        message: 'activityType và courseId là bắt buộc'
+      });
+    }
+
+    // Kiểm tra enrollment
+    const enrollment = await Enrollment.findOne({
+      user: userId,
+      course: courseId,
+      status: 'active'
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn chưa đăng ký khóa học này'
+      });
+    }
+
+    // Tìm hoặc tạo LearningAnalytics
+    let analytics = await LearningAnalytics.findOne({
+      user: userId,
+      course: courseId
+    });
+
+    if (!analytics) {
+      // Tạo mới nếu chưa có
+      const course = await Course.findById(courseId).populate('lessons');
+      analytics = new LearningAnalytics({
+        user: userId,
+        course: courseId,
+        enrolledDate: enrollment.enrolledAt,
+        progressData: {
+          totalLessons: course.lessons?.length || 0,
+          lessonsCompleted: 0,
+          totalAssignments: 0,
+          assignmentsCompleted: 0,
+          totalQuizzes: 0,
+          quizzesCompleted: 0
+        }
+      });
+    }
+
+    // Update analytics based on activity type
+    switch (activityType) {
+      case 'page_view':
+        analytics.lastAccessDate = new Date();
+        break;
+
+      case 'video_watch':
+        if (duration) {
+          analytics.totalTimeSpent += Math.round(duration / 60); // convert to minutes
+          analytics.totalSessions += 1;
+          analytics.averageSessionDuration = Math.round(
+            analytics.totalTimeSpent / analytics.totalSessions
+          );
+        }
+        analytics.lastAccessDate = new Date();
+        break;
+
+      case 'lesson_complete':
+        if (lessonId) {
+          analytics.progressData.lessonsCompleted += 1;
+          analytics.completionRate = Math.round(
+            (analytics.progressData.lessonsCompleted / analytics.progressData.totalLessons) * 100
+          );
+          
+          // Update enrollment progress
+          enrollment.progress = analytics.completionRate;
+          await enrollment.save();
+        }
+        break;
+
+      case 'assignment_complete':
+        analytics.progressData.assignmentsCompleted += 1;
+        break;
+
+      case 'quiz_complete':
+        analytics.progressData.quizzesCompleted += 1;
+        break;
+
+      default:
+        analytics.lastAccessDate = new Date();
+    }
+
+    // Calculate engagement score (0-100)
+    const daysSinceEnroll = (new Date() - analytics.enrolledDate) / (1000 * 60 * 60 * 24);
+    const expectedSessions = Math.max(1, daysSinceEnroll / 7); // expect 1 session per week
+    const sessionRatio = Math.min(analytics.totalSessions / expectedSessions, 2);
+    analytics.engagementScore = Math.round(Math.min(sessionRatio * 50 + analytics.completionRate * 0.5, 100));
+
+    // Update study patterns
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentDay = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][now.getDay()];
+
+    // Update preferred study time
+    const existingTimeSlot = analytics.behaviorPatterns.preferredStudyTime.find(
+      slot => slot.hour === currentHour
+    );
+    if (existingTimeSlot) {
+      existingTimeSlot.frequency += 1;
+    } else {
+      analytics.behaviorPatterns.preferredStudyTime.push({
+        hour: currentHour,
+        frequency: 1
+      });
+    }
+
+    // Sort and keep top 5 time slots
+    analytics.behaviorPatterns.preferredStudyTime.sort((a, b) => b.frequency - a.frequency);
+    analytics.behaviorPatterns.preferredStudyTime = analytics.behaviorPatterns.preferredStudyTime.slice(0, 5);
+
+    // Update most active day
+    analytics.behaviorPatterns.mostActiveDay = currentDay;
+
+    analytics.lastUpdated = new Date();
+    await analytics.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Activity tracked successfully',
+      data: {
+        engagementScore: analytics.engagementScore,
+        completionRate: analytics.completionRate,
+        totalTimeSpent: analytics.totalTimeSpent
+      }
+    });
+
+  } catch (error) {
+    console.error('Track activity error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi track activity',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy dashboard stats cho student
+// @route   GET /api/analytics/dashboard
+// @access  Private (Student)
+const getDashboardStats = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Lấy enrollments
+    const enrollments = await Enrollment.find({
+      user: userId,
+      status: { $in: ['active', 'completed'] }
+    }).populate('course', 'title category level');
+
+    const courseIds = enrollments.map(e => e.course._id);
+
+    // Lấy analytics cho tất cả courses
+    const analytics = await LearningAnalytics.find({
+      user: userId,
+      course: { $in: courseIds }
+    });
+
+    // Calculate stats
+    const coursesInProgress = enrollments.filter(e => 
+      e.status === 'active' && e.progress > 0 && e.progress < 100
+    ).length;
+
+    const coursesCompleted = enrollments.filter(e => 
+      e.status === 'completed' || e.progress === 100
+    ).length;
+
+    const totalTimeSpent = analytics.reduce((sum, a) => sum + (a.totalTimeSpent || 0), 0);
+
+    const averageProgress = enrollments.length > 0
+      ? enrollments.reduce((sum, e) => sum + e.progress, 0) / enrollments.length
+      : 0;
+
+    // Upcoming deadlines (assignments due soon)
+    const assignments = await Assignment.find({
+      course: { $in: courseIds },
+      dueDate: { $gte: new Date(), $lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      isPublished: true
+    })
+      .populate('course', 'title')
+      .sort({ dueDate: 1 })
+      .limit(5);
+
+    // Check submissions for each assignment
+    const upcomingDeadlines = await Promise.all(
+      assignments.map(async (assignment) => {
+        const submission = await Submission.findOne({
+          assignment: assignment._id,
+          student: userId
+        });
+
+        return {
+          assignmentId: assignment._id,
+          title: assignment.title,
+          courseTitle: assignment.course.title,
+          dueDate: assignment.dueDate,
+          submitted: !!submission,
+          submissionStatus: submission?.status || 'not_submitted'
+        };
+      })
+    );
+
+    // Course progress details
+    const courseProgress = enrollments.map(enrollment => {
+      const courseAnalytics = analytics.find(a => 
+        a.course.toString() === enrollment.course._id.toString()
+      );
+
+      return {
+        courseId: enrollment.course._id,
+        courseTitle: enrollment.course.title,
+        category: enrollment.course.category,
+        level: enrollment.course.level,
+        progress: enrollment.progress,
+        timeSpent: courseAnalytics?.totalTimeSpent || 0,
+        lastAccessed: enrollment.lastAccessedAt,
+        engagementScore: courseAnalytics?.engagementScore || 0
+      };
+    }).sort((a, b) => b.lastAccessed - a.lastAccessed);
+
+    // Daily activity (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const dailyActivity = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split('T')[0];
+
+      // Count activities on this date (simplified - would need activity log in production)
+      const dayAnalytics = analytics.filter(a => {
+        const accessDate = a.lastAccessDate.toISOString().split('T')[0];
+        return accessDate === dateStr;
+      });
+
+      dailyActivity.unshift({
+        date: dateStr,
+        timeSpent: dayAnalytics.reduce((sum, a) => sum + (a.totalTimeSpent || 0), 0),
+        lessonsCompleted: dayAnalytics.reduce((sum, a) => sum + (a.progressData?.lessonsCompleted || 0), 0)
+      });
+    }
+
+    // Study patterns (from most recent analytics)
+    const recentAnalytics = analytics.sort((a, b) => 
+      b.lastAccessDate - a.lastAccessDate
+    )[0];
+
+    const studyPatterns = recentAnalytics?.behaviorPatterns ? {
+      mostActiveDay: recentAnalytics.behaviorPatterns.mostActiveDay,
+      mostActiveHour: recentAnalytics.behaviorPatterns.preferredStudyTime[0]?.hour || null,
+      averageSessionDuration: recentAnalytics.averageSessionDuration || 0
+    } : null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalTimeSpent,
+        coursesInProgress,
+        coursesCompleted,
+        averageProgress: Math.round(averageProgress),
+        dailyActivity,
+        courseProgress,
+        upcomingDeadlines,
+        studyPatterns
+      }
+    });
+
+  } catch (error) {
+    console.error('Get dashboard stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy dashboard stats',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy engagement metrics cho course
+// @route   GET /api/analytics/engagement/:courseId
+// @access  Private (Instructor, Admin)
+const getEngagementMetrics = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { dateRange = 'week' } = req.query; // week, month, all
+
+    // Kiểm tra quyền truy cập
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khóa học'
+      });
+    }
+
+    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem engagement metrics của khóa học này'
+      });
+    }
+
+    // Tính thời gian
+    let dateFrom = new Date();
+    switch (dateRange) {
+      case 'week':
+        dateFrom.setDate(dateFrom.getDate() - 7);
+        break;
+      case 'month':
+        dateFrom.setMonth(dateFrom.getMonth() - 1);
+        break;
+      default:
+        dateFrom = new Date(0); // all time
+    }
+
+    // Lấy tất cả analytics cho course
+    const analytics = await LearningAnalytics.find({
+      course: courseId,
+      lastAccessDate: { $gte: dateFrom }
+    }).populate('user', 'name email');
+
+    // Tổng số students enrolled
+    const totalEnrolled = await Enrollment.countDocuments({
+      course: courseId,
+      status: { $in: ['active', 'completed'] }
+    });
+
+    // Daily active users
+    const dailyActiveUsers = {};
+    analytics.forEach(analytic => {
+      const date = analytic.lastAccessDate.toISOString().split('T')[0];
+      dailyActiveUsers[date] = (dailyActiveUsers[date] || 0) + 1;
+    });
+
+    const dailyActive = Object.entries(dailyActiveUsers).map(([date, count]) => ({
+      date,
+      activeUsers: count
+    })).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Completion rate
+    const completedCount = await Enrollment.countDocuments({
+      course: courseId,
+      status: 'completed'
+    });
+    const completionRate = totalEnrolled > 0 ? (completedCount / totalEnrolled) * 100 : 0;
+
+    // Average time spent
+    const averageTimeSpent = analytics.length > 0
+      ? analytics.reduce((sum, a) => sum + a.totalTimeSpent, 0) / analytics.length
+      : 0;
+
+    // Average engagement score
+    const averageEngagement = analytics.length > 0
+      ? analytics.reduce((sum, a) => sum + a.engagementScore, 0) / analytics.length
+      : 0;
+
+    // At-risk students (low engagement)
+    const atRiskStudents = analytics
+      .filter(a => a.engagementScore < 30)
+      .map(a => ({
+        userId: a.user._id,
+        userName: a.user.name,
+        email: a.user.email,
+        engagementScore: a.engagementScore,
+        completionRate: a.completionRate,
+        lastAccessDate: a.lastAccessDate
+      }));
+
+    // Top performers (high engagement)
+    const topPerformers = analytics
+      .filter(a => a.engagementScore >= 80)
+      .sort((a, b) => b.engagementScore - a.engagementScore)
+      .slice(0, 10)
+      .map(a => ({
+        userId: a.user._id,
+        userName: a.user.name,
+        engagementScore: a.engagementScore,
+        completionRate: a.completionRate,
+        timeSpent: a.totalTimeSpent
+      }));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalEnrolled,
+        completionRate: Math.round(completionRate),
+        averageTimeSpent: Math.round(averageTimeSpent),
+        averageEngagement: Math.round(averageEngagement),
+        dailyActive,
+        atRiskStudents,
+        topPerformers,
+        dateRange
+      }
+    });
+
+  } catch (error) {
+    console.error('Get engagement metrics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy engagement metrics',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Update course progress manually
+// @route   PUT /api/analytics/progress/:courseId
+// @access  Private
+const updateProgress = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { progress, lessonId } = req.body;
+    const userId = req.user.id;
+
+    // Validate
+    if (progress !== undefined && (progress < 0 || progress > 100)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Progress phải từ 0-100'
+      });
+    }
+
+    // Kiểm tra enrollment
+    const enrollment = await Enrollment.findOne({
+      user: userId,
+      course: courseId,
+      status: 'active'
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn chưa đăng ký khóa học này'
+      });
+    }
+
+    // Update enrollment progress
+    if (progress !== undefined) {
+      enrollment.progress = progress;
+      
+      if (progress >= 100) {
+        enrollment.status = 'completed';
+        enrollment.completedAt = new Date();
+      }
+      
+      await enrollment.save();
+    }
+
+    // Update learning analytics
+    let analytics = await LearningAnalytics.findOne({
+      user: userId,
+      course: courseId
+    });
+
+    if (!analytics) {
+      const course = await Course.findById(courseId).populate('lessons');
+      analytics = new LearningAnalytics({
+        user: userId,
+        course: courseId,
+        enrolledDate: enrollment.enrolledAt,
+        progressData: {
+          totalLessons: course.lessons?.length || 0,
+          lessonsCompleted: 0
+        }
+      });
+    }
+
+    // Update completion rate
+    if (progress !== undefined) {
+      analytics.completionRate = progress;
+    }
+
+    // Mark lesson as completed
+    if (lessonId) {
+      const lesson = await Lesson.findById(lessonId);
+      if (lesson) {
+        // Check if not already completed
+        const alreadyCompleted = enrollment.completedLessons.some(
+          cl => cl.lesson.toString() === lessonId
+        );
+
+        if (!alreadyCompleted) {
+          enrollment.completedLessons.push({
+            lesson: lessonId,
+            completedAt: new Date()
+          });
+          await enrollment.save();
+
+          analytics.progressData.lessonsCompleted += 1;
+          analytics.completionRate = Math.round(
+            (analytics.progressData.lessonsCompleted / analytics.progressData.totalLessons) * 100
+          );
+        }
+      }
+    }
+
+    analytics.lastAccessDate = new Date();
+    await analytics.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật progress thành công',
+      data: {
+        progress: enrollment.progress,
+        completionRate: analytics.completionRate,
+        status: enrollment.status
+      }
+    });
+
+  } catch (error) {
+    console.error('Update progress error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi update progress',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Generate learning report
+// @route   GET /api/analytics/report/:courseId
+// @access  Private
+const generateReport = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+    const { format = 'json' } = req.query; // json, pdf, csv
+
+    // Kiểm tra enrollment
+    const enrollment = await Enrollment.findOne({
+      user: userId,
+      course: courseId
+    }).populate('course', 'title category level instructor');
+
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bạn chưa đăng ký khóa học này'
+      });
+    }
+
+    // Lấy analytics
+    const analytics = await LearningAnalytics.findOne({
+      user: userId,
+      course: courseId
+    });
+
+    // Lấy submissions
+    const assignments = await Assignment.find({ course: courseId });
+    const submissions = await Submission.find({
+      assignment: { $in: assignments.map(a => a._id) },
+      student: userId
+    }).populate('assignment', 'title maxScore dueDate');
+
+    // Calculate scores
+    const averageScore = submissions.length > 0
+      ? submissions.reduce((sum, s) => sum + (s.score || 0), 0) / submissions.length
+      : 0;
+
+    // Generate report data
+    const report = {
+      generatedAt: new Date(),
+      student: {
+        id: req.user.id,
+        name: req.user.name,
+        email: req.user.email
+      },
+      course: {
+        id: enrollment.course._id,
+        title: enrollment.course.title,
+        category: enrollment.course.category,
+        level: enrollment.course.level
+      },
+      enrollment: {
+        enrolledAt: enrollment.enrolledAt,
+        status: enrollment.status,
+        progress: enrollment.progress,
+        completedAt: enrollment.completedAt,
+        lastAccessedAt: enrollment.lastAccessedAt
+      },
+      performance: {
+        lessonsCompleted: analytics?.progressData?.lessonsCompleted || 0,
+        totalLessons: analytics?.progressData?.totalLessons || 0,
+        assignmentsCompleted: submissions.filter(s => s.status === 'submitted' || s.status === 'graded').length,
+        totalAssignments: assignments.length,
+        averageScore: Math.round(averageScore),
+        totalTimeSpent: analytics?.totalTimeSpent || 0,
+        totalSessions: analytics?.totalSessions || 0,
+        averageSessionDuration: analytics?.averageSessionDuration || 0
+      },
+      engagement: {
+        engagementScore: analytics?.engagementScore || 0,
+        completionRate: analytics?.completionRate || 0,
+        studyConsistency: analytics?.behaviorPatterns?.studyConsistency || 0
+      },
+      studyPatterns: {
+        mostActiveDay: analytics?.behaviorPatterns?.mostActiveDay,
+        preferredStudyTime: analytics?.behaviorPatterns?.preferredStudyTime || [],
+        averageSessionsPerWeek: analytics?.behaviorPatterns?.averageSessionsPerWeek || 0
+      },
+      assignments: submissions.map(s => ({
+        title: s.assignment.title,
+        dueDate: s.assignment.dueDate,
+        submittedAt: s.submittedAt,
+        score: s.score,
+        maxScore: s.assignment.maxScore,
+        status: s.status
+      })),
+      strengths: analytics?.strongAreas || [],
+      weaknesses: analytics?.weakAreas || []
+    };
+
+    // Return based on format
+    if (format === 'json') {
+      return res.status(200).json({
+        success: true,
+        data: { report }
+      });
+    }
+
+    // For other formats (PDF, CSV), return JSON for now
+    // TODO: Implement PDF/CSV generation
+    res.status(200).json({
+      success: true,
+      message: 'PDF/CSV generation coming soon',
+      data: { report }
+    });
+
+  } catch (error) {
+    console.error('Generate report error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi tạo report',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get recommended learning path
+// @route   GET /api/analytics/learning-path/:courseId
+// @access  Private
+const getLearningPath = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user.id;
+
+    // Kiểm tra enrollment
+    const enrollment = await Enrollment.findOne({
+      user: userId,
+      course: courseId,
+      status: 'active'
+    });
+
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bạn chưa đăng ký khóa học này'
+      });
+    }
+
+    // Lấy analytics
+    let analytics = await LearningAnalytics.findOne({
+      user: userId,
+      course: courseId
+    });
+
+    // Nếu đã có learning path, return luôn
+    if (analytics?.learningPath && analytics.learningPath.length > 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          learningPath: analytics.learningPath,
+          currentStep: analytics.learningPath.find(step => !step.completed)?.step || null
+        }
+      });
+    }
+
+    // Generate learning path dựa trên weak areas
+    const course = await Course.findById(courseId).populate('lessons');
+    const lessons = course.lessons || [];
+
+    // Get assignments
+    const assignments = await Assignment.find({
+      course: courseId,
+      isPublished: true
+    }).sort({ createdAt: 1 });
+
+    // Create learning path
+    const learningPath = [];
+    let step = 1;
+
+    // Add all lessons
+    for (let index = 0; index < lessons.length; index++) {
+      const lesson = lessons[index];
+      const isCompleted = enrollment.completedLessons.some(
+        cl => cl.lesson.toString() === lesson._id.toString()
+      );
+
+      learningPath.push({
+        step: step++,
+        content: lesson.title,
+        contentType: 'lesson',
+        estimatedTime: lesson.duration || 30,
+        completed: isCompleted,
+        completedAt: isCompleted ? enrollment.completedLessons.find(
+          cl => cl.lesson.toString() === lesson._id.toString()
+        )?.completedAt : null
+      });
+
+      // Add assignment after every 3 lessons
+      if ((index + 1) % 3 === 0 && assignments[Math.floor(index / 3)]) {
+        const assignment = assignments[Math.floor(index / 3)];
+        const submission = await Submission.findOne({
+          assignment: assignment._id,
+          student: userId
+        });
+
+        learningPath.push({
+          step: step++,
+          content: assignment.title,
+          contentType: 'assignment',
+          estimatedTime: 60,
+          completed: !!submission,
+          completedAt: submission?.submittedAt || null
+        });
+      }
+    }
+
+    // Save learning path
+    if (analytics) {
+      analytics.learningPath = learningPath;
+      await analytics.save();
+    }
+
+    const currentStep = learningPath.find(step => !step.completed)?.step || null;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        learningPath,
+        currentStep,
+        totalSteps: learningPath.length,
+        completedSteps: learningPath.filter(s => s.completed).length
+      }
+    });
+
+  } catch (error) {
+    console.error('Get learning path error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy learning path',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Export analytics to CSV/Excel
+// @route   GET /api/analytics/export/:courseId
+// @access  Private (Instructor, Admin)
+const exportAnalytics = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { format = 'csv' } = req.query; // csv or excel
+
+    // Kiểm tra quyền
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khóa học'
+      });
+    }
+
+    if (course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền export analytics'
+      });
+    }
+
+    // Lấy tất cả analytics
+    const analytics = await LearningAnalytics.find({ course: courseId })
+      .populate('user', 'name email')
+      .lean();
+
+    // Lấy enrollments
+    const enrollments = await Enrollment.find({ course: courseId })
+      .populate('user', 'name email')
+      .lean();
+
+    // Prepare data for export
+    const exportData = analytics.map(analytic => {
+      const enrollment = enrollments.find(e => 
+        e.user._id.toString() === analytic.user._id.toString()
+      );
+
+      return {
+        'Student Name': analytic.user.name,
+        'Email': analytic.user.email,
+        'Enrolled Date': enrollment?.enrolledAt || 'N/A',
+        'Status': enrollment?.status || 'N/A',
+        'Progress': `${enrollment?.progress || 0}%`,
+        'Completion Rate': `${analytic.completionRate}%`,
+        'Total Time Spent (min)': analytic.totalTimeSpent,
+        'Total Sessions': analytic.totalSessions,
+        'Average Session Duration (min)': analytic.averageSessionDuration,
+        'Engagement Score': analytic.engagementScore,
+        'Lessons Completed': analytic.progressData?.lessonsCompleted || 0,
+        'Assignments Completed': analytic.progressData?.assignmentsCompleted || 0,
+        'Average Score': analytic.performanceMetrics?.averageAssignmentScore || 0,
+        'Last Access': analytic.lastAccessDate,
+        'Most Active Day': analytic.behaviorPatterns?.mostActiveDay || 'N/A'
+      };
+    });
+
+    // For now, return JSON (CSV/Excel generation would require additional libraries)
+    // TODO: Use csv-writer or exceljs library for actual file generation
+    if (format === 'csv') {
+      // Convert to CSV format
+      const headers = Object.keys(exportData[0] || {});
+      const csvRows = [
+        headers.join(','),
+        ...exportData.map(row => 
+          headers.map(header => JSON.stringify(row[header] || '')).join(',')
+        )
+      ];
+      const csvContent = csvRows.join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename=analytics_${courseId}_${Date.now()}.csv`);
+      return res.send(csvContent);
+    }
+
+    // Default: return JSON
+    res.status(200).json({
+      success: true,
+      message: 'Excel export coming soon. Here is JSON data.',
+      data: exportData
+    });
+
+  } catch (error) {
+    console.error('Export analytics error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi export analytics',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getUserAnalytics,
   getCourseAnalytics,
-  getInstructorAnalytics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
-  updateProgress: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
-  trackActivity: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  getInstructorAnalytics,
+  updateProgress,
+  trackActivity,
   getRecommendations: getLearningRecommendations,
-  generateReport: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
-  getDashboardStats: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
-  getEngagementMetrics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
-  getLearningPath: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
-  exportAnalytics: (req, res) => res.status(501).json({ success: false, message: 'Function not implemented yet' }),
+  generateReport,
+  getDashboardStats,
+  getEngagementMetrics,
+  getLearningPath,
+  exportAnalytics,
   updateLearningProgress,
   setLearningGoals,
   getRevenueAnalytics

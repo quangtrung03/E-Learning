@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Assignment = require('../models/Assignment');
 const Submission = require('../models/Submission');
 const crypto = require('crypto');
+const { getUserEnrollment } = require('../utils/enrollmentHelpers');
 
 // @desc    Tạo certificate cho user khi hoàn thành khóa học
 // @route   POST /api/certificates/generate
@@ -22,10 +23,7 @@ const generateCertificate = async (req, res) => {
     }
 
     // Check if user is enrolled
-    const user = await User.findById(req.user.id);
-    const enrollment = user.enrolledCourses.find(
-      ec => ec.course.toString() === courseId
-    );
+    const enrollment = await getUserEnrollment(req.user.id, courseId);
 
     if (!enrollment) {
       return res.status(400).json({

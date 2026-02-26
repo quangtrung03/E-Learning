@@ -23,28 +23,7 @@ interface Lesson {
   }>;
 }
 
-interface Course {
-  _id: string;
-  title: string;
-  description: string;
-  instructor: {
-    _id: string;
-    name: string;
-  };
-  category: string;
-  level: string;
-  price: number;
-  finalPrice: number;
-  discount: number;
-  duration: number;
-  status: 'draft' | 'pending' | 'approved' | 'rejected';
-  students: Array<{
-    student: string;
-    enrolledAt: Date;
-    progress: number;
-  }>;
-  lessons: string[];
-}
+import { Course, Enrollment } from '../types/course';
 
 const LessonManagement = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -193,9 +172,10 @@ const LessonManagement = () => {
       });
       
       if (response.data.success) {
+        // Use Cloudinary secure URL
         setFormData(prev => ({
           ...prev,
-          videoUrl: response.data.data.url
+          videoUrl: response.data.data.url // Cloudinary URL
         }));
         toast.success('Upload video thành công!');
       }

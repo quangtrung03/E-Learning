@@ -102,7 +102,10 @@ const getMessages = async (req, res) => {
   try {
     const { conversationId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const DEFAULT_LIMIT = 50;
+    const MAX_LIMIT = 100;
+    const requestedLimit = parseInt(req.query.limit) || DEFAULT_LIMIT;
+    const limit = Math.min(requestedLimit, MAX_LIMIT); // Prevent excessive loading
     const skip = (page - 1) * limit;
 
     // Verify user is participant

@@ -44,9 +44,21 @@ const videoLessonSchema = new mongoose.Schema({
     ref: 'Lesson',
     required: true
   },
+  // Cloudinary video metadata
+  cloudinary: {
+    publicId: String,
+    secureUrl: String,
+    format: String,
+    duration: Number,
+    width: Number,
+    height: Number,
+    size: Number,
+    thumbnailUrl: String
+  },
+  // Legacy videoUrl for backward compatibility
   videoUrl: {
     type: String,
-    required: true
+    required: false
   },
   videoDuration: {
     type: Number,

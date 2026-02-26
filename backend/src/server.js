@@ -6,7 +6,6 @@ const dotenv = require('dotenv');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const connectDB = require('./config/database');
-const { initGridFS } = require('./config/gridfs');
 const notificationService = require('./services/notificationService');
 const cronJobService = require('./services/cronJobService');
 
@@ -18,12 +17,6 @@ dotenv.config();
 
 // Connect to database
 connectDB();
-
-// Initialize GridFS after database connection
-const mongoose = require('mongoose');
-mongoose.connection.once('open', () => {
-  initGridFS();
-});
 
 const app = express();
 
@@ -176,9 +169,6 @@ app.use('/api/messages', require('./routes/messageRoutes'));
 // Content routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/instructors', require('./routes/instructorRoutes'));
-
-// File serving routes (GridFS)
-app.use('/api/files', require('./routes/fileRoutes'));
 
 // Static file serving for uploads
 app.use('/uploads', express.static('uploads'));

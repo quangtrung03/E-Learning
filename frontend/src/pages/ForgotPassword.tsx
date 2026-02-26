@@ -140,7 +140,7 @@ const ForgotPassword: React.FC = () => {
                   <li>Nhập mật khẩu mới và xác nhận</li>
                 </ol>
                 <p className="text-xs text-blue-600 mt-2">
-                  💡 <strong>Lưu ý:</strong> Link đặt lại mật khẩu có hiệu lực trong 1 giờ
+                  💡 <strong>Lưu ý:</strong> Mã OTP có hiệu lực trong 10 phút
                 </p>
               </div>
 

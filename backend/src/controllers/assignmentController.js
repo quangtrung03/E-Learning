@@ -3,6 +3,7 @@ const Assignment = require('../models/Assignment');
 const Submission = require('../models/Submission');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const { isUserEnrolled } = require('../utils/enrollmentHelpers');
 
 // @desc    Lấy tất cả assignments của một khóa học
 // @route   GET /api/courses/:courseId/assignments
@@ -101,9 +102,8 @@ const getAssignment = async (req, res) => {
     const course = await Course.findById(assignment.course._id);
     const isInstructor = course.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.isAdmin;
-    const isEnrolled = await User.findById(req.user._id).populate('enrolledCourses.course');
-    const hasAccess = isInstructor || isAdmin || 
-      isEnrolled.enrolledCourses.some(ec => ec.course._id.toString() === assignment.course._id.toString());
+    const isEnrolled = await isUserEnrolled(req.user._id, assignment.course._id);
+    const hasAccess = isInstructor || isAdmin || isEnrolled;
 
     if (!hasAccess) {
       return res.status(403).json({
@@ -376,10 +376,167 @@ const completeSubmission = async (req, res) => {
   }
 };
 
+// @desc    Lấy danh sách submissions của assignment
+// @route   GET /api/assignments/:id/submissions
+// @access  Private (Instructor, Admin)
+const getSubmissionsByAssignment = async (req, res) => {
+  try {
+    const assignment = await Assignment.findById(req.params.id).populate('course');
+
+    if (!assignment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bài tập'
+      });
+    }
+
+    // Check if user is instructor or admin
+    const isInstructor = assignment.course.instructor.toString() === req.user._id.toString();
+    const isAdmin = req.user.isAdmin;
+
+    if (!isInstructor && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền xem danh sách bài nộp'
+      });
+    }
+
+    const { status, student, sortBy = '-submittedAt' } = req.query;
+    const query = { assignment: req.params.id };
+
+    if (status) query.status = status;
+    if (student) query.student = student;
+
+    const submissions = await Submission.find(query)
+      .populate('student', 'name email avatar')
+      .sort(sortBy)
+      .lean();
+
+    // Group by student to get latest submission
+    const submissionsByStudent = {};
+    submissions.forEach(sub => {
+      const studentId = sub.student._id.toString();
+      if (!submissionsByStudent[studentId] || sub.attemptNumber > submissionsByStudent[studentId].attemptNumber) {
+        submissionsByStudent[studentId] = sub;
+      }
+    });
+
+    const latestSubmissions = Object.values(submissionsByStudent);
+
+    // Calculate statistics
+    const stats = {
+      total: latestSubmissions.length,
+      submitted: latestSubmissions.filter(s => s.status === 'submitted' || s.status === 'graded').length,
+      graded: latestSubmissions.filter(s => s.status === 'graded').length,
+      passed: latestSubmissions.filter(s => s.passed).length,
+      averageScore: latestSubmissions.length > 0 
+        ? Math.round(latestSubmissions.reduce((sum, s) => sum + (s.score || 0), 0) / latestSubmissions.length)
+        : 0
+    };
+
+    res.status(200).json({
+      success: true,
+      data: {
+        submissions: latestSubmissions,
+        allSubmissions: submissions,
+        stats,
+        assignment: {
+          _id: assignment._id,
+          title: assignment.title,
+          type: assignment.type,
+          totalPoints: assignment.totalPoints,
+          passingScore: assignment.passingScore
+        }
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách bài nộp',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Chấm điểm submission (manual grading)
+// @route   PUT /api/submissions/:id/grade
+// @access  Private (Instructor, Admin)
+const gradeSubmission = async (req, res) => {
+  try {
+    const { score, feedback, detailedFeedback } = req.body;
+
+    const submission = await Submission.findById(req.params.id)
+      .populate({
+        path: 'assignment',
+        populate: { path: 'course' }
+      })
+      .populate('student', 'name email');
+
+    if (!submission) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bài nộp'
+      });
+    }
+
+    // Check permissions
+    const isInstructor = submission.assignment.course.instructor.toString() === req.user._id.toString();
+    const isAdmin = req.user.isAdmin;
+
+    if (!isInstructor && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền chấm điểm bài nộp này'
+      });
+    }
+
+    // Validate score
+    if (score !== undefined) {
+      if (score < 0 || score > 100) {
+        return res.status(400).json({
+          success: false,
+          message: 'Điểm phải từ 0 đến 100'
+        });
+      }
+      submission.score = score;
+      submission.passed = score >= submission.assignment.passingScore;
+      submission.pointsEarned = Math.round((score / 100) * submission.totalPoints);
+    }
+
+    // Update feedback
+    if (feedback) submission.feedback = feedback;
+    if (detailedFeedback) {
+      submission.detailedFeedback = detailedFeedback;
+    }
+
+    submission.status = 'graded';
+    submission.gradedAt = new Date();
+    submission.gradedBy = req.user._id;
+
+    await submission.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã chấm điểm thành công',
+      data: { submission }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi chấm điểm',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAssignmentsByCourse,
   getAssignment,
   createAssignment,
   submitAssignment,
-  completeSubmission
+  completeSubmission,
+  getSubmissionsByAssignment,
+  gradeSubmission
 };

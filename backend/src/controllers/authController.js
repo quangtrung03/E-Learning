@@ -87,19 +87,21 @@ const register = async (req, res, next) => {
       email: email
     });
     
-    // Generate token manually để debug
-    console.log('🎫 Generating token manually...');
-    verification.generateToken();
-    console.log('✅ Token generated:', verification.token);
+    // Generate token và OTP manually để debug
+    console.log('🎫 Generating token and OTP manually...');
+    const { token: verificationToken, otp: verificationOTP } = verification.generateToken();
+    console.log('✅ Token generated:', verificationToken);
+    console.log('✅ OTP generated:', verificationOTP);
     
     await verification.save();
     console.log('💾 Verification saved to database');
     
-    // Gửi email xác thực
+    // Gửi email xác thực (bao gồm cả link và OTP)
     console.log('📤 Sending verification email...');
     const emailResult = await emailService.sendVerificationEmail(
       email, 
-      verification.token, 
+      verificationToken,
+      verificationOTP,
       name
     );
     
@@ -271,7 +273,6 @@ const getMe = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
-    const gridfsService = require('../services/gridfsService');
     const { name, phone, bio } = req.body;
     
     // Prepare update object
@@ -349,27 +350,44 @@ const updateProfile = async (req, res) => {
 // @access  Public
 const verifyEmail = async (req, res) => {
   try {
-    const { token } = req.body;
+    const { token, otp, email } = req.body;
     
-    if (!token) {
+    if (!token && !otp) {
       return res.status(400).json({
         success: false,
-        message: 'Token xác thực là bắt buộc'
+        message: 'Token hoặc mã OTP là bắt buộc'
       });
     }
     
-    console.log('🔍 Verifying email token:', token);
+    if (otp && !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email là bắt buộc khi sử dụng mã OTP'
+      });
+    }
     
-    // Tìm verification record
-    const verification = await EmailVerification.findOne({ 
-      token,
-      verified: false 
-    }).populate('user');
+    console.log('🔍 Verifying email - token:', token, 'otp:', otp, 'email:', email);
+    
+    // Tìm verification record bằng token hoặc OTP
+    let verification;
+    if (token) {
+      verification = await EmailVerification.findOne({ 
+        token,
+        verified: false 
+      }).populate('user');
+    } else if (otp && email) {
+      verification = await EmailVerification.findByOTP(email, otp);
+      if (verification) {
+        await verification.populate('user');
+      }
+    }
     
     if (!verification) {
       return res.status(400).json({
         success: false,
-        message: 'Token xác thực không hợp lệ hoặc đã được sử dụng'
+        message: token 
+          ? 'Token xác thực không hợp lệ hoặc đã được sử dụng'
+          : 'Mã OTP không hợp lệ hoặc đã hết hạn'
       });
     }
     
@@ -377,7 +395,7 @@ const verifyEmail = async (req, res) => {
     if (verification.isExpired()) {
       return res.status(400).json({
         success: false,
-        message: 'Token xác thực đã hết hạn. Vui lòng yêu cầu gửi lại email xác thực.'
+        message: 'Mã xác thực đã hết hạn. Vui lòng yêu cầu gửi lại email xác thực.'
       });
     }
     
@@ -467,16 +485,18 @@ const resendVerification = async (req, res) => {
       email: email
     });
     
-    // Generate token manually
-    verification.generateToken();
-    console.log('✅ Resend - Token generated:', verification.token);
+    // Generate token và OTP manually
+    const { token: verificationToken, otp: verificationOTP } = verification.generateToken();
+    console.log('✅ Resend - Token generated:', verificationToken);
+    console.log('✅ Resend - OTP generated:', verificationOTP);
     
     await verification.save();
     
-    // Gửi email
+    // Gửi email (bao gồm cả link và OTP)
     const emailResult = await emailService.sendVerificationEmail(
       email, 
-      verification.token, 
+      verificationToken,
+      verificationOTP,
       user.name
     );
     
@@ -538,23 +558,27 @@ const forgotPassword = async (req, res) => {
     await PasswordReset.deleteMany({ userId: user._id });
     console.log('🗑️ Cleaned up old reset tokens');
     
-    // Tạo token reset password mới
-    const resetToken = PasswordReset.generateToken();
+    // Tạo token và OTP reset password mới
+    const { token: resetToken, otp: resetOTP } = PasswordReset.generateToken();
+    console.log('✅ Reset token generated:', resetToken);
+    console.log('✅ Reset OTP generated:', resetOTP);
     
     // Lưu token vào database
     const passwordReset = new PasswordReset({
       userId: user._id,
       email: user.email,
-      token: resetToken
+      token: resetToken,
+      otp: resetOTP
     });
     
     await passwordReset.save();
     console.log('💾 Reset token saved to database');
     
-    // Gửi email reset password
+    // Gửi email reset password (bao gồm cả link và OTP)
     const emailResult = await emailService.sendPasswordResetEmail(
       user.email, 
-      resetToken, 
+      resetToken,
+      resetOTP,
       user.name
     );
     
@@ -592,13 +616,21 @@ const resetPassword = async (req, res) => {
   try {
     console.log('\n🔐 RESET PASSWORD ATTEMPT:');
     console.log('🎫 Token:', req.body.token);
+    console.log('🔢 OTP:', req.body.otp);
     
-    const { token, newPassword } = req.body;
+    const { token, otp, email, newPassword } = req.body;
     
-    if (!token || !newPassword) {
+    if ((!token && !otp) || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: 'Token và mật khẩu mới là bắt buộc'
+        message: 'Token hoặc mã OTP và mật khẩu mới là bắt buộc'
+      });
+    }
+    
+    if (otp && !email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email là bắt buộc khi sử dụng mã OTP'
       });
     }
     
@@ -609,13 +641,20 @@ const resetPassword = async (req, res) => {
       });
     }
     
-    // Tìm token reset password
-    const passwordReset = await PasswordReset.findOne({ token });
+    // Tìm token reset password bằng token hoặc OTP
+    let passwordReset;
+    if (token) {
+      passwordReset = await PasswordReset.findOne({ token });
+    } else if (otp && email) {
+      passwordReset = await PasswordReset.findByOTP(email, otp);
+    }
     
     if (!passwordReset) {
       return res.status(400).json({
         success: false,
-        message: 'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn'
+        message: token
+          ? 'Token đặt lại mật khẩu không hợp lệ hoặc đã hết hạn'
+          : 'Mã OTP không hợp lệ hoặc đã hết hạn'
       });
     }
     

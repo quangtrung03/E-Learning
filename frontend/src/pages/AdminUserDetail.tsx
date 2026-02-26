@@ -34,7 +34,7 @@ interface User {
     title: string;
     category: string;
     status: string;
-    students: Array<any>;
+    totalStudents?: number; // Virtual count from backend
     createdAt: Date;
   }>;
   createdAt: Date;
@@ -289,7 +289,7 @@ const AdminUserDetail = () => {
               <Card className="p-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-purple-600">
-                    {(Array.isArray(user.createdCourses) ? user.createdCourses.reduce((total, course) => total + ((Array.isArray(course.students) ? course.students.length : 0)), 0) : 0)}
+                    {(Array.isArray(user.createdCourses) ? user.createdCourses.reduce((total, course) => total + ((course.totalStudents || 0)), 0) : 0)}
                   </div>
                   <div className="text-sm text-gray-600">Tổng học viên</div>
                 </div>
@@ -313,7 +313,7 @@ const AdminUserDetail = () => {
                         <div className="flex items-center gap-2 mt-1">
                           {getCourseStatusBadge(course.status)}
                           <span className="text-sm text-gray-500">
-                            {course.students.length} học viên
+                            {course.totalStudents || 0} học viên
                           </span>
                           <span className="text-sm text-gray-500">
                             {new Date(course.createdAt).toLocaleDateString('vi-VN')}

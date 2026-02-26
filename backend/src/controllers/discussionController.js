@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Discussion = require('../models/Discussion');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const { isUserEnrolled } = require('../utils/enrollmentHelpers');
 
 // @desc    Tạo discussion mới
 // @route   POST /api/discussions
@@ -29,10 +30,9 @@ const createDiscussion = async (req, res) => {
     }
 
     // Kiểm tra user đã enroll course chưa
-    const user = await User.findById(req.user.id);
-    const isEnrolled = user.enrolledCourses.some(
-      enrollment => enrollment.course.toString() === courseId
-    ) || course.instructor.toString() === req.user.id || req.user.isAdmin;
+    const isEnrolled = await isUserEnrolled(req.user.id, courseId) || 
+      course.instructor.toString() === req.user.id || 
+      req.user.isAdmin;
 
     if (!isEnrolled) {
       return res.status(403).json({
@@ -105,10 +105,9 @@ const getDiscussionsByCourse = async (req, res) => {
       });
     }
 
-    const user = await User.findById(req.user.id);
-    const hasAccess = user.enrolledCourses.some(
-      enrollment => enrollment.course.toString() === courseId
-    ) || course.instructor.toString() === req.user.id || req.user.isAdmin;
+    const hasAccess = await isUserEnrolled(req.user.id, courseId) || 
+      course.instructor.toString() === req.user.id || 
+      req.user.isAdmin;
 
     if (!hasAccess) {
       return res.status(403).json({
@@ -181,10 +180,9 @@ const getDiscussion = async (req, res) => {
     }
 
     // Kiểm tra quyền truy cập
-    const user = await User.findById(req.user.id);
-    const hasAccess = user.enrolledCourses.some(
-      enrollment => enrollment.course.toString() === discussion.course._id.toString()
-    ) || discussion.course.instructor.toString() === req.user.id || req.user.isAdmin;
+    const hasAccess = await isUserEnrolled(req.user.id, discussion.course._id) || 
+      discussion.course.instructor.toString() === req.user.id || 
+      req.user.isAdmin;
 
     if (!hasAccess) {
       return res.status(403).json({
@@ -348,10 +346,9 @@ const addReply = async (req, res) => {
     }
 
     // Kiểm tra quyền truy cập
-    const user = await User.findById(req.user.id);
-    const hasAccess = user.enrolledCourses.some(
-      enrollment => enrollment.course.toString() === discussion.course._id.toString()
-    ) || discussion.course.instructor.toString() === req.user.id || req.user.isAdmin;
+    const hasAccess = await isUserEnrolled(req.user.id, discussion.course._id) || 
+      discussion.course.instructor.toString() === req.user.id || 
+      req.user.isAdmin;
 
     if (!hasAccess) {
       return res.status(403).json({

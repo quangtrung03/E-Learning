@@ -35,7 +35,7 @@ interface Course {
     average: number;
     count: number;
   };
-  students: any[];
+  totalStudents?: number; // Virtual count from backend
   instructor: {
     name: string;
   };
@@ -245,7 +245,7 @@ const Home = () => {
                 <Link key={course._id} to={`/courses/${course._id}`}>
                   <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 h-full border-0 overflow-hidden">
                     <div className="relative h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
-                      {course.students?.length > 10 && (
+                      {(course.totalStudents || 0) > 10 && (
                         <div className="absolute top-3 right-3 px-3 py-1 bg-cyan-400 text-blue-900 text-xs font-bold rounded-full">
                           BESTSELLER
                         </div>
@@ -260,7 +260,7 @@ const Home = () => {
                           {getCategoryLabel(course.category)}
                         </span>
                         <span className="text-sm font-medium text-gray-600">
-                          {course.students?.length || 0} students
+                          {course.totalStudents || 0} students
                         </span>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">

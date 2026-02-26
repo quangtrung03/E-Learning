@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Lesson = require('../models/Lesson');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const { isUserEnrolled } = require('../utils/enrollmentHelpers');
 
 // @desc    Lấy tất cả bài học của một khóa học
 // @route   GET /api/courses/:courseId/lessons
@@ -27,11 +28,8 @@ const getLessonsByCourse = async (req, res) => {
     if (!req.user) {
       query.isPreview = true;
     } else {
-      // Kiểm tra user đã enroll course chưa
-      const user = await User.findById(req.user.id);
-      const isEnrolled = user.enrolledCourses.some(
-        enrollment => enrollment.course.toString() === courseId
-      );
+      // Kiểm tra user đã enroll course chưa using Enrollment model
+      const isEnrolled = await isUserEnrolled(req.user.id, courseId);
       
       // Nếu chưa enroll và không phải instructor/admin, chỉ xem preview
       if (!isEnrolled && course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
@@ -88,11 +86,8 @@ const getLesson = async (req, res) => {
 
     // Kiểm tra quyền xem bài học
     const course = lesson.course;
-    const user = await User.findById(req.user._id);
     
-    const isEnrolled = user.enrolledCourses.some(
-      enrollment => enrollment.course.toString() === course._id.toString()
-    );
+    const isEnrolled = await isUserEnrolled(req.user._id, course._id);
     
     const isInstructor = course.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.isAdmin;
@@ -200,6 +195,16 @@ const createLesson = async (req, res) => {
 // @access  Private (instructor, admin)
 const updateLesson = async (req, res) => {
   try {
+    // Kiểm tra validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu không hợp lệ',
+        errors: errors.array()
+      });
+    }
+
     let lesson = await Lesson.findById(req.params.id).populate('course');
 
     if (!lesson) {
@@ -287,6 +292,8 @@ const deleteLesson = async (req, res) => {
 // @access  Private (enrolled students)
 const completeLesson = async (req, res) => {
   try {
+    const Enrollment = require('../models/Enrollment');
+    
     const lesson = await Lesson.findById(req.params.id).populate('course');
 
     if (!lesson) {
@@ -297,10 +304,10 @@ const completeLesson = async (req, res) => {
     }
 
     // Kiểm tra user đã enroll course chưa
-    const user = await User.findById(req.user.id);
-    const enrollment = user.enrolledCourses.find(
-      enrollment => enrollment.course.toString() === lesson.course._id.toString()
-    );
+    const enrollment = await Enrollment.findOne({
+      user: req.user.id,
+      course: lesson.course._id
+    });
 
     if (!enrollment) {
       return res.status(403).json({
@@ -310,8 +317,8 @@ const completeLesson = async (req, res) => {
     }
 
     // Kiểm tra đã complete lesson chưa
-    const alreadyCompleted = lesson.completedBy.some(
-      completion => completion.student.toString() === req.user.id
+    const alreadyCompleted = enrollment.completedLessons.some(
+      cl => cl.lesson.toString() === req.params.id
     );
 
     if (alreadyCompleted) {
@@ -321,55 +328,28 @@ const completeLesson = async (req, res) => {
       });
     }
 
-    // Thêm vào danh sách completed
+    // Đánh dấu lesson đã hoàn thành và cập nhật progress
+    await enrollment.completeLesson(req.params.id);
+
+    // Thêm vào danh sách completed của lesson (để tracking)
     lesson.completedBy.push({
       student: req.user.id,
       completedAt: new Date()
     });
     await lesson.save();
 
-    // Cập nhật progress của course
-    const totalLessons = await Lesson.countDocuments({ course: lesson.course._id });
-    const completedLessons = await Lesson.countDocuments({
-      course: lesson.course._id,
-      'completedBy.student': req.user.id
-    });
-
-    const progress = Math.round((completedLessons / totalLessons) * 100);
-
-    // Cập nhật progress trong User
-    await User.findOneAndUpdate(
-      { 
-        _id: req.user.id,
-        'enrolledCourses.course': lesson.course._id
-      },
-      {
-        $set: { 'enrolledCourses.$.progress': progress }
-      }
-    );
-
-    // Cập nhật progress trong Course
-    await Course.findOneAndUpdate(
-      {
-        _id: lesson.course._id,
-        'students.student': req.user.id
-      },
-      {
-        $set: { 'students.$.progress': progress }
-      }
-    );
-
     res.status(200).json({
       success: true,
       message: 'Đã hoàn thành bài học',
       data: {
-        progress,
-        completedLessons,
-        totalLessons
+        progress: enrollment.progress,
+        completedLessons: enrollment.completedLessons.length,
+        totalLessons: lesson.course.lessons.length
       }
     });
 
   } catch (error) {
+    console.error('Error in completeLesson:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi hoàn thành bài học',
@@ -383,6 +363,8 @@ const completeLesson = async (req, res) => {
 // @access  Private (enrolled students)
 const uncompleteLesson = async (req, res) => {
   try {
+    const Enrollment = require('../models/Enrollment');
+    
     const lesson = await Lesson.findById(req.params.id).populate('course');
 
     if (!lesson) {
@@ -393,10 +375,10 @@ const uncompleteLesson = async (req, res) => {
     }
 
     // Kiểm tra user đã enroll course chưa
-    const user = await User.findById(req.user.id);
-    const enrollment = user.enrolledCourses.find(
-      enrollment => enrollment.course.toString() === lesson.course._id.toString()
-    );
+    const enrollment = await Enrollment.findOne({
+      user: req.user.id,
+      course: lesson.course._id
+    });
 
     if (!enrollment) {
       return res.status(403).json({
@@ -405,54 +387,30 @@ const uncompleteLesson = async (req, res) => {
       });
     }
 
-    // Xóa khỏi danh sách completed
+    // Bỏ đánh dấu lesson đã hoàn thành
+    await enrollment.uncompleteLesson(req.params.id);
+
+    // Xóa khỏi danh sách completed của lesson
     lesson.completedBy = lesson.completedBy.filter(
       completion => completion.student.toString() !== req.user.id
     );
     await lesson.save();
 
-    // Cập nhật progress của course
-    const totalLessons = await Lesson.countDocuments({ course: lesson.course._id });
-    const completedLessons = await Lesson.countDocuments({
-      course: lesson.course._id,
-      'completedBy.student': req.user.id
-    });
-
-    const progress = Math.round((completedLessons / totalLessons) * 100);
-
-    // Cập nhật progress trong User
-    await User.findOneAndUpdate(
-      { 
-        _id: req.user.id,
-        'enrolledCourses.course': lesson.course._id
-      },
-      {
-        $set: { 'enrolledCourses.$.progress': progress }
-      }
-    );
-
-    // Cập nhật progress trong Course
-    await Course.findOneAndUpdate(
-      {
-        _id: lesson.course._id,
-        'students.student': req.user.id
-      },
-      {
-        $set: { 'students.$.progress': progress }
-      }
-    );
+    // ✅ FIXED: Không cần update Course.students nữa vì đã có virtual field từ Enrollment
+    // Progress được track trong Enrollment model, Course.students là virtual field
 
     res.status(200).json({
       success: true,
       message: 'Đã hủy hoàn thành bài học',
       data: {
-        progress,
-        completedLessons,
-        totalLessons
+        progress: enrollment.progress,
+        completedLessons: enrollment.completedLessons.length,
+        totalLessons: lesson.course.lessons.length
       }
     });
 
   } catch (error) {
+    console.error('Error in uncompleteLesson:', error);
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi hủy hoàn thành bài học',

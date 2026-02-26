@@ -19,10 +19,16 @@ const emailVerificationSchema = new mongoose.Schema({
     unique: true,
     index: true
   },
+  otp: {
+    type: String,
+    required: true,
+    length: 6,
+    index: true
+  },
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 86400 // 24 hours in seconds (consistent with isExpired method)
+    expires: 600 // 10 minutes - Industry standard for OTP security
   },
   verified: {
     type: Boolean,
@@ -38,12 +44,16 @@ emailVerificationSchema.index({ user: 1, verified: 1 });
 emailVerificationSchema.index({ token: 1 }, { unique: true });
 // TTL index removed - using expires on createdAt field instead
 
-// Generate verification token
+// Generate verification token and OTP
 emailVerificationSchema.methods.generateToken = function() {
-  // Create a secure random token
+  // Create a secure random token (for URL link)
   const crypto = require('crypto');
   this.token = crypto.randomBytes(32).toString('hex');
-  return this.token;
+  
+  // Generate 6-digit OTP (easy to enter manually)
+  this.otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  return { token: this.token, otp: this.otp };
 };
 
 // Check if token is expired
@@ -60,6 +70,15 @@ emailVerificationSchema.methods.markAsVerified = function() {
   return this.save();
 };
 
+// Static method to find by OTP
+emailVerificationSchema.statics.findByOTP = function(email, otp) {
+  return this.findOne({
+    email: email.toLowerCase(),
+    otp: otp,
+    verified: false
+  });
+};
+
 // Static method to cleanup expired tokens
 emailVerificationSchema.statics.cleanupExpired = function() {
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -71,11 +90,11 @@ emailVerificationSchema.statics.cleanupExpired = function() {
 
 // Pre-save middleware
 emailVerificationSchema.pre('save', function(next) {
-  console.log('🔧 Pre-save middleware: token =', this.token);
-  if (!this.token) {
-    console.log('🎫 Generating token...');
-    this.generateToken();
-    console.log('✅ Token generated:', this.token);
+  console.log('🔧 Pre-save middleware: token =', this.token, 'otp =', this.otp);
+  if (!this.token || !this.otp) {
+    console.log('🎫 Generating token and OTP...');
+    const result = this.generateToken();
+    console.log('✅ Token generated:', result.token, 'OTP:', result.otp);
   }
   next();
 });

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { uploadImage: uploadImageMiddleware, uploadVideo: uploadVideoMiddleware } = require('../middleware/upload');
+const { uploadLimiter } = require('../middleware/rateLimiter');
 const fs = require('fs');
 const path = require('path');
 const { uploadImage, cloudinary } = require('../config/cloudinary');
@@ -11,7 +12,7 @@ const { uploadImage, cloudinary } = require('../config/cloudinary');
  * @route   POST /api/upload/image
  * @access  Private
  */
-router.post('/image', protect, uploadImageMiddleware.single('file'), async (req, res) => {
+router.post('/image', protect, uploadLimiter, uploadImageMiddleware.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -76,7 +77,7 @@ router.post('/image', protect, uploadImageMiddleware.single('file'), async (req,
  * @route   POST /api/upload/video
  * @access  Private
  */
-router.post('/video', protect, uploadVideoMiddleware.single('file'), async (req, res) => {
+router.post('/video', protect, uploadLimiter, uploadVideoMiddleware.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({

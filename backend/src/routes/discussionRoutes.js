@@ -69,11 +69,15 @@ const createDiscussionValidation = [
     .isMongoId()
     .withMessage('Course ID không hợp lệ'),
   body('title')
+    .trim()
     .isLength({ min: 5, max: 200 })
-    .withMessage('Tiêu đề phải có từ 5-200 ký tự'),
+    .withMessage('Tiêu đề phải có từ 5-200 ký tự')
+    .escape(), // XSS prevention
   body('content')
+    .trim()
     .isLength({ min: 10, max: 5000 })
-    .withMessage('Nội dung phải có từ 10-5000 ký tự'),
+    .withMessage('Nội dung phải có từ 10-5000 ký tự')
+    .escape(), // XSS prevention
   body('category')
     .optional()
     .isIn(['general', 'question', 'announcement', 'resource'])
@@ -81,18 +85,28 @@ const createDiscussionValidation = [
   body('tags')
     .optional()
     .isArray({ max: 5 })
-    .withMessage('Tối đa 5 tags')
+    .withMessage('Tối đa 5 tags'),
+  body('tags.*')
+    .optional()
+    .trim()
+    .isLength({ max: 30 })
+    .withMessage('Tag không được quá 30 ký tự')
+    .escape() // XSS prevention
 ];
 
 const updateDiscussionValidation = [
   body('title')
     .optional()
+    .trim()
     .isLength({ min: 5, max: 200 })
-    .withMessage('Tiêu đề phải có từ 5-200 ký tự'),
+    .withMessage('Tiêu đề phải có từ 5-200 ký tự')
+    .escape(),
   body('content')
     .optional()
+    .trim()
     .isLength({ min: 10, max: 5000 })
-    .withMessage('Nội dung phải có từ 10-5000 ký tự'),
+    .withMessage('Nội dung phải có từ 10-5000 ký tự')
+    .escape(),
   body('category')
     .optional()
     .isIn(['general', 'question', 'announcement', 'resource'])
@@ -100,13 +114,21 @@ const updateDiscussionValidation = [
   body('tags')
     .optional()
     .isArray({ max: 5 })
-    .withMessage('Tối đa 5 tags')
+    .withMessage('Tối đa 5 tags'),
+  body('tags.*')
+    .optional()
+    .trim()
+    .isLength({ max: 30 })
+    .withMessage('Tag không được quá 30 ký tự')
+    .escape()
 ];
 
 const addReplyValidation = [
   body('content')
+    .trim()
     .isLength({ min: 1, max: 2000 })
-    .withMessage('Nội dung reply phải có từ 1-2000 ký tự'),
+    .withMessage('Nội dung reply phải có từ 1-2000 ký tự')
+    .escape(),
   body('parentReply')
     .optional()
     .isMongoId()

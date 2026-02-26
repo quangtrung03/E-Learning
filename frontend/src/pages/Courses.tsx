@@ -24,7 +24,7 @@ interface Course {
     _id: string;
     name: string;
   };
-  students: string[];
+  totalStudents?: number; // Virtual count from backend
 }
 
 const Courses = () => {
@@ -429,7 +429,7 @@ const Courses = () => {
                     
                     <div className="flex items-center justify-between">
                       <div className="text-sm text-gray-500">
-                        {course.students.length} học viên
+                        {course.totalStudents || 0} học viên
                       </div>
                       <div className="text-right">
                         <span className="text-lg font-bold text-primary-600">
@@ -533,7 +533,7 @@ const Courses = () => {
                       
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-500">
-                          {course.duration} phút • {course.students.length} học viên
+                          {course.duration} phút • {course.totalStudents || 0} học viên
                         </div>
                         <div className="text-right">
                           {course.discount > 0 && (

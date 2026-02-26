@@ -30,14 +30,35 @@ const lessonSchema = new mongoose.Schema({
     enum: ['text', 'video', 'pdf', 'quiz'],
     default: 'text'
   },
-  // Video storage in GridFS
+  // Video storage with Cloudinary
   video: {
-    filename: String,  // GridFS filename
-    fileId: String,    // GridFS file ObjectId
-    originalName: String,
-    mimetype: String,
-    size: Number,
-    uploadedAt: Date
+    provider: {
+      type: String,
+      enum: ['cloudinary', 'youtube', 'vimeo'],
+      default: 'cloudinary'
+    },
+    publicId: String,           // Cloudinary public_id
+    url: String,                // HTTP URL
+    secureUrl: String,          // HTTPS URL (use this for playback)
+    duration: Number,           // Video duration in seconds
+    format: String,             // mp4, webm, etc.
+    width: Number,              // Video resolution width
+    height: Number,             // Video resolution height
+    size: Number,               // File size in bytes
+    thumbnailUrl: String,       // Auto-generated thumbnail
+    status: {
+      type: String,
+      enum: ['uploading', 'processing', 'ready', 'failed'],
+      default: 'uploading'
+    },
+    uploadedAt: Date,
+    // Optional: Different quality versions
+    transformations: [{
+      quality: String,          // 'sd', 'hd', 'fullhd'
+      url: String,
+      width: Number,
+      height: Number
+    }]
   },
   // Legacy field for backward compatibility (external URLs)
   videoUrl: {

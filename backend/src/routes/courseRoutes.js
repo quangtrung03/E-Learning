@@ -56,6 +56,52 @@ const courseValidation = [
     .withMessage('Giảm giá phải từ 0-100%')
 ];
 
+// Validation rules for update (all fields optional)
+const courseUpdateValidation = [
+  body('title')
+    .optional()
+    .trim()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Tiêu đề phải có từ 5-200 ký tự'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ min: 20, max: 1000 })
+    .withMessage('Mô tả phải có từ 20-1000 ký tự'),
+  body('category')
+    .optional()
+    .isIn(['programming', 'design', 'business', 'marketing', 'language', 'science', 'other'])
+    .withMessage('Danh mục không hợp lệ'),
+  body('level')
+    .optional()
+    .isIn(['beginner', 'intermediate', 'advanced'])
+    .withMessage('Cấp độ không hợp lệ'),
+  body('price')
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage('Giá phải là số không âm'),
+  body('duration')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Thời lượng phải là số nguyên dương'),
+  body('discount')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Giảm giá phải từ 0-100%'),
+  body('requirements')
+    .optional()
+    .isArray()
+    .withMessage('Requirements phải là array'),
+  body('whatYouWillLearn')
+    .optional()
+    .isArray()
+    .withMessage('WhatYouWillLearn phải là array'),
+  body('isPublished')
+    .optional()
+    .isBoolean()
+    .withMessage('isPublished phải là boolean')
+];
+
 /**
  * @swagger
  * /courses:
@@ -348,7 +394,7 @@ router.post('/', protect, courseValidation, createCourse);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.put('/:id', protect, updateCourse);
+router.put('/:id', protect, courseUpdateValidation, updateCourse);
 router.delete('/:id', protect, deleteCourse);
 
 /**

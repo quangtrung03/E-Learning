@@ -17,10 +17,15 @@ const passwordResetSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
+  otp: {
+    type: String,
+    required: true,
+    length: 6
+  },
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 3600 // Token expires after 1 hour (3600 seconds)
+    expires: 600 // OTP expires after 10 minutes (industry standard)
   },
   used: {
     type: Boolean,
@@ -33,9 +38,11 @@ const passwordResetSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Generate secure random token
+// Generate secure random token and OTP
 passwordResetSchema.statics.generateToken = function() {
-  return crypto.randomBytes(32).toString('hex');
+  const token = crypto.randomBytes(32).toString('hex');
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  return { token, otp };
 };
 
 // Check if token is expired
@@ -50,6 +57,15 @@ passwordResetSchema.methods.markAsUsed = function() {
   this.used = true;
   this.usedAt = new Date();
   return this.save();
+};
+
+// Static method to find by OTP
+passwordResetSchema.statics.findByOTP = function(email, otp) {
+  return this.findOne({
+    email: email.toLowerCase(),
+    otp: otp,
+    used: false
+  });
 };
 
 // Cleanup expired or used tokens

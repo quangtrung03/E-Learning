@@ -9,7 +9,7 @@ const {
   completeLesson,
   uncompleteLesson
 } = require('../controllers/lessonController');
-const { protect } = require('../middleware/auth');
+const { protect, checkEnrollment } = require('../middleware/auth');
 const { uploadLessonVideo, uploadLessonDocument } = require('../controllers/uploadController');
 const { uploadVideo, uploadDocument } = require('../middleware/upload');
 
@@ -42,6 +42,45 @@ const lessonValidation = [
     .isIn(['text', 'video', 'pdf', 'quiz'])
     .withMessage('Loại nội dung không hợp lệ'),
   body('duration')
+    .isInt({ min: 1 })
+    .withMessage('Thời lượng phải là số nguyên dương'),
+  body('order')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Thứ tự phải là số nguyên dương'),
+  body('isPreview')
+    .optional()
+    .isBoolean()
+    .withMessage('isPreview phải là boolean'),
+  body('videoUrl')
+    .optional()
+    .isURL()
+    .withMessage('URL video không hợp lệ')
+];
+
+// Validation rules for update (all fields optional)
+const lessonUpdateValidation = [
+  body('title')
+    .optional()
+    .trim()
+    .isLength({ min: 5, max: 200 })
+    .withMessage('Tiêu đề phải có từ 5-200 ký tự'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Mô tả không được quá 500 ký tự'),
+  body('content')
+    .optional()
+    .trim()
+    .isLength({ min: 10 })
+    .withMessage('Nội dung bài học phải có ít nhất 10 ký tự'),
+  body('contentType')
+    .optional()
+    .isIn(['text', 'video', 'pdf', 'quiz'])
+    .withMessage('Loại nội dung không hợp lệ'),
+  body('duration')
+    .optional()
     .isInt({ min: 1 })
     .withMessage('Thời lượng phải là số nguyên dương'),
   body('order')
@@ -149,7 +188,7 @@ router.get('/by-course/:courseId', protect, getLessonsByCourse);
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.get('/:id', protect, getLesson);
+router.get('/:id', protect, checkEnrollment, getLesson);
 
 // Protected routes - cần authentication
 router.use(protect);
@@ -302,8 +341,8 @@ router.post('/create/:courseId', protect, lessonValidation, createLesson);
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.put('/:id', updateLesson);
-router.delete('/:id', deleteLesson);
+router.put('/:id', protect, lessonUpdateValidation, updateLesson);
+router.delete('/:id', protect, deleteLesson);
 
 /**
  * @swagger
@@ -377,7 +416,7 @@ router.delete('/:id/complete', uncompleteLesson);
 
 /**
  * @route   POST /api/lessons/:id/upload-video
- * @desc    Upload lesson video to GridFS
+ * @desc    Upload lesson video to Cloudinary
  * @access  Private (Instructor/Admin)
  */
 router.post(
@@ -389,7 +428,7 @@ router.post(
 
 /**
  * @route   POST /api/lessons/:id/upload-document
- * @desc    Upload lesson document/PDF to GridFS
+ * @desc    Upload lesson document/PDF to Cloudinary
  * @access  Private (Instructor/Admin)
  */
 router.post(

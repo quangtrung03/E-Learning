@@ -53,17 +53,6 @@ const cleanDatabase = async () => {
       console.log(`  ✅ Deleted ${result.deletedCount} ${name}`);
     }
 
-    // Clean GridFS files
-    console.log('\n🗑️  Cleaning GridFS files...');
-    const db = mongoose.connection.db;
-    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
-    
-    const files = await db.collection('uploads.files').find({}).toArray();
-    for (const file of files) {
-      await bucket.delete(file._id);
-    }
-    console.log(`  ✅ Deleted ${files.length} GridFS files`);
-
     console.log('\n✨ Database cleaned successfully!\n');
     await mongoose.disconnect();
     console.log('🔌 Disconnected from MongoDB');

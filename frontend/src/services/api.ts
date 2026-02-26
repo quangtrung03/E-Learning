@@ -92,10 +92,14 @@ export const authAPI = {
     }
     return api.put('/auth/update-profile', userData);
   },
-  verifyEmail: (data: { token: string }): Promise<AxiosResponse<any>> =>
+  verifyEmail: (data: { token?: string; email?: string; otp?: string }): Promise<AxiosResponse<any>> =>
     api.post('/auth/verify-email', data),
   resendVerification: (data: { email: string }): Promise<AxiosResponse<any>> =>
     api.post('/auth/resend-verification', data),
+  forgotPassword: (data: { email: string }): Promise<AxiosResponse<any>> =>
+    api.post('/auth/forgot-password', data),
+  resetPassword: (data: { token?: string; email?: string; otp?: string; newPassword: string }): Promise<AxiosResponse<any>> =>
+    api.post('/auth/reset-password', data),
 };
 
 // Course API calls
@@ -154,6 +158,10 @@ export const assignmentAPI = {
     api.post(`/assignments/${id}/submit`, data),
   completeSubmission: (submissionId: string, answers: any[]): Promise<AxiosResponse<any>> =>
     api.put(`/assignments/submissions/${submissionId}/complete`, { answers }),
+  getSubmissionsByAssignment: (assignmentId: string, params?: { status?: string; student?: string }): Promise<AxiosResponse<any>> =>
+    api.get(`/assignments/${assignmentId}/submissions`, { params }),
+  gradeSubmission: (submissionId: string, data: { score?: number; feedback?: string; detailedFeedback?: any[] }): Promise<AxiosResponse<any>> =>
+    api.put(`/assignments/submissions/${submissionId}/grade`, data),
 };
 
 // Certificate API calls
@@ -198,6 +206,13 @@ export const reviewAPI = {
     api.delete(`/reviews/${id}`),
   markReviewHelpful: (id: string): Promise<AxiosResponse<any>> =>
     api.post(`/reviews/${id}/helpful`),
+  // Admin APIs
+  getAllReviews: (params?: { page?: number; limit?: number; status?: string; course?: string; minRating?: number; maxRating?: number; sortBy?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/reviews/admin/all', { params }),
+  getPendingReviews: (params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get('/reviews/admin/pending', { params }),
+  moderateReview: (id: string, data: { action: 'approve' | 'reject'; reason?: string }): Promise<AxiosResponse<any>> =>
+    api.put(`/reviews/admin/reviews/${id}/moderate`, data),
 };
 
 // Study Group API calls
@@ -303,6 +318,7 @@ export const adminAPI = {
 export const contentAPI = {
   getCategories: () => api.get('/categories'),
   getInstructors: () => api.get('/instructors'),
+  getInstructor: (id: string) => api.get(`/instructors/${id}`),
 };
 
 // Upload API
@@ -333,6 +349,28 @@ export const uploadAPI = {
       },
     });
   },
+};
+
+// Coupon API calls
+export const couponAPI = {
+  getAllCoupons: (params?: { page?: number; limit?: number; status?: string; type?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/coupons', { params }),
+  getCoupon: (id: string): Promise<AxiosResponse<any>> =>
+    api.get(`/coupons/${id}`),
+  createCoupon: (couponData: any): Promise<AxiosResponse<any>> =>
+    api.post('/coupons', couponData),
+  updateCoupon: (id: string, couponData: any): Promise<AxiosResponse<any>> =>
+    api.put(`/coupons/${id}`, couponData),
+  deleteCoupon: (id: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/coupons/${id}`),
+  toggleCouponStatus: (id: string): Promise<AxiosResponse<any>> =>
+    api.put(`/coupons/${id}/toggle-status`),
+  getCouponAnalytics: (id: string): Promise<AxiosResponse<any>> =>
+    api.get(`/coupons/${id}/analytics`),
+  validateCoupon: (data: { code: string; courseId?: string }): Promise<AxiosResponse<any>> =>
+    api.post('/coupons/validate', data),
+  getPublicCoupons: (): Promise<AxiosResponse<any>> =>
+    api.get('/coupons/public'),
 };
 
 // Health check

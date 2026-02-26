@@ -23,11 +23,7 @@ interface Course {
     email: string;
     avatar?: string;
   };
-  students: Array<{
-    student: string;
-    enrolledAt: Date;
-    progress: number;
-  }>;
+  totalStudents?: number; // Virtual count from backend
   rating: {
     average: number;
     count: number;
@@ -345,7 +341,7 @@ const AdminCoursesList = () => {
                       {getStatusBadge(course.status)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {course.students.length} học viên
+                      {course.totalStudents || 0} học viên
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(course.price || 0).toLocaleString('vi-VN')}đ

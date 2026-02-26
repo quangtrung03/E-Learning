@@ -17,11 +17,7 @@ interface Course {
   duration?: number;
   status: 'draft' | 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;
-  students?: Array<{
-    student: string;
-    enrolledAt: Date;
-    progress: number;
-  }>;
+  totalStudents?: number; // Virtual count from backend
   createdAt: Date;
   progress?: number; // Add this line to fix the error
   instructor?: {
@@ -147,7 +143,7 @@ const MyCourses = () => {
               <div className="flex items-center justify-between mb-2">
                 {getStatusBadge(course.status)}
                 <span className="text-xs text-gray-500">
-                  {course.students?.length || 0} học viên
+                  {course.totalStudents || 0} học viên
                 </span>
               </div>
               

@@ -93,6 +93,24 @@ const uploadLessonVideo = async (req, res) => {
       });
     }
 
+    // Validate file size (100MB max for Cloudinary free tier)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (req.file.size > maxSize) {
+      return res.status(400).json({
+        success: false,
+        message: 'File quá lớn. Tối đa 100MB cho Cloudinary free tier'
+      });
+    }
+
+    // Validate file type
+    const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+    if (!allowedTypes.includes(req.file.mimetype)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ chấp nhận file video MP4, WebM, OGG, MOV'
+      });
+    }
+
     const lesson = await Lesson.findById(req.params.id).populate('course');
     
     if (!lesson) {
@@ -112,43 +130,81 @@ const uploadLessonVideo = async (req, res) => {
     }
 
     // Delete old video from Cloudinary if exists
-    if (lesson.video && lesson.video.url && lesson.video.url.includes('cloudinary')) {
+    if (lesson.video && lesson.video.publicId) {
       try {
-        const publicId = getPublicIdFromUrl(lesson.video.url);
-        if (publicId) {
-          await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
-        }
+        await cloudinary.uploader.destroy(lesson.video.publicId, { resource_type: 'video' });
+        console.log('✅ Deleted old video:', lesson.video.publicId);
       } catch (error) {
         console.log('Old video not found or already deleted:', error.message);
       }
     }
 
+    // Create temp directory if not exists
+    const tempDir = path.join(__dirname, '../../uploads/temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
     // Upload new video to Cloudinary
-    const tempPath = path.join('/tmp', `${Date.now()}-${req.file.originalname}`);
+    const tempPath = path.join(tempDir, `${Date.now()}-${req.file.originalname}`);
     fs.writeFileSync(tempPath, req.file.buffer);
     
+    console.log('📤 Uploading video to Cloudinary...');
+    
     const result = await cloudinary.uploader.upload(tempPath, {
-      folder: 'elearning/lesson-videos',
+      folder: 'elearning/videos',
       resource_type: 'video',
-      transformation: [
-        { quality: 'auto:good' },
-        { fetch_format: 'auto' }
+      // Optional: Generate different quality versions
+      eager: [
+        { width: 1280, height: 720, crop: 'limit', format: 'mp4' },  // HD
+        { width: 854, height: 480, crop: 'limit', format: 'mp4' }    // SD
+      ],
+      eager_async: true,
+      // Generate thumbnail
+      eager_transformation: [
+        { width: 640, height: 360, crop: 'fill', format: 'jpg' }
       ]
     });
     
+    console.log('✅ Video uploaded to Cloudinary:', result.public_id);
+    
     // Clean up temp file
-    fs.unlinkSync(tempPath);
+    try {
+      fs.unlinkSync(tempPath);
+    } catch (error) {
+      console.log('Failed to delete temp file:', error.message);
+    }
 
-    // Update lesson
+    // Update lesson with new schema
     lesson.video = {
-      url: result.secure_url,
+      provider: 'cloudinary',
       publicId: result.public_id,
-      originalName: req.file.originalname,
-      mimetype: req.file.mimetype,
-      size: req.file.size,
+      url: result.url,
+      secureUrl: result.secure_url,
       duration: result.duration || 0,
+      format: result.format,
+      width: result.width,
+      height: result.height,
+      size: result.bytes,
+      status: 'ready',
       uploadedAt: new Date()
     };
+
+    // Set thumbnail from eager transformation if available
+    if (result.eager && result.eager[0]) {
+      lesson.video.thumbnailUrl = result.eager[0].secure_url;
+    }
+
+    // Add transformations if eager transformations are ready
+    if (result.eager && result.eager.length > 0) {
+      lesson.video.transformations = result.eager.map(t => ({
+        quality: t.width >= 1280 ? 'hd' : 'sd',
+        url: t.secure_url,
+        width: t.width,
+        height: t.height
+      }));
+    }
+
     lesson.contentType = 'video';
     
     await lesson.save();
@@ -158,6 +214,8 @@ const uploadLessonVideo = async (req, res) => {
       message: 'Upload video thành công',
       data: {
         videoUrl: result.secure_url,
+        thumbnailUrl: lesson.video.thumbnailUrl,
+        duration: result.duration,
         video: lesson.video
       }
     });

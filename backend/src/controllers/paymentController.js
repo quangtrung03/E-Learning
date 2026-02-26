@@ -3,8 +3,11 @@ const Payment = require('../models/Payment');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const Coupon = require('../models/Coupon');
+const Enrollment = require('../models/Enrollment');
 const crypto = require('crypto');
 const axios = require('axios');
+const { deleteEnrollment } = require('../utils/enrollmentHelpers');
+const { sanitizeGatewayResponse } = require('../utils/paymentHelpers');
 
 // @desc    Tạo payment intent (bước đầu thanh toán)
 // @route   POST /api/payments/create-intent
@@ -39,10 +42,8 @@ const createPaymentIntent = async (req, res) => {
     }
 
     // Kiểm tra user đã đăng ký chưa
-    const user = await User.findById(req.user.id);
-    const isEnrolled = user.enrolledCourses.some(
-      enrollment => enrollment.course.toString() === courseId
-    );
+    const Enrollment = require('../models/Enrollment');
+    const isEnrolled = await Enrollment.isEnrolled(req.user.id, courseId);
 
     if (isEnrolled) {
       return res.status(400).json({
@@ -174,7 +175,11 @@ const createPaymentIntent = async (req, res) => {
         break;
     }
 
-    payment.paymentGatewayResponse = paymentGatewayResponse;
+    // ✅ SECURITY FIX: Sanitize gateway response before saving
+    payment.paymentGatewayResponse = sanitizeGatewayResponse(
+      paymentGatewayResponse, 
+      paymentMethod.provider
+    );
     await payment.save();
 
     res.status(201).json({
@@ -261,25 +266,15 @@ const confirmPayment = async (req, res) => {
 
       await payment.save();
 
-      // Enroll user vào course
-      await User.findByIdAndUpdate(payment.user._id, {
-        $addToSet: {
-          enrolledCourses: {
-            course: payment.course._id,
-            enrolledAt: new Date(),
-            progress: 0,
-            status: 'active'
-          }
-        }
-      });
-
-      // Cập nhật course students
-      await Course.findByIdAndUpdate(payment.course._id, {
-        $addToSet: { students: payment.user._id },
-        $inc: { 
-          'stats.totalStudents': 1,
-          'stats.totalRevenue': payment.amount.final
-        }
+      // Enroll user vào course bằng Enrollment model
+      const Enrollment = require('../models/Enrollment');
+      await Enrollment.create({
+        user: payment.user._id,
+        course: payment.course._id,
+        payment: payment._id,
+        enrolledAt: new Date(),
+        progress: 0,
+        status: 'active'
       });
 
       // Sử dụng coupon nếu có
@@ -603,16 +598,11 @@ const refundPayment = async (req, res) => {
 
     await payment.save();
 
-    // Remove user từ course
-    await User.findByIdAndUpdate(payment.user._id, {
-      $pull: {
-        enrolledCourses: { course: payment.course._id }
-      }
-    });
+    // Remove enrollment using Enrollment model
+    await deleteEnrollment(payment.user._id, payment.course._id);
 
-    // Cập nhật course stats
+    // Cập nhật course stats (không cần update students array nữa vì dùng virtual)
     await Course.findByIdAndUpdate(payment.course._id, {
-      $pull: { students: payment.user._id },
       $inc: { 
         'stats.totalStudents': -1,
         'stats.totalRevenue': -refundAmountFinal
@@ -658,9 +648,155 @@ async function verifyPaymentWithGateway(payment, paymentData) {
   return true; // Mock verification
 }
 
+/**
+ * Verify webhook signature from payment providers
+ * @param {String} provider - Payment provider name
+ * @param {Object} data - Webhook data
+ * @param {Object} headers - Request headers
+ * @returns {Boolean} - Whether signature is valid
+ */
 function verifyWebhookSignature(provider, data, headers) {
-  // Verify webhook signature
-  return true; // Mock verification
+  try {
+    switch (provider) {
+      case 'stripe':
+        return verifyStripeWebhook(data, headers);
+      
+      case 'vnpay':
+        return verifyVNPayWebhook(data);
+      
+      case 'momo':
+        return verifyMoMoWebhook(data);
+      
+      default:
+        console.error(`Unknown payment provider: ${provider}`);
+        return false;
+    }
+  } catch (error) {
+    console.error('Webhook signature verification error:', error);
+    return false;
+  }
+}
+
+/**
+ * Verify Stripe webhook signature
+ */
+function verifyStripeWebhook(data, headers) {
+  const signature = headers['stripe-signature'];
+  if (!signature) {
+    console.error('Missing Stripe signature header');
+    return false;
+  }
+
+  try {
+    // Stripe webhook secret from environment
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error('STRIPE_WEBHOOK_SECRET not configured');
+      return false;
+    }
+
+    // Stripe library will verify signature (if using stripe.webhooks.constructEvent)
+    // For manual verification:
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const event = stripe.webhooks.constructEvent(
+      JSON.stringify(data), 
+      signature, 
+      webhookSecret
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Stripe webhook verification failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Verify VNPay webhook signature
+ */
+function verifyVNPayWebhook(data) {
+  try {
+    const vnpSecureHash = data.vnp_SecureHash;
+    if (!vnpSecureHash) {
+      console.error('Missing VNPay secure hash');
+      return false;
+    }
+
+    // VNPay hash secret from environment
+    const hashSecret = process.env.VNPAY_HASH_SECRET;
+    if (!hashSecret) {
+      console.error('VNPAY_HASH_SECRET not configured');
+      return false;
+    }
+
+    // Create hash data string (exclude vnp_SecureHash)
+    const dataObj = { ...data };
+    delete dataObj.vnp_SecureHash;
+    delete dataObj.vnp_SecureHashType;
+
+    // Sort keys alphabetically
+    const sortedKeys = Object.keys(dataObj).sort();
+    const hashData = sortedKeys
+      .map(key => `${key}=${dataObj[key]}`)
+      .join('&');
+
+    // Create HMAC SHA512 hash
+    const calculatedHash = crypto
+      .createHmac('sha512', hashSecret)
+      .update(Buffer.from(hashData, 'utf-8'))
+      .digest('hex');
+
+    // Compare hashes
+    const isValid = calculatedHash === vnpSecureHash;
+    if (!isValid) {
+      console.error('VNPay hash mismatch');
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error('VNPay webhook verification failed:', error.message);
+    return false;
+  }
+}
+
+/**
+ * Verify MoMo webhook signature
+ */
+function verifyMoMoWebhook(data) {
+  try {
+    const signature = data.signature;
+    if (!signature) {
+      console.error('Missing MoMo signature');
+      return false;
+    }
+
+    // MoMo secret key from environment
+    const secretKey = process.env.MOMO_SECRET_KEY;
+    if (!secretKey) {
+      console.error('MOMO_SECRET_KEY not configured');
+      return false;
+    }
+
+    // Create signature string according to MoMo docs
+    const rawSignature = `accessKey=${data.accessKey}&amount=${data.amount}&extraData=${data.extraData}&message=${data.message}&orderId=${data.orderId}&orderInfo=${data.orderInfo}&orderType=${data.orderType}&partnerCode=${data.partnerCode}&payType=${data.payType}&requestId=${data.requestId}&responseTime=${data.responseTime}&resultCode=${data.resultCode}&transId=${data.transId}`;
+
+    // Create HMAC SHA256 signature
+    const calculatedSignature = crypto
+      .createHmac('sha256', secretKey)
+      .update(rawSignature)
+      .digest('hex');
+
+    // Compare signatures
+    const isValid = calculatedSignature === signature;
+    if (!isValid) {
+      console.error('MoMo signature mismatch');
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error('MoMo webhook verification failed:', error.message);
+    return false;
+  }
 }
 
 async function processVNPayWebhook(webhookData) {
@@ -723,42 +859,27 @@ const fakePaymentSuccess = async (req, res) => {
     };
     await payment.save();
 
-    // Check if already enrolled
-    const user = await User.findById(payment.user._id);
-    const isEnrolled = user.enrolledCourses.some(
-      enrollment => enrollment.course.toString() === payment.course._id.toString()
-    );
+    // Check if already enrolled using Enrollment model
+    const Enrollment = require('../models/Enrollment');
+    const existingEnrollment = await Enrollment.findOne({
+      user: payment.user._id,
+      course: payment.course._id
+    });
 
-    if (!isEnrolled) {
-      // Enroll user vào course
-      await User.findByIdAndUpdate(payment.user._id, {
-        $push: {
-          enrolledCourses: {
-            course: payment.course._id,
-            enrolledAt: new Date(),
-            progress: 0,
-            status: 'active'
-          }
-        }
+    if (!existingEnrollment) {
+      // Enroll user vào course using Enrollment model (single source of truth)
+      await Enrollment.create({
+        user: payment.user._id,
+        course: payment.course._id,
+        payment: payment._id,
+        enrolledAt: new Date(),
+        progress: 0,
+        status: 'active'
       });
-
-      // Update course students and stats
-      const course = await Course.findById(payment.course._id);
-      const isStudentEnrolled = course.students.some(
-        s => s.student && s.student.toString() === payment.user._id.toString()
-      );
-
-      if (!isStudentEnrolled) {
-        await Course.findByIdAndUpdate(payment.course._id, {
-          $push: {
-            students: {
-              student: payment.user._id,
-              enrolledAt: new Date(),
-              progress: 0
-            }
-          }
-        });
-      }
+      
+      console.log(`✅ Enrollment created for user ${payment.user._id} - Course ${payment.course._id}`);
+    } else {
+      console.log(`⚠️ User ${payment.user._id} already enrolled in course ${payment.course._id}`);
     }
 
     // Use coupon if exists

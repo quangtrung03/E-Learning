@@ -6,45 +6,8 @@ import { Card } from '../components/ui/Card';
 import { ConfirmDialog } from '../components/ui';
 import api from '../services/api';
 import resolveAvatar from '../utils/resolveAvatar';
+import type { Course } from '../types/course';
 
-interface Lesson {
-  _id: string;
-  title: string;
-  duration: number;
-  order: number;
-}
-
-interface Student {
-  _id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  enrolledAt: Date;
-  progress: number;
-}
-
-interface Course {
-  _id: string;
-  title: string;
-  description: string;
-  category: string;
-  price: number;
-  thumbnail?: string;
-  status: string;
-  instructor: {
-    _id: string;
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  lessons: Lesson[];
-  students: Student[];
-  createdAt: Date;
-  updatedAt: Date;
-  approvedAt?: Date;
-  rejectedAt?: Date;
-  rejectedReason?: string;
-}
 
 const AdminCourseDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -114,9 +77,8 @@ const AdminCourseDetail = () => {
       await api.put(`/admin/courses/${course._id}/reject`, { reason: rejectReason });
       setCourse(prev => prev ? { 
         ...prev, 
-        status: 'rejected', 
-        rejectedAt: new Date(),
-        rejectedReason: rejectReason
+        status: 'rejected',
+        rejectionReason: rejectReason
       } : null);
       setShowRejectModal(false);
       setRejectReason('');
@@ -175,9 +137,10 @@ const AdminCourseDetail = () => {
     );
   }
 
-  const totalDuration = course.lessons.reduce((total, lesson) => total + lesson.duration, 0);
-  const averageProgress = course.students.length > 0 
-    ? course.students.reduce((total, student) => total + student.progress, 0) / course.students.length 
+  const totalDuration = course.lessons.reduce((total, lesson) => total + (lesson as any).duration || 0, 0);
+  const students = course.students || [];
+  const averageProgress = students.length > 0 
+    ? students.reduce((total, enrollment) => total + enrollment.progress, 0) / students.length 
     : 0;
 
   return (
@@ -268,15 +231,10 @@ const AdminCourseDetail = () => {
             )}
 
             {/* Rejection Info */}
-            {course.status === 'rejected' && course.rejectedReason && (
+            {course.status === 'rejected' && course.rejectionReason && (
               <Card className="p-6 mb-6 border-red-200 bg-red-50">
                 <h3 className="text-lg font-semibold text-red-900 mb-2">Lý do từ chối</h3>
-                <p className="text-red-700">{course.rejectedReason}</p>
-                {course.rejectedAt && (
-                  <p className="text-sm text-red-600 mt-2">
-                    Từ chối lúc: {new Date(course.rejectedAt).toLocaleString('vi-VN')}
-                  </p>
-                )}
+                <p className="text-red-700">{course.rejectionReason}</p>
               </Card>
             )}
 
@@ -291,7 +249,8 @@ const AdminCourseDetail = () => {
               ) : (
                 <div className="space-y-3">
                   {(Array.isArray(course.lessons) ? course.lessons : [])
-                    .sort((a, b) => a.order - b.order)
+                    .filter((lesson): lesson is any => typeof lesson === 'object' && lesson !== null)
+                    .sort((a, b) => (a.order || 0) - (b.order || 0))
                     .map((lesson, index) => (
                     <div key={lesson._id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                       <div className="flex items-center gap-3">
@@ -299,8 +258,8 @@ const AdminCourseDetail = () => {
                           {index + 1}
                         </span>
                         <div>
-                          <h4 className="font-medium text-gray-900">{lesson.title}</h4>
-                          <p className="text-sm text-gray-500">{formatDuration(lesson.duration)}</p>
+                          <h4 className="font-medium text-gray-900">{lesson.title || 'Bài học'}</h4>
+                          <p className="text-sm text-gray-500">{formatDuration(lesson.duration || 0)}</p>
                         </div>
                       </div>
                     </div>
@@ -312,52 +271,55 @@ const AdminCourseDetail = () => {
             {/* Students */}
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Học viên ({course.students.length})
+                Học viên ({students.length})
               </h3>
               
-              {course.students.length === 0 ? (
+              {students.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Chưa có học viên nào</p>
               ) : (
                 <div className="space-y-4">
-                  {(Array.isArray(course.students) ? course.students : []).map((student) => (
-                    <div key={student._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        {student.avatar ? (
-                          <img className="h-10 w-10 rounded-full" src={resolveAvatar(student.avatar) || undefined} alt={student.name || ''} />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-sm font-medium text-gray-700">
-                              {student.name?.charAt(0) || 'N'}
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          <h4 className="font-medium text-gray-900">{student.name}</h4>
-                          <p className="text-sm text-gray-500">{student.email}</p>
-                          <p className="text-xs text-gray-400">
-                            Đăng ký: {new Date(student.enrolledAt).toLocaleDateString('vi-VN')}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="text-sm font-medium text-gray-900">{student.progress}%</div>
-                          <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
-                            <div 
-                              className="bg-blue-600 h-2 rounded-full" 
-                              style={{ width: `${student.progress}%` }}
-                            ></div>
+                  {students.map((enrollment) => {
+                    const student = enrollment.user;
+                    return (
+                      <div key={enrollment._id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          {student.avatar ? (
+                            <img className="h-10 w-10 rounded-full" src={resolveAvatar(student.avatar) || undefined} alt={student.name || ''} />
+                          ) : (
+                            <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
+                              <span className="text-sm font-medium text-gray-700">
+                                {student.name?.charAt(0) || 'N'}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <h4 className="font-medium text-gray-900">{student.name}</h4>
+                            <p className="text-sm text-gray-500">{student.email}</p>
+                            <p className="text-xs text-gray-400">
+                              Đăng ký: {new Date(enrollment.enrolledAt).toLocaleDateString('vi-VN')}
+                            </p>
                           </div>
                         </div>
-                        <Link to={`/admin/users/${student._id}`}>
-                          <Button size="sm" variant="outline">
-                            Xem
-                          </Button>
-                        </Link>
+                        
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <div className="text-sm font-medium text-gray-900">{enrollment.progress}%</div>
+                            <div className="w-20 bg-gray-200 rounded-full h-2 mt-1">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full" 
+                                style={{ width: `${enrollment.progress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <Link to={`/admin/users/${student._id}`}>
+                            <Button size="sm" variant="outline">
+                              Xem
+                            </Button>
+                          </Link>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -371,7 +333,7 @@ const AdminCourseDetail = () => {
               
               <div className="space-y-4">
                 <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">{course.students.length}</div>
+                  <div className="text-2xl font-bold text-blue-600">{students.length}</div>
                   <div className="text-sm text-blue-800">Học viên</div>
                 </div>
                 

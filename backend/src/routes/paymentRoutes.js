@@ -12,6 +12,7 @@ const {
   getPaymentByOrderId
 } = require('../controllers/paymentController');
 const { protect, requireAdmin } = require('../middleware/auth');
+const { paymentLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -190,7 +191,7 @@ router.use(protect);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.post('/create-intent', createPaymentValidation, createPaymentIntent);
+router.post('/create-intent', protect, paymentLimiter, createPaymentValidation, createPaymentIntent);
 
 /**
  * @swagger
@@ -233,7 +234,7 @@ router.post('/create-intent', createPaymentValidation, createPaymentIntent);
  *       404:
  *         description: Không tìm thấy payment
  */
-router.put('/:id/confirm', confirmPaymentValidation, confirmPayment);
+router.put('/:id/confirm', protect, paymentLimiter, confirmPaymentValidation, confirmPayment);
 
 /**
  * @swagger

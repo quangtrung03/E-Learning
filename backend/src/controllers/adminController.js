@@ -765,6 +765,7 @@ const getAllCourses = async (req, res) => {
 
     const courses = await Course.find(query)
       .populate('instructor', 'name email avatar')
+      .populate('totalStudents') // Virtual count
       .sort(sortOption)
       .skip(skip)
       .limit(limit);
@@ -800,7 +801,14 @@ const getCourseDetail = async (req, res) => {
   try {
     const course = await Course.findById(req.params.id)
       .populate('instructor', 'name email avatar')
-      .populate('students', 'name email avatar enrolledAt progress')
+      .populate({
+        path: 'students',
+        populate: {
+          path: 'user',
+          select: 'name email avatar'
+        },
+        select: 'user enrolledAt progress status'
+      })
       .populate('lessons');
 
     if (!course) {
@@ -839,10 +847,9 @@ const getUserDetail = async (req, res) => {
       })
       .populate({
         path: 'createdCourses',
-        select: 'title category status students createdAt',
+        select: 'title category status createdAt',
         populate: {
-          path: 'students',
-          select: 'name'
+          path: 'totalStudents' // Virtual count only, not full array
         }
       });
 

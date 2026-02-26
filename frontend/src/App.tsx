@@ -30,6 +30,16 @@ import LearningAnalytics from './pages/LearningAnalytics';
 import PaymentCheckout from './pages/PaymentCheckout';
 import PaymentHistory from './pages/PaymentHistory';
 import PaymentReturn from './pages/PaymentReturn';
+import DiscussionList from './pages/DiscussionList';
+import DiscussionDetail from './pages/DiscussionDetail';
+import DiscussionCreate from './pages/DiscussionCreate';
+import SubmissionList from './pages/SubmissionList';
+import AssignmentGrading from './pages/AssignmentGrading';
+import AdminReviewManagement from './pages/AdminReviewManagement';
+import AdminCouponManagement from './pages/AdminCouponManagement';
+import CertificateVerification from './pages/CertificateVerification';
+import InstructorProfile from './pages/InstructorProfile';
+import AdminPaymentManagement from './pages/AdminPaymentManagement';
 import { useAuth } from './context/AuthContext';
 
 // Protected Route Component
@@ -188,6 +198,46 @@ function App() {
             } 
           />
           <Route 
+            path="/assignments/:assignmentId/submissions" 
+            element={
+              <ProtectedRoute>
+                <SubmissionList />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/assignments/:assignmentId/submissions/:submissionId/grade" 
+            element={
+              <ProtectedRoute>
+                <AssignmentGrading />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/courses/:courseId/discussions" 
+            element={
+              <ProtectedRoute>
+                <DiscussionList />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/courses/:courseId/discussions/create" 
+            element={
+              <ProtectedRoute>
+                <DiscussionCreate />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/courses/:courseId/discussions/:discussionId" 
+            element={
+              <ProtectedRoute>
+                <DiscussionDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
             path="/my-certificates" 
             element={
               <ProtectedRoute>
@@ -277,6 +327,40 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/admin/reviews" 
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminReviewManagement />
+                </AdminRoute>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/coupons" 
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminCouponManagement />
+                </AdminRoute>
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/admin/payments" 
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminPaymentManagement />
+                </AdminRoute>
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Public Routes */}
+          <Route path="/certificates/verify/:hash" element={<CertificateVerification />} />
+          <Route path="/instructors/:id" element={<InstructorProfile />} />
           
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

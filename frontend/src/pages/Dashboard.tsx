@@ -23,7 +23,7 @@ interface Course {
     _id: string;
     name: string;
   };
-  students?: any[];
+  totalStudents?: number; // Virtual count from backend
   progress?: number;
 }
 
@@ -181,13 +181,12 @@ const Dashboard = () => {
           const createdCount = userCoursesArr.length;
           const completedCount = enrolledCoursesArr.filter((course: any) => course.progress >= 100).length;
           const totalStudents = userCoursesArr.reduce((sum: number, course: any) => {
-            const students = course.students || [];
-            return sum + (Array.isArray(students) ? students.length : 0);
+            return sum + (course.totalStudents || 0);
           }, 0);
 
           const totalRevenue = userCoursesArr.reduce((sum: number, course: any) => {
             const price = course.finalPrice || course.price || 0;
-            const studentCount = course.students?.length || 0;
+            const studentCount = course.totalStudents || 0;
             return sum + (price * studentCount);
           }, 0);
 
@@ -483,7 +482,7 @@ const Dashboard = () => {
                       
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-500">
-                          {course.students?.length || 0} học viên
+                          {course.totalStudents || 0} học viên
                         </div>
                         <div className="text-right">
                           <span className="text-lg font-bold text-primary-600">

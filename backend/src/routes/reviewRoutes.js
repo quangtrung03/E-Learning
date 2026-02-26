@@ -10,7 +10,9 @@ const {
   markReviewHelpful,
   getReviewStats,
   reportReview,
-  moderateReview
+  moderateReview,
+  getPendingReviews,
+  getAllReviews
 } = require('../controllers/reviewController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -531,5 +533,72 @@ router.get('/course/:courseId/stats', protect, getReviewStats);
  *         description: Không tìm thấy đánh giá
  */
 router.put('/admin/reviews/:id/moderate', requireAdmin, moderateReviewValidation, moderateReview);
+
+/**
+ * @swagger
+ * /api/reviews/admin/pending:
+ *   get:
+ *     summary: Lấy danh sách reviews pending (Admin)
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Trang
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: Số lượng mỗi trang
+ *     responses:
+ *       200:
+ *         description: Danh sách reviews pending
+ *       403:
+ *         description: Không có quyền admin
+ */
+router.get('/admin/pending', requireAdmin, getPendingReviews);
+
+/**
+ * @swagger
+ * /api/reviews/admin/all:
+ *   get:
+ *     summary: Lấy tất cả reviews với filter (Admin)
+ *     tags: [Reviews]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *       - in: query
+ *         name: course
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: minRating
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: maxRating
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Danh sách tất cả reviews
+ */
+router.get('/admin/all', requireAdmin, getAllReviews);
 
 module.exports = router;

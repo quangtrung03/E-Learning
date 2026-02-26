@@ -17,8 +17,9 @@ const {
   validateAdminToken,
   submitAdminRequest
 } = require('../controllers/adminController');
-const { protect } = require('../middleware/auth');
+const { protect, protectWithoutEmailVerification } = require('../middleware/auth');
 const { uploadImage } = require('../middleware/upload');
+const { authLimiter, registerLimiter, emailLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -120,7 +121,7 @@ const resetPasswordValidation = [
  *       409:
  *         description: Email đã tồn tại
  */
-router.post('/register', registerValidation, register);
+router.post('/register', registerLimiter, registerValidation, register);
 
 /**
  * @swagger
@@ -158,7 +159,7 @@ router.post('/register', registerValidation, register);
  *       401:
  *         description: Sai email hoặc mật khẩu
  */
-router.post('/login', loginValidation, login);
+router.post('/login', authLimiter, loginValidation, login);
 
 /**
  * @swagger
@@ -187,7 +188,8 @@ router.post('/login', loginValidation, login);
  *       401:
  *         description: Chưa xác thực
  */
-router.get('/me', protect, getMe);
+// Cho phép user chưa verify vẫn xem được profile của mình
+router.get('/me', protectWithoutEmailVerification, getMe);
 
 /**
  * @swagger
@@ -273,7 +275,8 @@ router.post('/verify-email', verifyEmail);
  *       400:
  *         description: Email đã được xác thực hoặc không tồn tại
  */
-router.post('/resend-verification', resendVerification);
+// Sử dụng protectWithoutEmailVerification để user chưa verify vẫn có thể resend
+router.post('/resend-verification', protectWithoutEmailVerification, emailLimiter, resendVerification);
 
 /**
  * @swagger
@@ -300,7 +303,7 @@ router.post('/resend-verification', resendVerification);
  *       500:
  *         description: Lỗi server
  */
-router.post('/forgot-password', forgotPasswordValidation, forgotPassword);
+router.post('/forgot-password', emailLimiter, forgotPasswordValidation, forgotPassword);
 
 /**
  * @swagger

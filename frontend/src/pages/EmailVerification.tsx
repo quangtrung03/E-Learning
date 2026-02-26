@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import OTPInput from '../components/OTPInput';
 
 const EmailVerification: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -10,7 +11,10 @@ const EmailVerification: React.FC = () => {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'manual'>('loading');
   const [message, setMessage] = useState('');
   const [token, setToken] = useState('');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [useTokenMode, setUseTokenMode] = useState(false);
 
   const tokenFromUrl = searchParams.get('token');
 
@@ -86,11 +90,83 @@ const EmailVerification: React.FC = () => {
 
   const handleManualVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token.trim()) {
-      setMessage('Vui lòng nhập token xác thực');
-      return;
+    
+    if (useTokenMode) {
+      // Token mode - verify with long token
+      if (!token.trim()) {
+        setMessage('Vui lòng nhập token xác thực');
+        return;
+      }
+      await verifyEmailToken(token.trim());
+    } else {
+      // OTP mode - verify with email + OTP
+      if (!email.trim()) {
+        setMessage('Vui lòng nhập địa chỉ email');
+        return;
+      }
+      if (otp.length !== 6) {
+        setMessage('Vui lòng nhập đầy đủ 6 chữ số OTP');
+        return;
+      }
+      
+      try {
+        setIsVerifying(true);
+        
+        showToast({
+          type: 'info',
+          title: 'Đang xác thực...',
+          message: 'Vui lòng chờ giây lát',
+          duration: 2000
+        });
+
+        const response = await authAPI.verifyEmail({ email: email.trim(), otp });
+        
+        if (response.data.success) {
+          setStatus('success');
+          setMessage(response.data.message);
+          
+          showToast({
+            type: 'success',
+            title: 'Xác thực thành công!',
+            message: 'Tài khoản của bạn đã được kích hoạt',
+            duration: 5000
+          });
+          
+          // Save token to localStorage and redirect to dashboard after 3 seconds
+          if (response.data.data.token) {
+            localStorage.setItem('token', response.data.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.data.user));
+            
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 3000);
+          }
+        } else {
+          setStatus('error');
+          setMessage(response.data.message || 'Xác thực không thành công');
+          
+          showToast({
+            type: 'error',
+            title: 'Xác thực thất bại!',
+            message: response.data.message || 'OTP không hợp lệ hoặc đã hết hạn',
+            duration: 6000
+          });
+        }
+      } catch (error: any) {
+        setStatus('error');
+        const errorMessage = error.response?.data?.message || 'Có lỗi xảy ra khi xác thực email. Vui lòng thử lại.';
+        setMessage(errorMessage);
+        
+        showToast({
+          type: 'error',
+          title: 'Lỗi xác thực!',
+          message: errorMessage,
+          duration: 6000
+        });
+      } finally {
+        setIsVerifying(false);
+      }
     }
-    await verifyEmailToken(token.trim());
   };
 
   const handleResendEmail = async () => {
@@ -235,23 +311,85 @@ const EmailVerification: React.FC = () => {
 
             {status === 'manual' && (
               <form onSubmit={handleManualVerify} className="space-y-4">
-                <div>
-                  <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-2">
-                    Token xác thực
-                  </label>
-                  <input
-                    type="text"
-                    id="token"
-                    value={token}
-                    onChange={(e) => setToken(e.target.value)}
-                    placeholder="Nhập token từ email..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    required
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Kiểm tra email của bạn và copy token xác thực vào đây
-                  </p>
+                {/* Toggle between OTP and Token modes */}
+                <div className="flex items-center justify-center gap-4 p-3 bg-gray-50 rounded-lg">
+                  <button
+                    type="button"
+                    onClick={() => setUseTokenMode(false)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      !useTokenMode
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    🔢 Nhập mã OTP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setUseTokenMode(true)}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      useTokenMode
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    🔗 Nhập token
+                  </button>
                 </div>
+
+                {!useTokenMode ? (
+                  /* OTP Mode */
+                  <>
+                    <div>
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                        📧 Địa chỉ email
+                      </label>
+                      <input
+                        type="email"
+                        id="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Nhập email đã đăng ký..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3 text-center">
+                        🔢 Nhập mã OTP (6 chữ số)
+                      </label>
+                      <OTPInput
+                        value={otp}
+                        onChange={setOtp}
+                        autoFocus
+                        error={!!message && status === 'manual'}
+                      />
+                      <p className="mt-2 text-xs text-gray-500 text-center">
+                        Kiểm tra email của bạn và nhập mã OTP 6 chữ số (Hết hạn sau 10 phút)
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  /* Token Mode */
+                  <div>
+                    <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-2">
+                      🔗 Token xác thực
+                    </label>
+                    <input
+                      type="text"
+                      id="token"
+                      value={token}
+                      onChange={(e) => setToken(e.target.value)}
+                      placeholder="Nhập token từ email..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                    <p className="mt-1 text-xs text-gray-500">
+                      Kiểm tra email của bạn và copy token xác thực vào đây
+                    </p>
+                  </div>
+                )}
 
                 {message && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -261,10 +399,14 @@ const EmailVerification: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={isVerifying || !token.trim()}
+                  disabled={
+                    isVerifying || 
+                    (!useTokenMode && (otp.length !== 6 || !email.trim())) ||
+                    (useTokenMode && !token.trim())
+                  }
                   className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
-                  {isVerifying ? 'Đang xác thực...' : 'Xác thực Email'}
+                  {isVerifying ? 'Đang xác thực...' : '✅ Xác thực Email'}
                 </button>
 
                 <div className="text-center space-y-2">

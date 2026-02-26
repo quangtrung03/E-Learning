@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Review = require('../models/Review');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const { getUserEnrollment } = require('../utils/enrollmentHelpers');
 
 // @desc    Tạo review mới cho course
 // @route   POST /api/reviews
@@ -30,10 +31,7 @@ const createReview = async (req, res) => {
     }
 
     // Kiểm tra user đã enroll course chưa
-    const user = await User.findById(req.user._id);
-    const enrollment = user.enrolledCourses.find(
-      enrollment => enrollment.course.toString() === courseId
-    );
+    const enrollment = await getUserEnrollment(req.user._id, courseId);
 
     if (!enrollment) {
       return res.status(403).json({
@@ -640,33 +638,97 @@ async function updateCourseRating(courseId) {
       {
         $group: {
           _id: null,
-          averageRating: { $avg: '$rating.overall' },
-          totalReviews: { $sum: 1 },
-          ratingDistribution: {
-            $push: '$rating.overall'
-          }
+          averageRating: { $avg: '$rating' },
+          count: { $sum: 1 }
         }
       }
     ]);
 
     if (stats.length > 0) {
-      const { averageRating, totalReviews } = stats[0];
-      
       await Course.findByIdAndUpdate(courseId, {
-        'rating.average': Math.round(averageRating * 10) / 10,
-        'rating.count': totalReviews
-      });
-    } else {
-      // Không có review nào
-      await Course.findByIdAndUpdate(courseId, {
-        'rating.average': 0,
-        'rating.count': 0
+        'rating.average': Math.round(stats[0].averageRating * 10) / 10,
+        'rating.count': stats[0].count
       });
     }
   } catch (error) {
     console.error('Error updating course rating:', error);
   }
 }
+
+// @desc    Admin: Lấy tất cả reviews với filter
+// @route   GET /api/reviews/admin/all
+// @access  Private (Admin)
+const getAllReviews = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status, course, minRating, maxRating, sortBy = '-createdAt' } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Build query
+    const query = {};
+    if (status) query.status = status;
+    if (course) query.course = course;
+    if (minRating || maxRating) {
+      query.rating = {};
+      if (minRating) query.rating.$gte = parseInt(minRating);
+      if (maxRating) query.rating.$lte = parseInt(maxRating);
+    }
+
+    const reviews = await Review.find(query)
+      .populate('reviewer', 'name email avatar')
+      .populate('course', 'title instructor')
+      .populate({
+        path: 'course',
+        populate: { path: 'instructor', select: 'name' }
+      })
+      .sort(sortBy)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    const total = await Review.countDocuments(query);
+
+    // Calculate statistics
+    const stats = await Review.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const statusStats = {
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      total
+    };
+    stats.forEach(stat => {
+      statusStats[stat._id] = stat.count;
+    });
+
+    res.status(200).json({
+      success: true,
+      count: reviews.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      },
+      stats: statusStats,
+      data: {
+        reviews
+      }
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy danh sách reviews',
+      error: error.message
+    });
+  }
+};
 
 // @desc    Báo cáo review không phù hợp
 // @route   POST /api/reviews/:id/report
@@ -838,5 +900,6 @@ module.exports = {
   respondToReview,
   getMyReviews,
   getPendingReviews,
-  moderateReview
+  moderateReview,
+  getAllReviews
 };

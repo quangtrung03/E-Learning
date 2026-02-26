@@ -13,6 +13,10 @@ interface Lesson {
   content: string;
   contentType: 'text' | 'video' | 'pdf' | 'quiz';
   videoUrl?: string;
+  video?: {
+    secureUrl: string;
+    thumbnailUrl?: string;
+  };
   duration: number;
   order: number;
   isPreview: boolean;
@@ -47,11 +51,7 @@ interface Course {
     average: number;
     count: number;
   };
-  students?: Array<{
-    student: string;
-    enrolledAt: Date;
-    progress: number;
-  }>;
+  totalStudents?: number; // Virtual count from backend
   lessons?: string[];
   requirements?: string[];
   whatYouWillLearn?: string[];
@@ -498,7 +498,7 @@ const CourseDetail = () => {
                 
                 <div className="text-sm">
                   <span className="text-white">
-                    {course.students?.length || 0} học viên
+                    {course.totalStudents || 0} học viên
                   </span>
                 </div>
               </div>
@@ -789,24 +789,40 @@ const CourseDetail = () => {
                   ) : (
                     <>
                       {/* Video Content */}
-                      {currentLesson.contentType === 'video' && currentLesson.videoUrl && (
+                      {currentLesson.contentType === 'video' && (currentLesson.video?.secureUrl || currentLesson.videoUrl) && (
                         <div className="mb-6">
                           <div className="aspect-w-16 aspect-h-9 bg-gray-900 rounded-lg overflow-hidden">
-                            {currentLesson.videoUrl.includes('youtube.com') || currentLesson.videoUrl.includes('youtu.be') ? (
-                              <iframe
-                                src={currentLesson.videoUrl.replace('watch?v=', 'embed/')}
-                                title={currentLesson.title}
-                                className="w-full h-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                              />
-                            ) : (
-                              <video
-                                controls
-                                className="w-full h-full"
-                                src={currentLesson.videoUrl}
-                              />
-                            )}
+                            {(() => {
+                              const videoSrc = currentLesson.video?.secureUrl || currentLesson.videoUrl || '';
+                              const thumbnailUrl = currentLesson.video?.thumbnailUrl;
+                              
+                              // Check if YouTube/external video
+                              if (videoSrc.includes('youtube.com') || videoSrc.includes('youtu.be')) {
+                                return (
+                                  <iframe
+                                    src={videoSrc.replace('watch?v=', 'embed/')}
+                                    title={currentLesson.title}
+                                    className="w-full h-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                );
+                              }
+                              
+                              // Cloudinary or direct video
+                              return (
+                                <video
+                                  controls
+                                  controlsList="nodownload"
+                                  preload="metadata"
+                                  poster={thumbnailUrl}
+                                  className="w-full h-full"
+                                  src={videoSrc}
+                                >
+                                  Your browser does not support the video tag.
+                                </video>
+                              );
+                            })()}
                           </div>
                         </div>
                       )}

@@ -55,22 +55,6 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
-  enrolledCourses: [{
-    course: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'Course'
-    },
-    enrolledAt: {
-      type: Date,
-      default: Date.now
-    },
-    progress: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100
-    }
-  }],
   createdCourses: [{
     type: mongoose.Schema.ObjectId,
     ref: 'Course'
@@ -100,5 +84,25 @@ userSchema.methods.toJSON = function() {
   delete userObject.password;
   return userObject;
 };
+
+// Virtual: Lấy danh sách enrollments từ Enrollment model
+userSchema.virtual('enrolledCourses', {
+  ref: 'Enrollment',
+  localField: '_id',
+  foreignField: 'user',
+  options: { sort: { enrolledAt: -1 } }
+});
+
+// Virtual: Tổng số khóa học đã đăng ký
+userSchema.virtual('totalEnrolledCourses', {
+  ref: 'Enrollment',
+  localField: '_id',
+  foreignField: 'user',
+  count: true
+});
+
+// Enable virtuals in JSON
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('User', userSchema);

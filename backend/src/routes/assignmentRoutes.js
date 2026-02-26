@@ -5,7 +5,9 @@ const {
   getAssignment,
   createAssignment,
   submitAssignment,
-  completeSubmission
+  completeSubmission,
+  getSubmissionsByAssignment,
+  gradeSubmission
 } = require('../controllers/assignmentController');
 const { protect, requireInstructor } = require('../middleware/auth');
 
@@ -282,5 +284,78 @@ router.post('/:id/submit', protect, submitAssignment);
  */
 // This route will be /api/assignments/submissions/:id/complete after mounting
 router.put('/submissions/:id/complete', protect, completeSubmission);
+
+/**
+ * @swagger
+ * /api/assignments/{id}/submissions:
+ *   get:
+ *     summary: Lấy danh sách submissions của assignment (Instructor/Admin)
+ *     tags: [Assignments]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Assignment ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [in-progress, submitted, graded]
+ *       - in: query
+ *         name: student
+ *         schema:
+ *           type: string
+ *         description: Filter by student ID
+ *     responses:
+ *       200:
+ *         description: Danh sách submissions
+ *       403:
+ *         description: Không có quyền truy cập
+ */
+router.get('/:id/submissions', protect, getSubmissionsByAssignment);
+
+/**
+ * @swagger
+ * /api/submissions/{id}/grade:
+ *   put:
+ *     summary: Chấm điểm submission (Instructor/Admin)
+ *     tags: [Assignments]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Submission ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               score:
+ *                 type: number
+ *                 minimum: 0
+ *                 maximum: 100
+ *               feedback:
+ *                 type: string
+ *               detailedFeedback:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *     responses:
+ *       200:
+ *         description: Chấm điểm thành công
+ *       403:
+ *         description: Không có quyền chấm điểm
+ */
+router.put('/submissions/:id/grade', protect, gradeSubmission);
 
 module.exports = router;

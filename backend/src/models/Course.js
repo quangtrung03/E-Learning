@@ -54,22 +54,6 @@ const courseSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: 'Lesson'
   }],
-  students: [{
-    student: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'User'
-    },
-    enrolledAt: {
-      type: Date,
-      default: Date.now
-    },
-    progress: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100
-    }
-  }],
   rating: {
     average: {
       type: Number,
@@ -118,7 +102,24 @@ const courseSchema = new mongoose.Schema({
     type: String,
     trim: true,
     maxLength: [50, 'Tag không được quá 50 ký tự']
-  }]
+  }],
+  // Soft Delete Fields
+  deleted: {
+    type: Boolean,
+    default: false,
+    select: false // Hide by default in queries
+  },
+  deletedAt: {
+    type: Date,
+    default: null,
+    select: false
+  },
+  deletedBy: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User',
+    default: null,
+    select: false
+  }
 }, {
   timestamps: true
 });
@@ -157,12 +158,31 @@ courseSchema.virtual('finalPriceFormatted').get(function() {
   }).format(finalPrice);
 });
 
+// Virtual: Lấy danh sách students từ Enrollment model
+courseSchema.virtual('students', {
+  ref: 'Enrollment',
+  localField: '_id',
+  foreignField: 'course',
+  options: { sort: { enrolledAt: -1 } }
+});
+
+// Virtual: Tổng số học viên
+courseSchema.virtual('totalStudents', {
+  ref: 'Enrollment',
+  localField: '_id',
+  foreignField: 'course',
+  count: true
+});
+
 // Enable virtuals in JSON
 courseSchema.set('toJSON', { virtuals: true });
 courseSchema.set('toObject', { virtuals: true });
 
 // Populate instructor khi query
 courseSchema.pre(/^find/, function(next) {
+  // Exclude deleted courses by default (unless explicitly requested with +deleted)
+  this.find({ deleted: { $ne: true } });
+  
   this.populate({
     path: 'instructor',
     select: 'name email avatar bio'
