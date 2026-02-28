@@ -1,20 +1,38 @@
 const sgMail = require('@sendgrid/mail');
+const { createTransport } = require('nodemailer');
 
 // Set SendGrid API key with validation
 const apiKey = process.env.SENDGRID_API_KEY;
+let useSendGrid = false;
+
 if (apiKey && apiKey.startsWith('SG.')) {
   sgMail.setApiKey(apiKey);
+  useSendGrid = true;
+  console.log('📧 Email service: SendGrid (Primary) with Gmail SMTP fallback');
 } else if (apiKey) {
-  console.warn('⚠️ SendGrid API key does not start with "SG." - email functionality may not work');
-  sgMail.setApiKey(apiKey);
+  console.warn('⚠️ SendGrid API key does not start with "SG." - using Gmail SMTP');
+  console.log('📧 Email service: Gmail SMTP (Primary)');
 } else {
-  console.warn('⚠️ SendGrid API key not found - email functionality disabled');
+  console.warn('⚠️ SendGrid API key not found - using Gmail SMTP');
+  console.log('📧 Email service: Gmail SMTP (Primary)');
 }
 
-// Create email transporter using SendGrid
+// Create email transporter using SendGrid or Gmail SMTP
 const createTransporter = () => {
-  // SendGrid handles SMTP internally via API
-  return sgMail;
+  // Try SendGrid first if available
+  if (useSendGrid && apiKey && apiKey.startsWith('SG.')) {
+    return sgMail;
+  }
+  
+  // Fallback to Gmail SMTP
+  console.log('📧 Using Gmail SMTP fallback');
+  return createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER || process.env.SENDGRID_FROM_EMAIL,
+      pass: process.env.EMAIL_PASSWORD
+    }
+  });
 };
 
 // Get frontend URL based on environment
@@ -359,18 +377,67 @@ const sendEmail = async (to, subject, html) => {
   try {
     const transporter = createTransporter();
 
-    const msg = {
-      to: to,
-      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@yourdomain.com', // Replace with your verified sender
-      subject: subject,
-      html: html
-    };
+    // Check if using SendGrid or Gmail SMTP
+    if (transporter.send) {
+      // SendGrid API
+      const msg = {
+        to,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@yourdomain.com',
+        subject,
+        html
+      };
 
-    const result = await transporter.send(msg);
-    console.log('✅ Email sent successfully via SendGrid:', result[0]?.headers?.['x-message-id']);
-    return { success: true, messageId: result[0]?.headers?.['x-message-id'] };
+      const result = await transporter.send(msg);
+      console.log('✅ Email sent successfully via SendGrid:', result[0]?.headers?.['x-message-id']);
+      return { success: true, messageId: result[0]?.headers?.['x-message-id'] };
+      
+    } else {
+      // Gmail SMTP (Nodemailer)
+      const mailOptions = {
+        from: `"E-Learning Platform" <${process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL}>`,
+        to,
+        subject,
+        html
+      };
+      
+      const result = await transporter.sendMail(mailOptions);
+      console.log('✅ Email sent successfully via Gmail SMTP:', result.messageId);
+      return { success: true, messageId: result.messageId };
+    }
+    
   } catch (error) {
-    console.error('❌ Email sending failed:', error);
+    console.error('❌ Email sending failed:', error.message);
+    
+    // Auto fallback to Gmail SMTP if SendGrid fails
+    if (error.code === 401 || error.code === 403 || error.message.includes('Maximum credits')) {
+      console.log('⚠️ SendGrid error detected, trying Gmail SMTP fallback...');
+      
+      if (process.env.EMAIL_PASSWORD) {
+        try {
+          const gmailTransporter = createTransport({
+            service: 'gmail',
+            auth: {
+              user: process.env.EMAIL_USER || process.env.SENDGRID_FROM_EMAIL,
+              pass: process.env.EMAIL_PASSWORD
+            }
+          });
+          
+          const result = await gmailTransporter.sendMail({
+            from: `"E-Learning Platform" <${process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL}>`,
+            to,
+            subject,
+            html
+          });
+          
+          console.log('✅ Email sent via Gmail SMTP fallback:', result.messageId);
+          return { success: true, messageId: result.messageId };
+        } catch (fallbackError) {
+          console.error('❌ Gmail fallback also failed:', fallbackError.message);
+          return { success: false, error: fallbackError.message };
+        }
+      }
+    }
+    
     return { success: false, error: error.message };
   }
 };

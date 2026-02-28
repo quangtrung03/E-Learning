@@ -96,6 +96,22 @@ const register = async (req, res, next) => {
     await verification.save();
     console.log('💾 Verification saved to database');
     
+    // ============================================
+    // 🔐 DEVELOPMENT: VERIFICATION INFO
+    // ============================================
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n' + '='.repeat(60));
+      console.log('🔐 EMAIL VERIFICATION INFO (DEVELOPMENT ONLY)');
+      console.log('='.repeat(60));
+      console.log('📧 Email:', email);
+      console.log('👤 Name:', name);
+      console.log('🔢 OTP Code:', verificationOTP);
+      console.log('🔗 Token:', verificationToken);
+      console.log('🌐 Verify URL:', `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`);
+      console.log('='.repeat(60) + '\n');
+    }
+    // ============================================
+    
     // Gửi email xác thực (bao gồm cả link và OTP)
     console.log('📤 Sending verification email...');
     const emailResult = await emailService.sendVerificationEmail(
@@ -164,9 +180,15 @@ const register = async (req, res, next) => {
       });
     } else {
       console.log('❌ Failed to send verification email:', emailResult.error);
+      
+      // In development, guide user to use OTP from console
+      const devMessage = process.env.NODE_ENV !== 'production' 
+        ? ' (DEV: Sử dụng mã OTP từ console log phía trên để xác thực)'
+        : '';
+      
       res.status(201).json({
         success: true,
-        message: 'Đăng ký thành công nhưng không thể gửi email xác thực. Vui lòng thử lại sau.',
+        message: 'Đăng ký thành công nhưng không thể gửi email xác thực. Vui lòng thử lại sau.' + devMessage,
         data: {
           user: {
             _id: user._id,
@@ -174,7 +196,12 @@ const register = async (req, res, next) => {
             email: user.email,
             emailVerified: user.emailVerified
           },
-          emailSent: false
+          emailSent: false,
+          // Include OTP in development mode for testing
+          ...(process.env.NODE_ENV !== 'production' && { 
+            otp: verificationOTP,
+            devNote: 'OTP chỉ hiển thị trong development mode' 
+          })
         }
       });
     }
