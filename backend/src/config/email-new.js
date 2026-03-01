@@ -1,39 +1,18 @@
-const sgMail = require('@sendgrid/mail');
-const { createTransport } = require('nodemailer');
+const { Resend } = require('resend');
 
-// Set SendGrid API key with validation
-const apiKey = process.env.SENDGRID_API_KEY;
-let useSendGrid = false;
+// Initialize Resend with API key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-if (apiKey && apiKey.startsWith('SG.')) {
-  sgMail.setApiKey(apiKey);
-  useSendGrid = true;
-  console.log('📧 Email service: SendGrid (Primary) with Gmail SMTP fallback');
-} else if (apiKey) {
-  console.warn('⚠️ SendGrid API key does not start with "SG." - using Gmail SMTP');
-  console.log('📧 Email service: Gmail SMTP (Primary)');
+// Validate Resend configuration
+if (!process.env.RESEND_API_KEY) {
+  console.warn('⚠️ RESEND_API_KEY not found - email functionality will be disabled');
+  console.warn('⚠️ Please add RESEND_API_KEY to your .env file');
+} else if (!process.env.RESEND_API_KEY.startsWith('re_')) {
+  console.warn('⚠️ RESEND_API_KEY format incorrect - should start with "re_"');
 } else {
-  console.warn('⚠️ SendGrid API key not found - using Gmail SMTP');
-  console.log('📧 Email service: Gmail SMTP (Primary)');
+  console.log('✅ Resend email service initialized');
+  console.log('📧 Email service: Resend (Primary)');
 }
-
-// Create email transporter using SendGrid or Gmail SMTP
-const createTransporter = () => {
-  // Try SendGrid first if available
-  if (useSendGrid && apiKey && apiKey.startsWith('SG.')) {
-    return sgMail;
-  }
-  
-  // Fallback to Gmail SMTP
-  console.log('📧 Using Gmail SMTP fallback');
-  return createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER || process.env.SENDGRID_FROM_EMAIL,
-      pass: process.env.EMAIL_PASSWORD
-    }
-  });
-};
 
 // Get frontend URL based on environment
 const getFrontendUrl = () => {
@@ -372,72 +351,34 @@ const emailTemplates = {
   })
 };
 
-// Send email function
+// Send email function using Resend
 const sendEmail = async (to, subject, html) => {
   try {
-    const transporter = createTransporter();
-
-    // Check if using SendGrid or Gmail SMTP
-    if (transporter.send) {
-      // SendGrid API
-      const msg = {
-        to,
-        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@yourdomain.com',
-        subject,
-        html
-      };
-
-      const result = await transporter.send(msg);
-      console.log('✅ Email sent successfully via SendGrid:', result[0]?.headers?.['x-message-id']);
-      return { success: true, messageId: result[0]?.headers?.['x-message-id'] };
-      
-    } else {
-      // Gmail SMTP (Nodemailer)
-      const mailOptions = {
-        from: `"E-Learning Platform" <${process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL}>`,
-        to,
-        subject,
-        html
-      };
-      
-      const result = await transporter.sendMail(mailOptions);
-      console.log('✅ Email sent successfully via Gmail SMTP:', result.messageId);
-      return { success: true, messageId: result.messageId };
+    // Check if Resend is configured
+    if (!process.env.RESEND_API_KEY) {
+      console.error('❌ RESEND_API_KEY not configured');
+      return { success: false, error: 'Email service not configured' };
     }
+
+    // Send email via Resend
+    const result = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL || 'E-Learning Platform <onboarding@resend.dev>',
+      to: [to],
+      subject: subject,
+      html: html
+    });
+
+    console.log('✅ Email sent successfully via Resend');
+    console.log('📧 Message ID:', result.data?.id);
+    
+    return { 
+      success: true, 
+      messageId: result.data?.id 
+    };
     
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);
-    
-    // Auto fallback to Gmail SMTP if SendGrid fails
-    if (error.code === 401 || error.code === 403 || error.message.includes('Maximum credits')) {
-      console.log('⚠️ SendGrid error detected, trying Gmail SMTP fallback...');
-      
-      if (process.env.EMAIL_PASSWORD) {
-        try {
-          const gmailTransporter = createTransport({
-            service: 'gmail',
-            auth: {
-              user: process.env.EMAIL_USER || process.env.SENDGRID_FROM_EMAIL,
-              pass: process.env.EMAIL_PASSWORD
-            }
-          });
-          
-          const result = await gmailTransporter.sendMail({
-            from: `"E-Learning Platform" <${process.env.EMAIL_FROM || process.env.SENDGRID_FROM_EMAIL}>`,
-            to,
-            subject,
-            html
-          });
-          
-          console.log('✅ Email sent via Gmail SMTP fallback:', result.messageId);
-          return { success: true, messageId: result.messageId };
-        } catch (fallbackError) {
-          console.error('❌ Gmail fallback also failed:', fallbackError.message);
-          return { success: false, error: fallbackError.message };
-        }
-      }
-    }
-    
+    console.error('❌ Error details:', error.response?.body || error);
     return { success: false, error: error.message };
   }
 };
