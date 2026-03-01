@@ -1,18 +1,29 @@
 const { Resend } = require('resend');
 
-// Initialize Resend with API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy-init Resend to avoid crash when this module is required before dotenv.config()
+let resend = null;
 
-// Validate Resend configuration
-if (!process.env.RESEND_API_KEY) {
-  console.warn('⚠️ RESEND_API_KEY not found - email functionality will be disabled');
-  console.warn('⚠️ Please add RESEND_API_KEY to your .env file');
-} else if (!process.env.RESEND_API_KEY.startsWith('re_')) {
-  console.warn('⚠️ RESEND_API_KEY format incorrect - should start with "re_"');
-} else {
-  console.log('✅ Resend email service initialized');
-  console.log('📧 Email service: Resend (Primary)');
-}
+const getResend = () => {
+  if (!resend && process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+    console.log('✅ Resend email service initialized');
+    console.log('📧 Email service: Resend (Primary)');
+  }
+  return resend;
+};
+
+// Validate Resend configuration (run after dotenv loads)
+const validateResendConfig = () => {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('⚠️ RESEND_API_KEY not found - email functionality will be disabled');
+    console.warn('⚠️ Please add RESEND_API_KEY to your .env file or Render Environment Variables');
+  } else if (!process.env.RESEND_API_KEY.startsWith('re_')) {
+    console.warn('⚠️ RESEND_API_KEY format incorrect - should start with "re_"');
+  }
+};
+
+// Defer validation until server starts
+setTimeout(validateResendConfig, 100);
 
 // Get frontend URL based on environment
 const getFrontendUrl = () => {
@@ -360,8 +371,14 @@ const sendEmail = async (to, subject, html) => {
       return { success: false, error: 'Email service not configured' };
     }
 
+    const resendClient = getResend();
+    if (!resendClient) {
+      console.error('❌ Failed to initialize Resend client');
+      return { success: false, error: 'Email service initialization failed' };
+    }
+
     // Send email via Resend
-    const result = await resend.emails.send({
+    const result = await resendClient.emails.send({
       from: process.env.RESEND_FROM_EMAIL || 'E-Learning Platform <onboarding@resend.dev>',
       to: [to],
       subject: subject,

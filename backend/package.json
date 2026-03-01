@@ -4,7 +4,7 @@
   "description": "E-Learning Platform Backend API",
   "main": "src/server.js",
   "scripts": {
-    "start": "set NODE_ENV=production && node src/server.js",
+    "start": "NODE_ENV=production node src/server.js",
     "dev": "set NODE_ENV=development && set ENABLE_CRON=false && nodemon src/server.js",
     "dev:cron": "set NODE_ENV=development && set ENABLE_CRON=true && nodemon src/server.js",
     "server": "nodemon src/server.js",
