@@ -10,7 +10,7 @@ interface Lesson {
   _id: string;
   title: string;
   description?: string;
-  content: string;
+  content?: string;
   contentType: 'text' | 'video' | 'pdf' | 'quiz';
   videoUrl?: string;
   video?: {
@@ -831,7 +831,7 @@ const CourseDetail = () => {
                       <div className="prose max-w-none">
                         <div 
                           dangerouslySetInnerHTML={{ 
-                            __html: currentLesson.content.replace(/\n/g, '<br>') 
+                            __html: (currentLesson.content ?? '').replace(/\n/g, '<br>') 
                           }}
                         />
                       </div>
