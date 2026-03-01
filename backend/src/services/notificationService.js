@@ -1,15 +1,12 @@
-const sgMail = require('@sendgrid/mail');
+const { Resend } = require('resend');
 const { Server } = require('socket.io');
 const User = require('../models/User');
-
-// Set SendGrid API key
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'your-sendgrid-api-key-here');
 
 class NotificationService {
   constructor() {
     this.io = null;
-    this.emailTransporter = sgMail; // Use SendGrid instead of nodemailer
-    // No need to init transporter anymore
+    // Lazy-init Resend because this module is required before dotenv.config() in server.js
+    this.resend = null;
   }
 
   // Set Socket.IO instance (shared from socketService)
@@ -68,16 +65,44 @@ class NotificationService {
   // Gửi email
   async sendEmail(to, subject, html, attachments = null) {
     try {
-      const msg = {
-        to,
-        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@yourdomain.com', // Replace with your verified sender
+      if (!process.env.RESEND_API_KEY) {
+        console.warn('⚠️ RESEND_API_KEY not configured; skipping notification email');
+        return { skipped: true, reason: 'RESEND_API_KEY not configured' };
+      }
+
+      if (!this.resend) {
+        this.resend = new Resend(process.env.RESEND_API_KEY);
+      }
+
+      const from = process.env.RESEND_FROM_EMAIL || 'E-Learning Platform <onboarding@resend.dev>';
+
+      // Best-effort attachments support (only if shape matches Resend API)
+      let resendAttachments;
+      if (attachments) {
+        const list = Array.isArray(attachments) ? attachments : [attachments];
+        const normalized = list
+          .filter((a) => a && (a.filename || a.name) && a.content)
+          .map((a) => ({
+            filename: a.filename || a.name,
+            content: a.content
+          }));
+        if (normalized.length) {
+          resendAttachments = normalized;
+        } else {
+          console.warn('⚠️ Attachments provided but not in supported format; ignoring attachments');
+        }
+      }
+
+      const result = await this.resend.emails.send({
+        from,
+        to: [to],
         subject,
         html,
-        attachments: attachments ? [attachments] : undefined
-      };
+        ...(resendAttachments ? { attachments: resendAttachments } : {})
+      });
 
-      const result = await this.emailTransporter.send(msg);
-      console.log(`📧 Email sent successfully to ${to} via SendGrid`);
+      console.log(`📧 Email sent successfully to ${to} via Resend`);
+      console.log('📧 Message ID:', result.data?.id);
       return result;
     } catch (error) {
       console.error('❌ Error sending email:', error);
@@ -87,9 +112,10 @@ class NotificationService {
 
   // Template emails
   async sendWelcomeEmail(user) {
+    const userName = user?.name || user?.fullName || 'bạn';
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Chào mừng ${user.fullName}!</h2>
+        <h2>Chào mừng ${userName}!</h2>
         <p>Cảm ơn bạn đã đăng ký tài khoản tại E-Learning Platform.</p>
         <p>Bạn có thể bắt đầu khám phá các khóa học chất lượng cao của chúng tôi.</p>
         <a href="${process.env.FRONTEND_URL}/courses" 
@@ -106,11 +132,12 @@ class NotificationService {
 
   async sendEmailVerification(user, verificationToken) {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
+    const userName = user?.name || user?.fullName || 'bạn';
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Xác thực email của bạn</h2>
-        <p>Xin chào ${user.fullName},</p>
+        <p>Xin chào ${userName},</p>
         <p>Vui lòng click vào link bên dưới để xác thực email của bạn:</p>
         <a href="${verificationUrl}" 
            style="background-color: #28a745; color: white; padding: 10px 20px; 
@@ -127,11 +154,12 @@ class NotificationService {
 
   async sendPasswordResetEmail(user, resetToken) {
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    const userName = user?.name || user?.fullName || 'bạn';
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Đặt lại mật khẩu</h2>
-        <p>Xin chào ${user.fullName},</p>
+        <p>Xin chào ${userName},</p>
         <p>Bạn đã yêu cầu đặt lại mật khẩu. Click vào link bên dưới để tạo mật khẩu mới:</p>
         <a href="${resetUrl}" 
            style="background-color: #dc3545; color: white; padding: 10px 20px; 
@@ -147,15 +175,18 @@ class NotificationService {
   }
 
   async sendEnrollmentConfirmation(user, course) {
+    const userName = user?.name || user?.fullName || 'bạn';
+    const instructorName = course?.instructor?.name || course?.instructor?.fullName || 'Giảng viên';
+    const courseDurationMinutes = Number(course?.duration || 0);
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Đăng ký khóa học thành công!</h2>
-        <p>Xin chào ${user.fullName},</p>
+        <p>Xin chào ${userName},</p>
         <p>Bạn đã đăng ký thành công khóa học: <strong>${course.title}</strong></p>
         <div style="border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 5px;">
           <h3>${course.title}</h3>
-          <p>Giảng viên: ${course.instructor.fullName}</p>
-          <p>Thời lượng: ${course.duration} giờ</p>
+          <p>Giảng viên: ${instructorName}</p>
+          <p>Thời lượng: ${courseDurationMinutes} phút</p>
           <p>Số bài học: ${course.lessons?.length || 0}</p>
         </div>
         <a href="${process.env.FRONTEND_URL}/courses/${course._id}" 
@@ -171,25 +202,30 @@ class NotificationService {
   }
 
   async sendPaymentConfirmation(user, course, payment) {
+    const userName = user?.name || user?.fullName || 'bạn';
+    const instructorName = course?.instructor?.name || course?.instructor?.fullName || 'Giảng viên';
+    const amountVnd = payment?.amount?.final ?? payment?.amount ?? 0;
+    const provider = payment?.paymentMethod?.provider || payment?.provider || 'payment';
+    const paidAt = payment?.completedAt || payment?.paidAt || payment?.createdAt || new Date();
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Thanh toán thành công!</h2>
-        <p>Xin chào ${user.fullName},</p>
+        <p>Xin chào ${userName},</p>
         <p>Cảm ơn bạn đã thanh toán cho khóa học: <strong>${course.title}</strong></p>
         
         <div style="border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 5px;">
           <h3>Thông tin thanh toán</h3>
           <p><strong>Mã giao dịch:</strong> ${payment.transactionId}</p>
-          <p><strong>Số tiền:</strong> ${payment.amount.toLocaleString('vi-VN')} VNĐ</p>
-          <p><strong>Phương thức:</strong> ${payment.provider.toUpperCase()}</p>
-          <p><strong>Thời gian:</strong> ${new Date(payment.paidAt).toLocaleString('vi-VN')}</p>
+          <p><strong>Số tiền:</strong> ${Number(amountVnd).toLocaleString('vi-VN')} VNĐ</p>
+          <p><strong>Phương thức:</strong> ${String(provider).toUpperCase()}</p>
+          <p><strong>Thời gian:</strong> ${new Date(paidAt).toLocaleString('vi-VN')}</p>
         </div>
 
         <div style="border: 1px solid #ddd; padding: 15px; margin: 20px 0; border-radius: 5px;">
           <h3>Thông tin khóa học</h3>
           <p><strong>Tên khóa học:</strong> ${course.title}</p>
-          <p><strong>Giảng viên:</strong> ${course.instructor.fullName}</p>
-          <p><strong>Thời lượng:</strong> ${course.duration} giờ</p>
+          <p><strong>Giảng viên:</strong> ${instructorName}</p>
+          <p><strong>Thời lượng:</strong> ${course.duration} phút</p>
         </div>
 
         <a href="${process.env.FRONTEND_URL}/courses/${course._id}" 

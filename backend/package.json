@@ -19,6 +19,7 @@
     "test-admin": "node scripts/test-admin-flow.js",
     "seed": "node scripts/comprehensive-seed.js",
     "backup": "node scripts/backup-database.js",
+    "seed:demo": "node scripts/seed-demo.js",
     "deploy": "npm run build && npm run production-check"
   },
   "keywords": [

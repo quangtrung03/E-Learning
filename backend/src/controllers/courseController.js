@@ -113,8 +113,9 @@ const getCourse = async (req, res) => {
         status: 'active'
       });
       
-      // If enrolled or is instructor/admin, allow access to deleted courses
-      if (enrollment || req.user.isAdmin || req.user.role === 'instructor') {
+      // If enrolled or is admin, allow access to deleted courses
+      // NOTE: User model doesn't have `role`; instructors are tracked via Course.instructor (User ref)
+      if (enrollment || req.user.isAdmin) {
         query = Course.findById(req.params.id).select('+deleted +deletedAt');
       }
     }

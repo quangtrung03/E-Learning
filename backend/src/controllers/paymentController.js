@@ -941,8 +941,8 @@ const getPaymentByOrderId = async (req, res) => {
       });
     }
 
-    // Verify user owns this payment
-    if (payment.user._id.toString() !== req.user.id && req.user.role !== 'admin') {
+    // Verify user owns this payment (admin can access all)
+    if (payment.user._id.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Không có quyền truy cập payment này'

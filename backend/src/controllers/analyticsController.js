@@ -775,10 +775,24 @@ const getRevenueAnalytics = async (req, res) => {
     };
 
     // Filter by course if instructor
-    if (req.user.role === 'teacher') {
+    // NOTE: User model doesn't have `role`; we treat non-admin users as instructors for this endpoint.
+    if (!req.user.isAdmin) {
       const courses = await Course.find({ instructor: req.user.id }).select('_id');
-      query.course = { $in: courses.map(c => c._id) };
-    } else if (courseId && req.user.role === 'admin') {
+      const instructorCourseIds = courses.map(c => c._id.toString());
+
+      // Optional: if courseId specified, ensure instructor owns it
+      if (courseId) {
+        if (!instructorCourseIds.includes(courseId.toString())) {
+          return res.status(403).json({
+            success: false,
+            message: 'Bạn không có quyền xem revenue của khóa học này'
+          });
+        }
+        query.course = courseId;
+      } else {
+        query.course = { $in: courses.map(c => c._id) };
+      }
+    } else if (courseId) {
       query.course = courseId;
     }
 
