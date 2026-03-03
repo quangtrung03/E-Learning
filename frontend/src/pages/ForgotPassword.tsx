@@ -135,8 +135,8 @@ const ForgotPassword: React.FC = () => {
                 <h4 className="text-sm font-medium text-blue-800 mb-2">📋 Hướng dẫn tiếp theo:</h4>
                 <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
                   <li>Kiểm tra hộp thư email <strong>{email}</strong></li>
-                  <li>Tìm email từ "E-Learning Platform"</li>
-                  <li>Click vào nút "Đặt lại mật khẩu" trong email</li>
+                  <li>Tìm email từ "Nền tảng Học trực tuyến"</li>
+                  <li>Nhấn vào nút "Đặt lại mật khẩu" trong email</li>
                   <li>Nhập mật khẩu mới và xác nhận</li>
                 </ol>
                 <p className="text-xs text-blue-600 mt-2">
@@ -167,7 +167,7 @@ const ForgotPassword: React.FC = () => {
       {/* Footer */}
       <div className="mt-8 text-center">
         <p className="text-xs text-gray-500">
-          © 2025 E-Learning Platform. Bảo mật và an toàn cho người dùng.
+          © 2025 Nền tảng Học trực tuyến. Bảo mật và an toàn cho người dùng.
         </p>
       </div>
     </div>

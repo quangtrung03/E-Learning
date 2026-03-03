@@ -20,6 +20,8 @@ interface Course {
   totalStudents?: number; // Virtual count from backend
   createdAt: Date;
   progress?: number; // Add this line to fix the error
+  lastLessonId?: string | null;
+  lastAccessedAt?: string;
   instructor?: {
     name?: string;
     [key: string]: any;
@@ -32,10 +34,11 @@ const MyCourses = () => {
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [activeTab, setActiveTab] = useState<'created' | 'enrolled'>('created');
   const [loading, setLoading] = useState(true);
+  const [createdStatusFilter, setCreatedStatusFilter] = useState<'all' | Course['status']>('all');
 
   useEffect(() => {
     fetchMyCourses();
-  }, []);
+  }, [createdStatusFilter]);
 
 
 
@@ -45,7 +48,9 @@ const MyCourses = () => {
       
       // Lấy khóa học đã tạo
       try {
-        const response = await courseAPI.getMyCourses();
+        const response = await courseAPI.getMyCourses({
+          status: createdStatusFilter === 'all' ? undefined : createdStatusFilter
+        });
         console.log('Created Courses API Response:', response.data); // Debug log
         
         // Kiểm tra cấu trúc response
@@ -176,12 +181,12 @@ const MyCourses = () => {
                       Quản lý bài học
                     </Button>
                   </Link>
-                  {course.status === 'draft' && (
+                  {(course.status === 'draft' || course.status === 'rejected') && (
                     <Button 
                       size="sm"
                       onClick={() => handleSubmitForApproval(course._id)}
                     >
-                      Gửi duyệt
+                      {course.status === 'rejected' ? 'Gửi duyệt lại' : 'Gửi duyệt'}
                     </Button>
                   )}
                 </div>
@@ -245,12 +250,10 @@ const MyCourses = () => {
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">
-                  Giảng viên: {course.instructor?.name || 'N/A'}
+                  Giảng viên: {course.instructor?.name || 'Chưa có'}
                 </span>
-                <Link to={`/courses/${course._id}`}>
-                  <Button size="sm">
-                    Tiếp tục học
-                  </Button>
+                <Link to={course.lastLessonId ? `/courses/${course._id}/learn/${course.lastLessonId}` : `/courses/${course._id}`}>
+                  <Button size="sm">Tiếp tục học</Button>
                 </Link>
               </div>
             </div>
@@ -275,27 +278,45 @@ const MyCourses = () => {
       <div className="container-custom py-8">
         {/* Tabs */}
         <Card className="mb-8">
-          <div className="flex">
-            <button
-              className={`px-6 py-4 font-medium rounded-tl-xl ${
-                activeTab === 'created'
-                  ? 'bg-primary-50 text-primary-600 border-b-2 border-primary-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              onClick={() => setActiveTab('created')}
-            >
-              Khóa học đã tạo ({createdCourses.length})
-            </button>
-            <button
-              className={`px-6 py-4 font-medium ${
-                activeTab === 'enrolled'
-                  ? 'bg-primary-50 text-primary-600 border-b-2 border-primary-600'
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-              onClick={() => setActiveTab('enrolled')}
-            >
-              Khóa học đã đăng ký ({enrolledCourses.length})
-            </button>
+          <div className="flex items-center justify-between">
+            <div className="flex">
+              <button
+                className={`px-6 py-4 font-medium rounded-tl-xl ${
+                  activeTab === 'created'
+                    ? 'bg-primary-50 text-primary-600 border-b-2 border-primary-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                onClick={() => setActiveTab('created')}
+              >
+                Khóa học đã tạo ({createdCourses.length})
+              </button>
+              <button
+                className={`px-6 py-4 font-medium ${
+                  activeTab === 'enrolled'
+                    ? 'bg-primary-50 text-primary-600 border-b-2 border-primary-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                onClick={() => setActiveTab('enrolled')}
+              >
+                Khóa học đã đăng ký ({enrolledCourses.length})
+              </button>
+            </div>
+
+            {activeTab === 'created' && (
+              <div className="px-4">
+                <select
+                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={createdStatusFilter}
+                  onChange={(e) => setCreatedStatusFilter(e.target.value as any)}
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="draft">Nháp</option>
+                  <option value="pending">Chờ duyệt</option>
+                  <option value="approved">Đã duyệt</option>
+                  <option value="rejected">Bị từ chối</option>
+                </select>
+              </div>
+            )}
           </div>
         </Card>
 

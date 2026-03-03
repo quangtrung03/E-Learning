@@ -505,7 +505,7 @@ const AdminCouponManagement = () => {
                 />
               </div>
 
-              {/* Type and Value */}
+              {/* Loại và giá trị */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -535,7 +535,7 @@ const AdminCouponManagement = () => {
                 </div>
               </div>
 
-              {/* Min Order and Max Discount */}
+              {/* Đơn tối thiểu và giảm tối đa */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">

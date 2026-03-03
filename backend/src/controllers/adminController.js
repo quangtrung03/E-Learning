@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const AdminRequest = require('../models/AdminRequest');
+const AuditLog = require('../models/AuditLog');
 const emailService = require('../config/email-new');
 
 // ====================== ADMIN REQUEST MANAGEMENT ======================
@@ -321,6 +322,21 @@ const approveCourse = async (req, res) => {
 
     await course.save();
 
+    try {
+      await AuditLog.create({
+        actor: req.user.id,
+        action: 'COURSE_APPROVE',
+        entityType: 'Course',
+        entityId: course._id,
+        details: {
+          courseTitle: course.title,
+          instructorId: course.instructor
+        }
+      });
+    } catch (logError) {
+      console.error('❌ Failed to create audit log (approveCourse):', logError.message);
+    }
+
     // Gửi email thông báo cho instructor
     try {
       const instructor = await User.findById(course.instructor);
@@ -375,7 +391,36 @@ const rejectCourse = async (req, res) => {
       });
     }
 
+    if (course.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể từ chối khóa học đang chờ duyệt'
+      });
+    }
+
+    course.status = 'rejected';
+    course.isPublished = false;
+    course.rejectionReason = reason.trim();
+    course.approvedBy = null;
+    course.approvedAt = null;
+
     await course.save();
+
+    try {
+      await AuditLog.create({
+        actor: req.user.id,
+        action: 'COURSE_REJECT',
+        entityType: 'Course',
+        entityId: course._id,
+        details: {
+          courseTitle: course.title,
+          instructorId: course.instructor,
+          reason: reason.trim()
+        }
+      });
+    } catch (logError) {
+      console.error('❌ Failed to create audit log (rejectCourse):', logError.message);
+    }
 
     // Gửi email thông báo cho instructor
     try {
@@ -398,24 +443,53 @@ const rejectCourse = async (req, res) => {
       data: {
         course
       }
-    });rse.approvedBy = req.user.id;
-    course.approvedAt = new Date();
-
-    await course.save();
-
-    // TODO: Gửi email thông báo cho instructor
-
-    res.status(200).json({
-      success: true,
-      message: 'Đã từ chối khóa học',
-      data: {
-        course
-      }
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi từ chối khóa học',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy audit logs hành động admin
+// @route   GET /api/admin/audit-logs
+// @access  Private (Admin only)
+const getAuditLogs = async (req, res) => {
+  try {
+    const { page = 1, limit = 20, action = '' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const query = {};
+    if (action) {
+      query.action = action;
+    }
+
+    const logs = await AuditLog.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('actor', 'name email')
+      .lean();
+
+    const total = await AuditLog.countDocuments(query);
+
+    res.status(200).json({
+      success: true,
+      count: logs.length,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit))
+      },
+      data: { logs }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy audit logs',
       error: error.message
     });
   }
@@ -1181,6 +1255,7 @@ module.exports = {
   getPendingCourses,
   approveCourse,
   rejectCourse,
+  getAuditLogs,
   getAdminStats,
   toggleUserBan,
   getAllUsers,

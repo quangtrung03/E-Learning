@@ -38,6 +38,9 @@ interface Student {
     courseTitle: string;
     enrolledAt: string;
     progress: number;
+    lastAccessedAt?: string;
+    lastLessonId?: string | null;
+    lastLessonAccessedAt?: string | null;
   }[];
   totalCoursesEnrolled: number;
   totalCoursesCreated: number;
@@ -59,6 +62,8 @@ interface RevenueData {
     count: number;
   };
   revenue: number;
+  platformFeeAmount?: number;
+  netRevenue?: number;
   payments: {
     user: {
       _id: string;
@@ -67,13 +72,15 @@ interface RevenueData {
       avatar?: string;
     };
     amount: number;
+    platformFeeAmount?: number;
+    instructorNetAmount?: number;
     date: string;
   }[];
   reviews: any[];
   analytics: {
-    byDate: { date: string; amount: number }[];
-    byMonth: { month: string; amount: number }[];
-    byYear: { year: string; amount: number }[];
+    byDate: { date: string; amount: number; platformFeeAmount?: number; netAmount?: number }[];
+    byMonth: { month: string; amount: number; platformFeeAmount?: number; netAmount?: number }[];
+    byYear: { year: string; amount: number; platformFeeAmount?: number; netAmount?: number }[];
   };
 }
 
@@ -113,6 +120,9 @@ const Dashboard = () => {
   const [showRevenueModal, setShowRevenueModal] = useState(false);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalPlatformFee, setTotalPlatformFee] = useState(0);
+  const [totalNetRevenue, setTotalNetRevenue] = useState(0);
+  const [currentMonthPlatformFee, setCurrentMonthPlatformFee] = useState(0);
   const [selectedCourse, setSelectedCourse] = useState<RevenueData | null>(null);
   const [loadingRevenue, setLoadingRevenue] = useState(false);
   const [revenueTimeframe, setRevenueTimeframe] = useState<'day' | 'month' | 'year'>('month');
@@ -285,6 +295,9 @@ const Dashboard = () => {
       if (response.data.success) {
         setRevenueData(response.data.data.courses);
         setTotalRevenue(response.data.data.totalRevenue);
+        setTotalPlatformFee(response.data.data.totalPlatformFee || 0);
+        setTotalNetRevenue(response.data.data.totalNetRevenue || 0);
+        setCurrentMonthPlatformFee(response.data.data.currentMonthPlatformFee || 0);
       }
     } catch (error) {
       console.error('Error fetching revenue:', error);
@@ -589,7 +602,7 @@ const Dashboard = () => {
         </div>
       </Modal>
 
-      {/* Students Modal */}
+      {/* Modal học viên */}
       <Modal
         isOpen={showStudentsModal}
         onClose={() => {
@@ -605,7 +618,7 @@ const Dashboard = () => {
               <p className="text-gray-500">Đang tải...</p>
             </div>
           ) : selectedStudent ? (
-            // Student Detail View
+            // Xem chi tiết học viên
             <div className="space-y-6">
               <Button 
                 variant="outline" 
@@ -651,6 +664,9 @@ const Dashboard = () => {
                         <div className="flex-1">
                           <p className="font-medium text-gray-900">{course.courseTitle}</p>
                           <p className="text-sm text-gray-500">Đăng ký: {new Date(course.enrolledAt).toLocaleDateString('vi-VN')}</p>
+                          {course.lastAccessedAt && (
+                            <p className="text-sm text-gray-500">Học gần nhất: {new Date(course.lastAccessedAt).toLocaleDateString('vi-VN')}</p>
+                          )}
                         </div>
                         <div className="text-right">
                           <div className="text-sm font-medium text-primary-600">{course.progress}%</div>
@@ -682,7 +698,7 @@ const Dashboard = () => {
               )}
             </div>
           ) : (
-            // Students List View
+            // Danh sách học viên
             students.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500">Chưa có học viên nào</p>
@@ -756,8 +772,14 @@ const Dashboard = () => {
                   <p className="text-xl font-bold text-purple-600">{selectedCourse.studentsCount}</p>
                 </Card>
                 <Card className="p-4">
-                  <p className="text-sm text-gray-600">Tổng doanh thu</p>
+                  <p className="text-sm text-gray-600">Doanh thu (gộp)</p>
                   <p className="text-xl font-bold text-green-600">{selectedCourse.revenue.toLocaleString('vi-VN')}đ</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Phí nền tảng: {(selectedCourse.platformFeeAmount || 0).toLocaleString('vi-VN')}đ
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Doanh thu ròng: {(selectedCourse.netRevenue || 0).toLocaleString('vi-VN')}đ
+                  </p>
                 </Card>
               </div>
 
@@ -858,6 +880,23 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="space-y-3">
+                <Card className="p-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Doanh thu (gộp)</p>
+                      <p className="text-lg font-bold text-green-600">{totalRevenue.toLocaleString('vi-VN')}đ</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Phí nền tảng</p>
+                      <p className="text-lg font-bold text-gray-700">{totalPlatformFee.toLocaleString('vi-VN')}đ</p>
+                      <p className="text-xs text-gray-500">Tháng này: {currentMonthPlatformFee.toLocaleString('vi-VN')}đ</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Doanh thu ròng</p>
+                      <p className="text-lg font-bold text-orange-600">{totalNetRevenue.toLocaleString('vi-VN')}đ</p>
+                    </div>
+                  </div>
+                </Card>
                 {revenueData.map((course) => (
                   <div 
                     key={course.courseId} 
@@ -875,7 +914,8 @@ const Dashboard = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-xl font-bold text-green-600">{course.revenue.toLocaleString('vi-VN')}đ</p>
-                        <p className="text-xs text-gray-500">Doanh thu</p>
+                        <p className="text-xs text-gray-500">Doanh thu (gộp)</p>
+                        <p className="text-xs text-gray-500">Ròng: {(course.netRevenue || 0).toLocaleString('vi-VN')}đ</p>
                       </div>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">

@@ -1,12 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
-import { messageAPI } from '../services/api';
+import { friendAPI, messageAPI, uploadAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useSocket } from '../context/SocketContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Paperclip, Send, Image as ImageIcon, File, Download, X } from 'lucide-react';
-import axios from 'axios';
+import FileUploadCard from '../components/upload/FileUploadCard';
+import resolveFileUrl from '../utils/resolveFileUrl';
+
+interface Relationship {
+  isFriend: boolean;
+  pendingOutgoing: boolean;
+  pendingIncoming: boolean;
+  isBlockedByMe: boolean;
+  hasBlockedMe: boolean;
+}
+
+interface SearchUser {
+  _id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  relationship?: Relationship;
+}
+
+interface FriendRequest {
+  _id: string;
+  fromUser: SearchUser;
+  toUser: SearchUser;
+  createdAt: string;
+}
 
 interface Message {
   _id: string;
@@ -41,7 +65,6 @@ const Messages = () => {
   const toast = useToast();
   const { socket, isConnected, onlineUsers } = useSocket();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -51,15 +74,77 @@ const Messages = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreview, setFilePreview] = useState<string | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showAttachmentUploader, setShowAttachmentUploader] = useState(false);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [attachment, setAttachment] = useState<null | { url: string; name: string; type: 'image' | 'file' }>(null);
+
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSearchResults, setUserSearchResults] = useState<SearchUser[]>([]);
+  const [userSearching, setUserSearching] = useState(false);
+
+  const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
 
   useEffect(() => {
     fetchConversations();
+    fetchFriendRequests();
   }, []);
+
+  const fetchFriendRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      const resp = await friendAPI.getRequests();
+      if (resp.data?.success) {
+        setIncomingRequests(resp.data.data?.incoming || []);
+      } else {
+        setIncomingRequests([]);
+      }
+    } catch (error) {
+      console.error('Error fetching friend requests:', error);
+      setIncomingRequests([]);
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
+  const performUserSearch = async (q: string) => {
+    if (q.length < 2) {
+      setUserSearchResults([]);
+      return;
+    }
+
+    try {
+      setUserSearching(true);
+      const response = await friendAPI.searchUsers(q);
+      if (response.data?.success) {
+        setUserSearchResults(response.data.data?.users || []);
+      } else {
+        setUserSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setUserSearchResults([]);
+    } finally {
+      setUserSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    const q = userSearchQuery.trim();
+    if (q.length < 2) {
+      setUserSearchResults([]);
+      setUserSearching(false);
+      return;
+    }
+
+    const handle = setTimeout(async () => {
+      await performUserSearch(q);
+    }, 300);
+
+    return () => clearTimeout(handle);
+  }, [userSearchQuery]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -147,6 +232,117 @@ const Messages = () => {
     }
   };
 
+  const handleStartConversation = async (targetUser: SearchUser) => {
+    if (targetUser.relationship?.hasBlockedMe) {
+      toast.showToast({ type: 'error', title: 'Bạn không thể nhắn tin vì người này đã chặn bạn' });
+      return;
+    }
+    if (targetUser.relationship?.isBlockedByMe) {
+      toast.showToast({ type: 'error', title: 'Bạn đang chặn người này. Hãy bỏ chặn để nhắn tin' });
+      return;
+    }
+
+    try {
+      const response = await messageAPI.getOrCreateConversation(targetUser._id);
+      if (!response.data?.success) {
+        toast.showToast({ type: 'error', title: response.data?.message || 'Không thể tạo cuộc trò chuyện' });
+        return;
+      }
+
+      const conversation: Conversation | undefined = response.data.data?.conversation;
+      if (!conversation) {
+        toast.showToast({ type: 'error', title: 'Không thể tạo cuộc trò chuyện' });
+        return;
+      }
+
+      setConversations((prev) => {
+        const exists = prev.some((c) => c._id === conversation._id);
+        if (exists) return prev;
+        return [conversation, ...prev];
+      });
+
+      setSelectedConversation(conversation);
+      setUserSearchQuery('');
+      setUserSearchResults([]);
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể tạo cuộc trò chuyện' });
+    }
+  };
+
+  const handleSendFriendRequest = async (targetUserId: string) => {
+    try {
+      const resp = await friendAPI.sendRequest(targetUserId);
+      if (resp.data?.success) {
+        toast.showToast({ type: 'success', title: resp.data?.message || 'Đã gửi lời mời kết bạn' });
+        await performUserSearch(userSearchQuery.trim());
+        await fetchFriendRequests();
+      } else {
+        toast.showToast({ type: 'error', title: resp.data?.message || 'Không thể gửi lời mời' });
+      }
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể gửi lời mời' });
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const resp = await friendAPI.acceptRequest(requestId);
+      if (resp.data?.success) {
+        toast.showToast({ type: 'success', title: resp.data?.message || 'Đã chấp nhận' });
+        await fetchFriendRequests();
+        await performUserSearch(userSearchQuery.trim());
+      } else {
+        toast.showToast({ type: 'error', title: resp.data?.message || 'Không thể chấp nhận' });
+      }
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể chấp nhận' });
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      const resp = await friendAPI.rejectRequest(requestId);
+      if (resp.data?.success) {
+        toast.showToast({ type: 'success', title: resp.data?.message || 'Đã từ chối' });
+        await fetchFriendRequests();
+        await performUserSearch(userSearchQuery.trim());
+      } else {
+        toast.showToast({ type: 'error', title: resp.data?.message || 'Không thể từ chối' });
+      }
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể từ chối' });
+    }
+  };
+
+  const handleBlock = async (targetUserId: string) => {
+    try {
+      const resp = await friendAPI.blockUser(targetUserId);
+      if (resp.data?.success) {
+        toast.showToast({ type: 'success', title: resp.data?.message || 'Đã chặn' });
+        await fetchFriendRequests();
+        await performUserSearch(userSearchQuery.trim());
+      } else {
+        toast.showToast({ type: 'error', title: resp.data?.message || 'Không thể chặn' });
+      }
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể chặn' });
+    }
+  };
+
+  const handleUnblock = async (targetUserId: string) => {
+    try {
+      const resp = await friendAPI.unblockUser(targetUserId);
+      if (resp.data?.success) {
+        toast.showToast({ type: 'success', title: resp.data?.message || 'Đã bỏ chặn' });
+        await performUserSearch(userSearchQuery.trim());
+      } else {
+        toast.showToast({ type: 'error', title: resp.data?.message || 'Không thể bỏ chặn' });
+      }
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể bỏ chặn' });
+    }
+  };
+
   const fetchMessages = async (conversationId: string) => {
     try {
       setMessagesLoading(true);
@@ -199,100 +395,37 @@ const Messages = () => {
     }, 2000);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Check file size (10MB limit)
-    if (file.size > 10 * 1024 * 1024) {
-      toast.showToast({ type: 'error', title: 'File quá lớn. Giới hạn 10MB' });
-      return;
-    }
-
-    setSelectedFile(file);
-
-    // Create preview for images
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setFilePreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      setFilePreview(null);
-    }
-  };
-
-  const handleUploadFile = async (): Promise<{ fileUrl: string; fileName: string; fileType: string } | null> => {
-    if (!selectedFile) return null;
-
-    try {
-      setUploadingFile(true);
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/messages/upload`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`
-          },
-          onUploadProgress: (progressEvent) => {
-            const progress = progressEvent.total
-              ? Math.round((progressEvent.loaded * 100) / progressEvent.total)
-              : 0;
-            setUploadProgress(progress);
-          }
-        }
-      );
-
-      if (response.data.success) {
-        return response.data.data;
-      }
-      return null;
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      toast.showToast({ type: 'error', title: 'Không thể tải file lên' });
-      return null;
-    } finally {
-      setUploadingFile(false);
-      setUploadProgress(0);
-    }
-  };
-
   const handleSendMessage = async () => {
-    if ((!messageInput.trim() && !selectedFile) || !selectedConversation) return;
+    if ((!messageInput.trim() && !attachment) || !selectedConversation) return;
 
     try {
       setSending(true);
 
-      let fileData = null;
-      if (selectedFile) {
-        fileData = await handleUploadFile();
-        if (!fileData) {
-          setSending(false);
-          return;
-        }
-      }
-
       const messageData = {
-        content: messageInput.trim() || `[File: ${fileData?.fileName}]`,
-        type: fileData?.fileType || 'text',
-        fileUrl: fileData?.fileUrl,
-        fileName: fileData?.fileName
+        content: messageInput.trim() || (attachment ? `[File: ${attachment.name}]` : ''),
+        type: attachment?.type || 'text',
+        fileUrl: attachment?.url,
+        fileName: attachment?.name
       };
 
-      const response = await messageAPI.sendMessage(selectedConversation._id, messageData.content, messageData.type);
+      const response = await messageAPI.sendMessage(
+        selectedConversation._id,
+        messageData.content,
+        messageData.type,
+        attachment
+          ? {
+              fileUrl: messageData.fileUrl,
+              fileName: messageData.fileName
+            }
+          : undefined
+      );
       
       if (response.data.success) {
         const newMessage = response.data.data.message;
         setMessages(prev => [...prev, newMessage]);
         setMessageInput('');
-        setSelectedFile(null);
-        setFilePreview(null);
+        setAttachment(null);
+        setShowAttachmentUploader(false);
         
         // Emit socket event
         if (socket) {
@@ -354,14 +487,14 @@ const Messages = () => {
             >
               {hasFile && message.type === 'image' && (
                 <img
-                  src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${message.fileUrl}`}
+                  src={resolveFileUrl(message.fileUrl)}
                   alt={message.fileName}
                   className="max-w-full rounded mb-2 max-h-64 object-cover"
                 />
               )}
               {hasFile && message.type === 'file' && (
                 <a
-                  href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${message.fileUrl}`}
+                  href={resolveFileUrl(message.fileUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`flex items-center gap-2 mb-2 ${isOwn ? 'text-white' : 'text-primary-600'}`}
@@ -411,7 +544,127 @@ const Messages = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[calc(100vh-200px)]">
           {/* Conversations List */}
           <Card className="lg:col-span-1 p-4 overflow-y-auto">
-            <h2 className="text-lg font-semibold mb-4">Cuộc trò chuyện</h2>
+            <h2 className="text-lg font-semibold mb-3">Cuộc trò chuyện</h2>
+
+            <div className="mb-4">
+              <div className="flex items-center gap-2">
+                <input
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  placeholder="Tìm bạn để nhắn tin..."
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                {userSearchQuery.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUserSearchQuery('');
+                      setUserSearchResults([]);
+                    }}
+                    className="p-2 rounded-lg hover:bg-gray-100"
+                    aria-label="Xóa tìm kiếm"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </button>
+                )}
+              </div>
+
+              {(userSearching || userSearchResults.length > 0) && userSearchQuery.trim().length >= 2 && (
+                <div className="mt-2 border border-gray-200 rounded-lg bg-white overflow-hidden">
+                  {userSearching ? (
+                    <div className="p-3 text-sm text-gray-600">Đang tìm...</div>
+                  ) : userSearchResults.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-600">Không tìm thấy người dùng</div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {userSearchResults.map((u) => {
+                        const rel = u.relationship;
+                        const disabledChat = !!rel?.hasBlockedMe || !!rel?.isBlockedByMe;
+                        const canSendRequest =
+                          !!rel && !rel.isFriend && !rel.pendingOutgoing && !rel.pendingIncoming && !rel.isBlockedByMe && !rel.hasBlockedMe;
+
+                        return (
+                          <div key={u._id} className="p-3 hover:bg-gray-50 transition-colors">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-gray-900 truncate">{u.name}</div>
+                                <div className="text-xs text-gray-500 truncate">{u.email}</div>
+                                {rel?.hasBlockedMe && (
+                                  <div className="text-xs text-red-600 mt-1">Người này đã chặn bạn</div>
+                                )}
+                                {rel?.isBlockedByMe && (
+                                  <div className="text-xs text-orange-600 mt-1">Bạn đang chặn người này</div>
+                                )}
+                                {rel?.isFriend && (
+                                  <div className="text-xs text-green-600 mt-1">Bạn bè</div>
+                                )}
+                                {rel?.pendingOutgoing && (
+                                  <div className="text-xs text-gray-600 mt-1">Đã gửi lời mời</div>
+                                )}
+                                {rel?.pendingIncoming && (
+                                  <div className="text-xs text-blue-600 mt-1">Đang chờ bạn chấp nhận</div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-2 items-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  disabled={disabledChat}
+                                  onClick={() => handleStartConversation(u)}
+                                >
+                                  Nhắn tin
+                                </Button>
+
+                                {canSendRequest && (
+                                  <Button size="sm" onClick={() => handleSendFriendRequest(u._id)}>
+                                    Kết bạn
+                                  </Button>
+                                )}
+
+                                {rel?.isBlockedByMe ? (
+                                  <Button size="sm" variant="outline" onClick={() => handleUnblock(u._id)}>
+                                    Bỏ chặn
+                                  </Button>
+                                ) : (
+                                  <Button size="sm" variant="outline" onClick={() => handleBlock(u._id)}>
+                                    Chặn
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {requestsLoading ? (
+              <div className="mb-4 text-sm text-gray-600">Đang tải lời mời kết bạn...</div>
+            ) : incomingRequests.length > 0 ? (
+              <div className="mb-4">
+                <div className="text-sm font-semibold text-gray-900 mb-2">Lời mời kết bạn</div>
+                <div className="space-y-2">
+                  {incomingRequests.slice(0, 5).map((reqItem) => (
+                    <div key={reqItem._id} className="p-3 bg-white border border-gray-200 rounded-lg">
+                      <div className="text-sm font-medium text-gray-900 truncate">{reqItem.fromUser?.name || 'Người dùng'}</div>
+                      <div className="text-xs text-gray-500 truncate">{reqItem.fromUser?.email}</div>
+                      <div className="flex gap-2 mt-2">
+                        <Button size="sm" onClick={() => handleAcceptRequest(reqItem._id)}>
+                          Chấp nhận
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => handleRejectRequest(reqItem._id)}>
+                          Từ chối
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             
             {conversations.length === 0 ? (
               <div className="text-center py-12">
@@ -535,56 +788,59 @@ const Messages = () => {
                   )}
                 </div>
 
-                {/* File Preview */}
-                {selectedFile && (
-                  <div className="px-4 py-2 bg-gray-100 border-t border-gray-200">
-                    <div className="flex items-center gap-3">
-                      {filePreview ? (
-                        <img src={filePreview} alt="Preview" className="w-16 h-16 object-cover rounded" />
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
-                          <File className="w-8 h-8 text-gray-400" />
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{selectedFile.name}</p>
-                        <p className="text-xs text-gray-500">{(selectedFile.size / 1024).toFixed(2)} KB</p>
-                        {uploadProgress > 0 && (
-                          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-                            <div className="bg-primary-600 h-1.5 rounded-full" style={{ width: `${uploadProgress}%` }}></div>
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedFile(null);
-                          setFilePreview(null);
-                        }}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 {/* Message Input */}
                 <div className="p-4 border-t border-gray-200">
+                  {showAttachmentUploader && (
+                    <div className="mb-3">
+                      <FileUploadCard
+                        title="Đính kèm file"
+                        description="Hình ảnh hoặc tài liệu (PDF/DOC/XLS). Tối đa 10MB."
+                        accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                        maxSizeMB={10}
+                        disabled={sending || attachmentUploading}
+                        uploadedUrl={attachment?.url || ''}
+                        onUploadedUrlChange={(url) => {
+                          if (!url) {
+                            setAttachment(null);
+                          }
+                        }}
+                        uploadFile={async (file, onProgress) => {
+                          setAttachmentUploading(true);
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+
+                            const isImage = file.type.startsWith('image/');
+                            const response = isImage
+                              ? await uploadAPI.uploadImage(formData, onProgress)
+                              : await uploadAPI.uploadDocument(formData, onProgress);
+
+                            const uploaded = response.data.data;
+
+                            setAttachment({
+                              url: uploaded.url,
+                              name: file.name,
+                              type: isImage ? 'image' : 'file'
+                            });
+                            setShowAttachmentUploader(false);
+                            return uploaded;
+                          } finally {
+                            setAttachmentUploading(false);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex gap-2">
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
                     <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={sending || uploadingFile}
+                      type="button"
+                      onClick={() => setShowAttachmentUploader((v) => !v)}
+                      disabled={sending || attachmentUploading}
                       className="p-2 text-gray-600 hover:text-primary-600 hover:bg-gray-100 rounded-lg transition-colors"
                       title="Đính kèm file"
                     >
-                      {selectedFile ? <ImageIcon className="w-5 h-5" /> : <Paperclip className="w-5 h-5" />}
+                      {attachment ? <ImageIcon className="w-5 h-5" /> : <Paperclip className="w-5 h-5" />}
                     </button>
                     <input
                       type="text"
@@ -596,13 +852,13 @@ const Messages = () => {
                       onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                       placeholder="Nhập tin nhắn..."
                       className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                      disabled={sending || uploadingFile}
+                      disabled={sending || attachmentUploading}
                     />
                     <Button
                       onClick={handleSendMessage}
-                      disabled={sending || uploadingFile || (!messageInput.trim() && !selectedFile)}
+                      disabled={sending || attachmentUploading || (!messageInput.trim() && !attachment)}
                     >
-                      {sending || uploadingFile ? (
+                      {sending || attachmentUploading ? (
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                       ) : (
                         <>

@@ -1475,9 +1475,50 @@ const getGroupAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Lấy study group theo mã mời (inviteCode)
+// @route   GET /api/study-groups/by-code/:code
+// @access  Private
+const getStudyGroupByCode = async (req, res) => {
+  try {
+    const code = String(req.params.code || '').trim().toUpperCase();
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: 'Mã nhóm không hợp lệ'
+      });
+    }
+
+    const studyGroup = await StudyGroup.findOne({
+      inviteCode: code,
+      status: 'active'
+    })
+      .populate('creator', 'name avatar')
+      .populate('course', 'title thumbnail');
+
+    if (!studyGroup) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy nhóm với mã này'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { studyGroup }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi tìm nhóm theo mã',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createStudyGroup,
   getStudyGroups,
+  getStudyGroupByCode,
   getStudyGroupsByCourse,
   getStudyGroup,
   joinStudyGroup,

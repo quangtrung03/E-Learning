@@ -22,6 +22,15 @@ const videoFilter = (req, file, cb) => {
   }
 };
 
+// File filter for audio
+const audioFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('audio/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Chỉ chấp nhận file âm thanh!'), false);
+  }
+};
+
 // File filter for documents
 const documentFilter = (req, file, cb) => {
   const allowedTypes = /pdf|doc|docx|ppt|pptx|xls|xlsx|txt|zip/;
@@ -62,6 +71,14 @@ const uploadVideo = multer({
   }
 });
 
+const uploadAudio = multer({
+  storage: storage,
+  fileFilter: audioFilter,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB limit for audio
+  }
+});
+
 const uploadDocument = multer({
   storage: storage,
   fileFilter: documentFilter,
@@ -81,6 +98,7 @@ const uploadAny = multer({
 module.exports = {
   uploadImage,
   uploadVideo,
+  uploadAudio,
   uploadDocument,
   uploadAny
 };

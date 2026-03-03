@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import api from '../services/api';
+import { analyticsAPI } from '../services/api';
 
 interface Course {
   _id: string;
@@ -32,6 +33,45 @@ interface AdminStats {
   pendingAdminRequests?: number;
 }
 
+interface PlatformFeeReport {
+  period: { year: number; month: number };
+  summary: {
+    totalGross: number;
+    totalPlatformFee: number;
+    totalNet: number;
+    totalTransactions: number;
+  };
+  byInstructor: Array<{
+    instructorId: string | null;
+    instructorName: string;
+    instructorEmail?: string;
+    gross: number;
+    platformFee: number;
+    net: number;
+    transactions: number;
+  }>;
+  byCourse: Array<{
+    courseId: string | null;
+    courseTitle: string;
+    instructorId: string | null;
+    instructorName: string;
+    gross: number;
+    platformFee: number;
+    net: number;
+    transactions: number;
+  }>;
+}
+
+interface AuditLogItem {
+  _id: string;
+  actor?: { _id: string; name: string; email: string };
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  details?: any;
+  createdAt: string;
+}
+
 
 
 const AdminDashboard = () => {
@@ -48,11 +88,76 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const now = new Date();
+  const [reportYear, setReportYear] = useState(now.getFullYear());
+  const [reportMonth, setReportMonth] = useState(now.getMonth() + 1);
+  const [platformFeeReport, setPlatformFeeReport] = useState<PlatformFeeReport | null>(null);
+  const [loadingPlatformFee, setLoadingPlatformFee] = useState(false);
+
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+
   useEffect(() => {
     if (user?.isAdmin) {
       fetchAdminData();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user?.isAdmin) {
+      fetchAuditLogs();
+    }
+  }, [user]);
+
+  const fetchAuditLogs = async () => {
+    try {
+      setLoadingAuditLogs(true);
+      const response = await api.get('/admin/audit-logs', { params: { page: 1, limit: 10 } });
+      if (response.data?.success) {
+        setAuditLogs(response.data.data.logs || []);
+      } else {
+        setAuditLogs([]);
+      }
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      setAuditLogs([]);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  };
+
+  const getAuditActionLabel = (action: string) => {
+    const map: Record<string, string> = {
+      COURSE_APPROVE: 'Duyệt khóa học',
+      COURSE_REJECT: 'Từ chối khóa học',
+      PAYMENT_REFUND: 'Refund thanh toán'
+    };
+    return map[action] || action;
+  };
+
+  useEffect(() => {
+    if (user?.isAdmin) {
+      fetchPlatformFeeReport();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, reportYear, reportMonth]);
+
+  const fetchPlatformFeeReport = async () => {
+    try {
+      setLoadingPlatformFee(true);
+      const response = await analyticsAPI.getPlatformFeeReport({ year: reportYear, month: reportMonth });
+      if (response.data?.success) {
+        setPlatformFeeReport(response.data.data);
+      } else {
+        setPlatformFeeReport(null);
+      }
+    } catch (error) {
+      console.error('Error fetching platform fee report:', error);
+      setPlatformFeeReport(null);
+    } finally {
+      setLoadingPlatformFee(false);
+    }
+  };
 
   const fetchAdminData = async () => {
     try {
@@ -215,7 +320,7 @@ const AdminDashboard = () => {
       {/* Header */}
       <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
         <div className="container-custom py-12">
-          <h1 className="text-4xl font-bold mb-4">Admin Dashboard</h1>
+          <h1 className="text-4xl font-bold mb-4">Bảng điều khiển quản trị</h1>
           <p className="text-purple-100 text-lg">
             Quản lý hệ thống E-Learning
           </p>
@@ -303,7 +408,7 @@ const AdminDashboard = () => {
             <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Admin Requests</p>
+                  <p className="text-sm font-medium text-gray-600">Yêu cầu quyền quản trị</p>
                   <p className="text-3xl font-bold text-indigo-600">{stats.pendingAdminRequests}</p>
                 </div>
                 <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -315,6 +420,167 @@ const AdminDashboard = () => {
             </Card>
           </Link>
         </div>
+
+        {/* Platform Fee Report */}
+        <Card className="p-6 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Báo cáo phí nền tảng theo tháng</h2>
+              <p className="text-sm text-gray-600">Tổng hợp từ các giao dịch đã hoàn tất</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={reportMonth}
+                onChange={(e) => setReportMonth(parseInt(e.target.value, 10))}
+              >
+                {Array.from({ length: 12 }).map((_, idx) => {
+                  const m = idx + 1;
+                  return (
+                    <option key={m} value={m}>
+                      Tháng {m}
+                    </option>
+                  );
+                })}
+              </select>
+              <input
+                type="number"
+                className="w-28 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={reportYear}
+                onChange={(e) => setReportYear(parseInt(e.target.value, 10))}
+              />
+            </div>
+          </div>
+
+          {loadingPlatformFee ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
+            </div>
+          ) : !platformFeeReport ? (
+            <div className="text-center py-8 text-gray-600">Chưa có dữ liệu báo cáo cho tháng này</div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <p className="text-sm text-gray-600">Doanh thu (gộp)</p>
+                  <p className="text-xl font-bold text-green-600">{platformFeeReport.summary.totalGross.toLocaleString('vi-VN')}đ</p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <p className="text-sm text-gray-600">Phí nền tảng</p>
+                  <p className="text-xl font-bold text-gray-800">{platformFeeReport.summary.totalPlatformFee.toLocaleString('vi-VN')}đ</p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <p className="text-sm text-gray-600">Doanh thu ròng (giảng viên)</p>
+                  <p className="text-xl font-bold text-orange-600">{platformFeeReport.summary.totalNet.toLocaleString('vi-VN')}đ</p>
+                </div>
+                <div className="p-4 bg-gray-50 rounded-lg border">
+                  <p className="text-sm text-gray-600">Số giao dịch</p>
+                  <p className="text-xl font-bold text-blue-600">{platformFeeReport.summary.totalTransactions}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Theo giảng viên</h3>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left p-3">Giảng viên</th>
+                          <th className="text-right p-3">Phí nền tảng</th>
+                          <th className="text-right p-3">Gộp</th>
+                          <th className="text-right p-3">Ròng</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {platformFeeReport.byInstructor.slice(0, 20).map((row) => (
+                          <tr key={row.instructorId || row.instructorName} className="border-t">
+                            <td className="p-3">
+                              <div className="font-medium text-gray-900">{row.instructorName}</div>
+                              {row.instructorEmail && <div className="text-xs text-gray-500">{row.instructorEmail}</div>}
+                            </td>
+                            <td className="p-3 text-right font-semibold text-gray-800">{row.platformFee.toLocaleString('vi-VN')}đ</td>
+                            <td className="p-3 text-right text-gray-700">{row.gross.toLocaleString('vi-VN')}đ</td>
+                            <td className="p-3 text-right text-gray-700">{row.net.toLocaleString('vi-VN')}đ</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-3">Theo khóa học</h3>
+                  <div className="overflow-x-auto border rounded-lg">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left p-3">Khóa học</th>
+                          <th className="text-left p-3">Giảng viên</th>
+                          <th className="text-right p-3">Phí nền tảng</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {platformFeeReport.byCourse.slice(0, 20).map((row) => (
+                          <tr key={row.courseId || row.courseTitle} className="border-t">
+                            <td className="p-3">
+                              <div className="font-medium text-gray-900">{row.courseTitle || 'Không rõ'}</div>
+                              <div className="text-xs text-gray-500">Giao dịch: {row.transactions}</div>
+                            </td>
+                            <td className="p-3 text-gray-700">{row.instructorName}</td>
+                            <td className="p-3 text-right font-semibold text-gray-800">{row.platformFee.toLocaleString('vi-VN')}đ</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </Card>
+
+        {/* Audit Logs */}
+        <Card className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Audit log (gần đây)</h2>
+              <p className="text-sm text-gray-600">Theo dõi hành động quản trị quan trọng</p>
+            </div>
+            <Button variant="outline" onClick={fetchAuditLogs} disabled={loadingAuditLogs}>
+              {loadingAuditLogs ? 'Đang tải...' : 'Tải lại'}
+            </Button>
+          </div>
+
+          {loadingAuditLogs ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
+            </div>
+          ) : auditLogs.length === 0 ? (
+            <div className="text-center py-8 text-gray-600">Chưa có audit log</div>
+          ) : (
+            <div className="divide-y">
+              {auditLogs.map((log) => (
+                <div key={log._id} className="py-3 flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900">{getAuditActionLabel(log.action)}</div>
+                    <div className="text-sm text-gray-600">
+                      {log.actor?.name ? `${log.actor.name} (${log.actor.email})` : 'Không rõ người thực hiện'}
+                      {' • '}
+                      {log.entityType}
+                      {log.details?.courseTitle ? ` • ${log.details.courseTitle}` : ''}
+                      {log.details?.orderId ? ` • ${log.details.orderId}` : ''}
+                    </div>
+                  </div>
+                  <div className="text-sm text-gray-500 whitespace-nowrap">
+                    {new Date(log.createdAt).toLocaleString('vi-VN')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* Pending Courses */}
         <Card>

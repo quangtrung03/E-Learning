@@ -2,6 +2,7 @@ const { validationResult } = require('express-validator');
 const Lesson = require('../models/Lesson');
 const Course = require('../models/Course');
 const User = require('../models/User');
+const CourseSection = require('../models/CourseSection');
 const { isUserEnrolled } = require('../utils/enrollmentHelpers');
 
 // @desc    Lấy tất cả bài học của một khóa học
@@ -23,6 +24,17 @@ const getLessonsByCourse = async (req, res) => {
     }
 
     let query = { course: courseId };
+
+    const currentUserId = req.user?._id?.toString() || req.user?.id?.toString();
+    const instructorId = course.instructor?._id
+      ? course.instructor._id.toString()
+      : course.instructor?.toString();
+    const isInstructorOrAdmin = !!req.user && (req.user.isAdmin || instructorId === currentUserId);
+
+    // Students should not see hidden lessons (backward-compatible: undefined is treated as visible)
+    if (!isInstructorOrAdmin) {
+      query.isHidden = { $ne: true };
+    }
     
     // Nếu không đăng nhập hoặc chưa enroll, chỉ xem preview lessons
     if (!req.user) {
@@ -32,13 +44,14 @@ const getLessonsByCourse = async (req, res) => {
       const isEnrolled = await isUserEnrolled(req.user.id, courseId);
       
       // Nếu chưa enroll và không phải instructor/admin, chỉ xem preview
-      if (!isEnrolled && course.instructor.toString() !== req.user.id && !req.user.isAdmin) {
+      if (!isEnrolled && !isInstructorOrAdmin) {
         query.isPreview = true;
       }
     }
 
     const lessons = await Lesson.find(query)
       .populate('course', 'title instructor')
+      .populate('section', 'title order')
       .sort({ order: 1 })
       .skip(skip)
       .limit(limit)
@@ -74,7 +87,7 @@ const getLessonsByCourse = async (req, res) => {
 // @access  Private (enrolled students, instructor, admin)
 const getLesson = async (req, res) => {
   try {
-    const lesson = await Lesson.findById(req.params.id)
+    const lesson = req.lesson || await Lesson.findById(req.params.id)
       .populate('course', 'title instructor students');
 
     if (!lesson) {
@@ -91,6 +104,14 @@ const getLesson = async (req, res) => {
     
     const isInstructor = course.instructor.toString() === req.user._id.toString();
     const isAdmin = req.user.isAdmin;
+
+    // Chặn học viên truy cập lesson bị ẩn
+    if (lesson.isHidden && !isInstructor && !isAdmin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bài học'
+      });
+    }
 
     // Nếu là preview lesson thì ai cũng xem được
     if (lesson.isPreview) {
@@ -117,6 +138,69 @@ const getLesson = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi lấy bài học',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Ẩn/hiện nhiều bài học trong một khóa học
+// @route   PUT /api/lessons/by-course/:courseId/visibility
+// @access  Private (instructor, admin)
+const bulkSetLessonsHidden = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu không hợp lệ',
+        errors: errors.array()
+      });
+    }
+
+    const { courseId } = req.params;
+    const { lessonIds, isHidden } = req.body;
+
+    const course = await Course.findById(courseId).select('instructor');
+    if (!course) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy khóa học'
+      });
+    }
+
+    const courseInstructor = course.instructor.toString();
+    const currentUserId = req.user._id.toString();
+    if (courseInstructor !== currentUserId && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn không có quyền thực hiện hành động này'
+      });
+    }
+
+    if (!Array.isArray(lessonIds) || lessonIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'lessonIds không hợp lệ'
+      });
+    }
+
+    const result = await Lesson.updateMany(
+      { _id: { $in: lessonIds }, course: courseId },
+      { $set: { isHidden: !!isHidden } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật trạng thái hiển thị bài học thành công',
+      data: {
+        matchedCount: result.matchedCount ?? result.n,
+        modifiedCount: result.modifiedCount ?? result.nModified
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật trạng thái hiển thị bài học',
       error: error.message
     });
   }
@@ -161,6 +245,23 @@ const createLesson = async (req, res) => {
 
     // Gán course ID
     req.body.course = courseId;
+
+    // Validate section (if provided)
+    if (req.body.section) {
+      const section = await CourseSection.findById(req.body.section).select('course');
+      if (!section) {
+        return res.status(400).json({
+          success: false,
+          message: 'Section không hợp lệ'
+        });
+      }
+      if (section.course.toString() !== courseId.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Section không thuộc khóa học này'
+        });
+      }
+    }
 
     // Nếu không có order, tự động đặt là lesson cuối cùng + 1
     if (!req.body.order) {
@@ -223,6 +324,28 @@ const updateLesson = async (req, res) => {
         success: false,
         message: 'Bạn chỉ có thể chỉnh sửa bài học của khóa học mình tạo'
       });
+    }
+
+    // Validate section (if provided)
+    if (req.body.section) {
+      const section = await CourseSection.findById(req.body.section).select('course');
+      if (!section) {
+        return res.status(400).json({
+          success: false,
+          message: 'Section không hợp lệ'
+        });
+      }
+      if (section.course.toString() !== lesson.course._id.toString()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Section không thuộc khóa học này'
+        });
+      }
+    }
+
+    // Allow unsetting section
+    if (req.body.section === null || req.body.section === '') {
+      req.body.section = null;
     }
 
     lesson = await Lesson.findByIdAndUpdate(req.params.id, req.body, {
@@ -424,6 +547,7 @@ module.exports = {
   getLesson,
   createLesson,
   updateLesson,
+  bulkSetLessonsHidden,
   deleteLesson,
   completeLesson,
   uncompleteLesson

@@ -40,6 +40,16 @@ const enrollmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  // Bài học gần nhất đã truy cập (để resume đa thiết bị)
+  lastLesson: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Lesson',
+    default: null
+  },
+  lastLessonAccessedAt: {
+    type: Date,
+    default: null
+  },
   // Theo dõi lessons đã hoàn thành
   completedLessons: [{
     lesson: {
@@ -148,9 +158,13 @@ enrollmentSchema.methods.updateProgress = async function() {
   }
   
   const totalLessons = course.lessons.length;
-  const completedCount = this.completedLessons.length;
+  const courseLessonIds = new Set((course.lessons || []).map((l) => l.toString()));
+  const completedCount = (this.completedLessons || []).filter((cl) => courseLessonIds.has(cl.lesson.toString())).length;
   
   this.progress = Math.round((completedCount / totalLessons) * 100);
+
+  // Clamp để tránh dữ liệu lệch do lesson bị xoá
+  this.progress = Math.min(100, Math.max(0, this.progress));
   
   // Nếu hoàn thành 100% -> đánh dấu completed
   if (this.progress === 100 && this.status === 'active') {
@@ -158,6 +172,15 @@ enrollmentSchema.methods.updateProgress = async function() {
     this.completedAt = new Date();
   }
   
+  return this;
+};
+
+// Method: Cập nhật bài học gần nhất đã truy cập
+enrollmentSchema.methods.setLastLesson = async function(lessonId) {
+  this.lastLesson = lessonId;
+  this.lastLessonAccessedAt = new Date();
+  this.lastAccessedAt = new Date();
+  await this.save();
   return this;
 };
 

@@ -171,7 +171,7 @@ const StudyGroupDetail = () => {
                   {isCreator && (
                     <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full flex items-center gap-1">
                       <Crown className="w-3 h-3" />
-                      Admin
+                      Trưởng nhóm
                     </span>
                   )}
                 </div>
@@ -218,7 +218,11 @@ const StudyGroupDetail = () => {
               {group.studyLevel}
             </span>
             <span className="px-3 py-1 bg-green-50 text-green-600 text-sm rounded-full">
-              {group.language === 'vi' ? 'Tiếng Việt' : 'English'}
+              {group.language === 'vi' || group.language === 'Vietnamese'
+                ? 'Tiếng Việt'
+                : group.language === 'English'
+                  ? 'Tiếng Anh'
+                  : group.language}
             </span>
           </div>
 

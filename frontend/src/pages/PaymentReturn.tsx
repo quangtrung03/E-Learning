@@ -14,43 +14,51 @@ const PaymentReturn = () => {
   useEffect(() => {
     const verifyPayment = async () => {
       try {
-        // Get payment params from URL
-        const vnpayParams = {
-          vnp_Amount: searchParams.get('vnp_Amount'),
-          vnp_BankCode: searchParams.get('vnp_BankCode'),
-          vnp_BankTranNo: searchParams.get('vnp_BankTranNo'),
-          vnp_CardType: searchParams.get('vnp_CardType'),
-          vnp_OrderInfo: searchParams.get('vnp_OrderInfo'),
-          vnp_PayDate: searchParams.get('vnp_PayDate'),
-          vnp_ResponseCode: searchParams.get('vnp_ResponseCode'),
-          vnp_TmnCode: searchParams.get('vnp_TmnCode'),
-          vnp_TransactionNo: searchParams.get('vnp_TransactionNo'),
-          vnp_TransactionStatus: searchParams.get('vnp_TransactionStatus'),
-          vnp_TxnRef: searchParams.get('vnp_TxnRef'),
-          vnp_SecureHash: searchParams.get('vnp_SecureHash')
-        };
-
         const responseCode = searchParams.get('vnp_ResponseCode');
         const txnRef = searchParams.get('vnp_TxnRef');
 
-        setOrderId(txnRef || '');
+        const orderIdParam = searchParams.get('orderId');
+        const orderIdCandidate = orderIdParam || txnRef || '';
+        setOrderId(orderIdCandidate);
 
-        // Check response code
+        if (orderIdCandidate) {
+          try {
+            const response = await paymentAPI.getPaymentByOrderId(orderIdCandidate);
+            const payment = response.data?.data?.payment;
+            const paymentStatus: string | undefined = payment?.status;
+
+            if (paymentStatus === 'completed') {
+              setStatus('success');
+              setMessage('Thanh toán thành công! Bạn đã đăng ký khóa học thành công.');
+              return;
+            }
+
+            if (paymentStatus === 'failed' || paymentStatus === 'cancelled') {
+              setStatus('failed');
+              setMessage('Thanh toán thất bại hoặc đã bị hủy.');
+              return;
+            }
+
+            if (paymentStatus === 'refunded') {
+              setStatus('failed');
+              setMessage('Giao dịch đã được hoàn tiền.');
+              return;
+            }
+
+            setStatus('processing');
+            setMessage('Giao dịch đang được xử lý. Vui lòng kiểm tra lại sau.');
+            return;
+          } catch (error) {
+            // If backend lookup fails, fall back to VNPay response code (if present)
+          }
+        }
+
         if (responseCode === '00') {
-          // Success
           setStatus('success');
           setMessage('Thanh toán thành công! Bạn đã đăng ký khóa học thành công.');
         } else {
-          // Failed
           setStatus('failed');
           setMessage(getErrorMessage(responseCode));
-        }
-
-        // Call API to verify and update payment status
-        try {
-          await paymentAPI.verifyPayment(vnpayParams);
-        } catch (error) {
-          console.error('Error verifying payment:', error);
         }
       } catch (error) {
         setStatus('failed');

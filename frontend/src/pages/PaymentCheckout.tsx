@@ -9,7 +9,7 @@ interface Course {
   _id: string;
   title: string;
   price: number;
-  discount: number;
+  discount?: number;
   thumbnail?: string;
   instructor: {
     name: string;
@@ -24,13 +24,13 @@ const PaymentCheckout = () => {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'momo' | 'zalopay'>('vnpay');
+  const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'momo' | 'zalopay' | 'bank-transfer'>('vnpay');
 
   useEffect(() => {
     const fetchCourse = async () => {
       try {
         const response = await courseAPI.getCourse(courseId!);
-        setCourse(response.data);
+        setCourse(response.data?.data?.course);
       } catch (error: any) {
         showToast({ type: 'error', title: error.response?.data?.message || 'Không thể tải thông tin khóa học' });
         navigate('/courses');
@@ -46,7 +46,8 @@ const PaymentCheckout = () => {
 
   const calculateFinalPrice = () => {
     if (!course) return 0;
-    const discountAmount = (course.price * course.discount) / 100;
+    const discountPercent = course.discount || 0;
+    const discountAmount = (course.price * discountPercent) / 100;
     return course.price - discountAmount;
   };
 
@@ -57,15 +58,24 @@ const PaymentCheckout = () => {
     try {
       const response = await paymentAPI.createPayment({
         courseId: course._id,
-        amount: calculateFinalPrice(),
-        paymentMethod
+        paymentMethod: {
+          type: paymentMethod,
+          provider: paymentMethod
+        }
       });
 
-      if (response.data.success && response.data.redirectUrl) {
-        // Redirect to payment gateway
-        window.location.href = response.data.redirectUrl;
+      const redirectUrl: string | null = response.data?.data?.redirectUrl || null;
+      if (response.data?.success && redirectUrl) {
+        if (/^https?:\/\//i.test(redirectUrl)) {
+          window.location.href = redirectUrl;
+        } else {
+          navigate(redirectUrl);
+        }
       } else {
-        showToast({ type: 'info', title: response.data.message || 'Đang phát triển tính năng thanh toán' });
+        showToast({
+          type: 'info',
+          title: response.data?.message || 'Đang phát triển tính năng thanh toán'
+        });
       }
     } catch (error: any) {
       showToast({ type: 'error', title: error.response?.data?.message || 'Có lỗi xảy ra khi xử lý thanh toán' });
@@ -123,10 +133,10 @@ const PaymentCheckout = () => {
                   <span>Giá gốc:</span>
                   <span>{course.price.toLocaleString('vi-VN')}đ</span>
                 </div>
-                {course.discount > 0 && (
+                {(course.discount || 0) > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Giảm giá ({course.discount}%):</span>
-                    <span>-{((course.price * course.discount) / 100).toLocaleString('vi-VN')}đ</span>
+                    <span>-{((course.price * (course.discount || 0)) / 100).toLocaleString('vi-VN')}đ</span>
                   </div>
                 )}
                 <div className="flex justify-between text-xl font-bold text-gray-900 pt-3 border-t">
@@ -217,6 +227,31 @@ const PaymentCheckout = () => {
                     <CheckCircle className="w-6 h-6 text-blue-500" />
                   )}
                 </motion.button>
+
+                {/* Bank transfer (offline/manual) */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setPaymentMethod('bank-transfer')}
+                  className={`w-full flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
+                    paymentMethod === 'bank-transfer'
+                      ? 'border-gray-700 bg-gray-50'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
+                      <CreditCard className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <div className="font-semibold text-gray-900">Chuyển khoản ngân hàng</div>
+                      <div className="text-sm text-gray-500">Thanh toán offline, admin sẽ duyệt</div>
+                    </div>
+                  </div>
+                  {paymentMethod === 'bank-transfer' && (
+                    <CheckCircle className="w-6 h-6 text-gray-800" />
+                  )}
+                </motion.button>
               </div>
             </div>
 
@@ -240,7 +275,7 @@ const PaymentCheckout = () => {
                 <div className="flex-1">
                   <h4 className="font-semibold text-yellow-900">Thông báo</h4>
                   <p className="text-sm text-yellow-700 mt-1">
-                    Tính năng thanh toán trực tuyến đang trong giai đoạn phát triển. Vui lòng liên hệ admin để được hỗ trợ.
+                    Thanh toán online (VNPay/MoMo/ZaloPay) đang ở chế độ mô phỏng. Bạn có thể chọn chuyển khoản để tạo yêu cầu thanh toán offline và admin sẽ duyệt.
                   </p>
                 </div>
               </div>

@@ -122,6 +122,10 @@ export const courseAPI = {
     api.get('/courses/my-courses', { params }),
   getMyEnrolledCourses: (params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
     api.get('/courses/enrolled', { params }),
+  getMyCourseEnrollment: (courseId: string): Promise<AxiosResponse<any>> =>
+    api.get(`/courses/${courseId}/enrollment`),
+  updateMyLastLesson: (courseId: string, lessonId: string): Promise<AxiosResponse<any>> =>
+    api.put(`/courses/${courseId}/enrollment/last-lesson`, { lessonId }),
   getMyStudents: (): Promise<AxiosResponse<any>> =>
     api.get('/courses/my-students'),
   getMyRevenue: (): Promise<AxiosResponse<any>> =>
@@ -134,6 +138,8 @@ export const lessonAPI = {
     api.get(`/lessons/by-course/${courseId}`, { params }),
   getLesson: (id: string): Promise<AxiosResponse<any>> =>
     api.get(`/lessons/${id}`),
+  bulkSetLessonVisibility: (courseId: string, lessonIds: string[], isHidden: boolean): Promise<AxiosResponse<any>> =>
+    api.put(`/lessons/by-course/${courseId}/visibility`, { lessonIds, isHidden }),
   createLesson: (courseId: string, lessonData: any): Promise<AxiosResponse<any>> =>
     api.post(`/lessons/create/${courseId}`, lessonData),
   updateLesson: (id: string, lessonData: any): Promise<AxiosResponse<any>> =>
@@ -144,6 +150,18 @@ export const lessonAPI = {
     api.post(`/lessons/${id}/complete`),
   uncompleteLesson: (id: string): Promise<AxiosResponse<any>> =>
     api.delete(`/lessons/${id}/complete`),
+};
+
+// Course Section API calls
+export const sectionAPI = {
+  getSectionsByCourse: (courseId: string): Promise<AxiosResponse<any>> =>
+    api.get(`/sections/by-course/${courseId}`),
+  createSection: (courseId: string, data: { title: string; description?: string; order?: number }): Promise<AxiosResponse<any>> =>
+    api.post(`/sections/by-course/${courseId}`, data),
+  updateSection: (id: string, data: { title?: string; description?: string; order?: number }): Promise<AxiosResponse<any>> =>
+    api.put(`/sections/${id}`, data),
+  deleteSection: (id: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/sections/${id}`)
 };
 
 // Assignment API calls
@@ -219,6 +237,10 @@ export const reviewAPI = {
 export const studyGroupAPI = {
   getStudyGroupsByCourse: (courseId: string, params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
     api.get(`/courses/${courseId}/study-groups`, { params }),
+  getStudyGroups: (params?: { page?: number; limit?: number; search?: string; studyLevel?: string; language?: string; sortBy?: string; sortOrder?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/study-groups', { params }),
+  getStudyGroupByCode: (code: string): Promise<AxiosResponse<any>> =>
+    api.get(`/study-groups/by-code/${encodeURIComponent(code)}`),
   getStudyGroup: (id: string): Promise<AxiosResponse<any>> =>
     api.get(`/study-groups/${id}`),
   createStudyGroup: (groupData: any): Promise<AxiosResponse<any>> =>
@@ -239,14 +261,31 @@ export const analyticsAPI = {
     api.get(`/analytics/course/${courseId}`),
   updateLearningProgress: (courseId: string, data: any): Promise<AxiosResponse<any>> =>
     api.post(`/analytics/progress/${courseId}`, data),
+  getPlatformFeeReport: (params?: { year?: number; month?: number }): Promise<AxiosResponse<any>> =>
+    api.get('/analytics/platform-fee', { params }),
 };
 
 // Payment API calls
 export const paymentAPI = {
-  createPayment: (paymentData: { courseId: string; amount: number; paymentMethod: string }): Promise<AxiosResponse<any>> =>
-    api.post('/payments/create', paymentData),
-  verifyPayment: (params: any): Promise<AxiosResponse<any>> =>
-    api.post('/payments/verify', params),
+  createPayment: (paymentData: {
+    courseId: string;
+    couponCode?: string;
+    paymentMethod: { type: 'bank-transfer' | 'vnpay' | 'momo' | 'zalopay' | 'paypal'; provider: string };
+    billingAddress?: {
+      fullName?: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+      country?: string;
+    };
+  }): Promise<AxiosResponse<any>> => api.post('/payments/create-intent', paymentData),
+  getPaymentByOrderId: (orderId: string): Promise<AxiosResponse<any>> =>
+    api.get(`/payments/order/${encodeURIComponent(orderId)}`),
+  fakeSuccess: (orderId: string): Promise<AxiosResponse<any>> =>
+    api.post(`/payments/${encodeURIComponent(orderId)}/fake-success`),
   getMyPayments: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
     api.get('/payments/my-payments', { params }),
   getPayment: (id: string): Promise<AxiosResponse<any>> =>
@@ -261,14 +300,45 @@ export const messageAPI = {
     api.get('/messages/conversations'),
   getOrCreateConversation: (userId: string): Promise<AxiosResponse<any>> =>
     api.post('/messages/conversations', { userId }),
+  searchUsers: (q: string): Promise<AxiosResponse<any>> =>
+    api.get('/messages/users/search', { params: { q } }),
   getMessages: (conversationId: string, params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
     api.get(`/messages/conversations/${conversationId}`, { params }),
-  sendMessage: (conversationId: string, content: string, type?: string): Promise<AxiosResponse<any>> =>
-    api.post(`/messages/conversations/${conversationId}`, { content, type }),
+  sendMessage: (
+    conversationId: string,
+    content: string,
+    type?: string,
+    file?: { fileUrl?: string; fileName?: string }
+  ): Promise<AxiosResponse<any>> =>
+    api.post(`/messages/conversations/${conversationId}`, {
+      content,
+      type,
+      fileUrl: file?.fileUrl,
+      fileName: file?.fileName,
+    }),
   markAsRead: (conversationId: string): Promise<AxiosResponse<any>> =>
     api.put(`/messages/conversations/${conversationId}/read`),
   deleteMessage: (messageId: string): Promise<AxiosResponse<any>> =>
     api.delete(`/messages/${messageId}`),
+};
+
+export const friendAPI = {
+  searchUsers: (q: string): Promise<AxiosResponse<any>> =>
+    api.get('/friends/search', { params: { q } }),
+  getFriends: (): Promise<AxiosResponse<any>> =>
+    api.get('/friends'),
+  getRequests: (): Promise<AxiosResponse<any>> =>
+    api.get('/friends/requests'),
+  sendRequest: (toUserId: string): Promise<AxiosResponse<any>> =>
+    api.post('/friends/requests', { toUserId }),
+  acceptRequest: (requestId: string): Promise<AxiosResponse<any>> =>
+    api.put(`/friends/requests/${requestId}/accept`),
+  rejectRequest: (requestId: string): Promise<AxiosResponse<any>> =>
+    api.put(`/friends/requests/${requestId}/reject`),
+  blockUser: (userId: string): Promise<AxiosResponse<any>> =>
+    api.post('/friends/block', { userId }),
+  unblockUser: (userId: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/friends/block/${userId}`),
 };
 
 // Admin API calls
@@ -307,11 +377,13 @@ export const adminAPI = {
     
   // Payment management
   getAllPayments: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
-    api.get('/admin/payments', { params }),
+    api.get('/payments/admin/all', { params }),
   approvePayment: (paymentId: string): Promise<AxiosResponse<any>> =>
-    api.put(`/admin/payments/${paymentId}/approve`),
-  processRefund: (paymentId: string, amount: number): Promise<AxiosResponse<any>> =>
-    api.put(`/admin/payments/${paymentId}/refund`, { amount }),
+    api.put(`/payments/${paymentId}/confirm`, { manualConfirm: true }),
+  markPaymentDisputed: (paymentId: string, reason?: string): Promise<AxiosResponse<any>> =>
+    api.put(`/payments/${paymentId}/dispute`, { reason }),
+  processRefund: (paymentId: string, reason: string, refundAmount?: number): Promise<AxiosResponse<any>> =>
+    api.put(`/payments/${paymentId}/refund`, { reason, refundAmount }),
 };
 
 // Content API
@@ -338,6 +410,32 @@ export const uploadAPI = {
   },
   uploadVideo: (formData: FormData, onProgress?: (progress: number) => void) => {
     return api.post('/upload/video', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+  },
+  uploadAudio: (formData: FormData, onProgress?: (progress: number) => void) => {
+    return api.post('/upload/audio', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total && onProgress) {
+          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(progress);
+        }
+      },
+    });
+  },
+  uploadDocument: (formData: FormData, onProgress?: (progress: number) => void) => {
+    return api.post('/upload/document', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

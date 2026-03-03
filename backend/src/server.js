@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
+const crypto = require('crypto');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const connectDB = require('./config/database');
@@ -12,31 +13,79 @@ const cronJobService = require('./services/cronJobService');
 // Load environment variables
 dotenv.config();
 
+// Optional error tracking (Sentry)
+let Sentry = null;
+if (process.env.SENTRY_DSN) {
+  try {
+    // eslint-disable-next-line global-require
+    Sentry = require('@sentry/node');
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV || 'development'
+    });
+    console.log('✅ Sentry initialized');
+  } catch (e) {
+    console.warn('⚠️ Failed to initialize Sentry:', e.message);
+    Sentry = null;
+  }
+}
+
 // Note: Punycode deprecation warning is from dependencies, not our code
 // This will be resolved when dependencies update to newer Node.js APIs
 
-// Connect to database
-connectDB();
+// Connect to database (skip in test to allow smoke tests without Mongo)
+if (process.env.NODE_ENV !== 'test') {
+  connectDB();
+}
 
 const app = express();
 
 // Trust proxy for Render deployment (IMPORTANT for rate limiting)
 app.set('trust proxy', 1);
 
-// Middleware for logging - Production optimized
+// Request ID middleware (Observability)
 app.use((req, res, next) => {
+  const incomingId = req.headers['x-request-id'];
+  const requestId = (typeof incomingId === 'string' && incomingId.trim().length > 0)
+    ? incomingId.trim()
+    : (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
+
+  req.requestId = requestId;
+  res.setHeader('X-Request-Id', requestId);
+  next();
+});
+
+// Logging middleware (structured access logs)
+app.use((req, res, next) => {
+  const startNs = process.hrtime.bigint();
+
+  res.on('finish', () => {
+    if (process.env.LOG_LEVEL !== 'info') return;
+
+    const durationMs = Number(process.hrtime.bigint() - startNs) / 1e6;
+    const logLine = {
+      timestamp: new Date().toISOString(),
+      level: 'info',
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl || req.path,
+      status: res.statusCode,
+      durationMs: Math.round(durationMs),
+      ip: req.ip,
+      userId: req.user?._id
+    };
+
+    console.log(JSON.stringify(logLine));
+  });
+
   if (process.env.NODE_ENV === 'development') {
-    console.log(`\n🌐 ${new Date().toISOString()} - ${req.method} ${req.path}`);
+    console.log(`\n🌐 ${new Date().toISOString()} [${req.requestId}] - ${req.method} ${req.path}`);
     console.log('📋 Headers:', req.headers);
     if (req.body && Object.keys(req.body).length > 0) {
       console.log('📦 Body:', JSON.stringify(req.body, null, 2));
     }
-  } else if (process.env.LOG_LEVEL === 'info') {
-    // Only log important requests in production
-    if (req.method !== 'GET' || req.path.includes('/api/')) {
-      console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-    }
   }
+
   next();
 });
 
@@ -80,7 +129,8 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'X-Request-Id'],
+  exposedHeaders: ['X-Request-Id'],
   preflightContinue: false
 };
 
@@ -104,10 +154,11 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`⚠️ Rate limit reached for IP: ${req.ip}`);
+    console.log(`⚠️ [${req.requestId}] Rate limit reached for IP: ${req.ip}`);
     res.status(429).json({
       success: false,
-      message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau'
+      message: 'Quá nhiều yêu cầu từ IP này, vui lòng thử lại sau',
+      requestId: req.requestId
     });
   }
   // Removed deprecated onLimitReached
@@ -139,12 +190,13 @@ if (process.env.NODE_ENV === 'development') {
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  console.log('🏥 Health check requested');
+  console.log(`🏥 [${req.requestId}] Health check requested`);
   res.json({ 
     status: 'OK', 
     timestamp: new Date().toISOString(),
     service: 'E-Learning Backend API',
-    version: '1.0.0'
+    version: '1.0.0',
+    requestId: req.requestId
   });
 });
 
@@ -165,6 +217,8 @@ app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/study-groups', require('./routes/studyGroupRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
 app.use('/api/messages', require('./routes/messageRoutes'));
+app.use('/api/friends', require('./routes/friendRoutes'));
+app.use('/api/sections', require('./routes/sectionRoutes'));
 
 // Content routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
@@ -177,15 +231,29 @@ app.use('/uploads', express.static('uploads'));
 app.use('*', (req, res) => {
   res.status(404).json({
     success: false,
-    message: `Route ${req.originalUrl} not found`
+    message: `Route ${req.originalUrl} not found`,
+    requestId: req.requestId
   });
 });
 
 // Global Error Handler
 app.use((err, req, res, next) => {
+  if (Sentry) {
+    Sentry.withScope((scope) => {
+      scope.setTag('requestId', req.requestId);
+      scope.setTag('method', req.method);
+      scope.setTag('path', req.originalUrl || req.path);
+      if (req.user?._id) {
+        scope.setUser({ id: String(req.user._id) });
+      }
+      Sentry.captureException(err);
+    });
+  }
+
   // Detailed logging only in development
   if (process.env.NODE_ENV === 'development') {
     console.error('\n❌ ERROR OCCURRED:');
+    console.error('🆔 Request ID:', req.requestId);
     console.error('📍 Route:', req.method, req.path);
     console.error('🔍 Error Name:', err.name);
     console.error('📝 Error Message:', err.message);
@@ -195,7 +263,7 @@ app.use((err, req, res, next) => {
     }
   } else {
     // Production logging - concise but informative
-    console.error(`${new Date().toISOString()} - ERROR: ${req.method} ${req.path} - ${err.message}`);
+    console.error(`${new Date().toISOString()} [${req.requestId}] - ERROR: ${req.method} ${req.path} - ${err.message}`);
   }
   
   let error = { ...err };
@@ -255,68 +323,79 @@ app.use((err, req, res, next) => {
   res.status(error.statusCode || 500).json({
     success: false,
     message: error.message || 'Server Error',
+    requestId: req.requestId,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 
-const PORT = process.env.PORT || 5000;
+const startServer = () => {
+  const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📝 Environment: ${process.env.NODE_ENV}`);
-  if (process.env.NODE_ENV === 'production') {
-    const productionUrl = process.env.API_URL || process.env.RENDER_EXTERNAL_URL || 'https://e-learning-zmif.onrender.com';
-    console.log(`🌐 API Health Check: ${productionUrl}/api/health`);
-  } else {
-    console.log(`🌐 API Health Check: http://localhost:${PORT}/api/health`);
-  }
-  
-  // Initialize services
-  if (process.env.NODE_ENV !== 'test') {
-    // Initialize Socket.IO for real-time features (SINGLE INSTANCE)
-    const { initializeSocket, getIO } = require('./services/socketService');
-    initializeSocket(server);
-    console.log('📡 Socket.IO initialized for real-time messaging');
-    
-    // Share Socket.IO instance with notification service
-    const io = getIO();
-    notificationService.setSocketIO(io);
-    console.log('📡 Notification service connected to Socket.IO');
-    
-    // Initialize cron jobs
-    cronJobService.init();
-    console.log('⏰ Cron job service initialized');
-  }
-});
+  const server = app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📝 Environment: ${process.env.NODE_ENV}`);
+    if (process.env.NODE_ENV === 'production') {
+      const productionUrl = process.env.API_URL || process.env.RENDER_EXTERNAL_URL || 'https://e-learning-zmif.onrender.com';
+      console.log(`🌐 API Health Check: ${productionUrl}/api/health`);
+    } else {
+      console.log(`🌐 API Health Check: http://localhost:${PORT}/api/health`);
+    }
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err, promise) => {
-  console.log('Unhandled Rejection:', err.message);
-  // Stop cron jobs before shutting down
-  cronJobService.stopAllJobs();
-  server.close(() => {
-    process.exit(1);
+    // Initialize services
+    if (process.env.NODE_ENV !== 'test') {
+      // Initialize Socket.IO for real-time features (SINGLE INSTANCE)
+      const { initializeSocket, getIO } = require('./services/socketService');
+      initializeSocket(server);
+      console.log('📡 Socket.IO initialized for real-time messaging');
+
+      // Share Socket.IO instance with notification service
+      const io = getIO();
+      notificationService.setSocketIO(io);
+      console.log('📡 Notification service connected to Socket.IO');
+
+      // Initialize cron jobs
+      cronJobService.init();
+      console.log('⏰ Cron job service initialized');
+    }
   });
-});
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('👋 SIGTERM received. Shutting down gracefully...');
-  cronJobService.stopAllJobs();
-  server.close(() => {
-    console.log('💤 Process terminated');
-    process.exit(0);
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (err) => {
+    if (Sentry) {
+      Sentry.captureException(err);
+    }
+    console.log('Unhandled Rejection:', err.message);
+    // Stop cron jobs before shutting down
+    cronJobService.stopAllJobs();
+    server.close(() => {
+      process.exit(1);
+    });
   });
-});
 
-process.on('SIGINT', () => {
-  console.log('👋 SIGINT received. Shutting down gracefully...');
-  cronJobService.stopAllJobs();
-  server.close(() => {
-    console.log('💤 Process terminated');
-    process.exit(0);
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('👋 SIGTERM received. Shutting down gracefully...');
+    cronJobService.stopAllJobs();
+    server.close(() => {
+      console.log('💤 Process terminated');
+      process.exit(0);
+    });
   });
-});
 
-// Export app for testing
-module.exports = app;
+  process.on('SIGINT', () => {
+    console.log('👋 SIGINT received. Shutting down gracefully...');
+    cronJobService.stopAllJobs();
+    server.close(() => {
+      console.log('💤 Process terminated');
+      process.exit(0);
+    });
+  });
+
+  return server;
+};
+
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, startServer };

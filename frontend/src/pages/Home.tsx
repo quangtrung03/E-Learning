@@ -82,38 +82,47 @@ const Home = () => {
   const testimonials = [
     {
       name: 'Nguyễn Anh',
-      role: 'Software Engineer at FPT',
+      role: 'Kỹ sư phần mềm tại FPT',
       initial: 'NA',
-      comment: 'The structured curriculum and dedicated instructors helped me land my dream job.',
+      comment: 'Chương trình học có lộ trình rõ ràng và giảng viên tận tâm đã giúp tôi đạt được công việc mơ ước.',
       rating: 5
     },
     {
       name: 'Trần Văn B',
-      role: 'Career Changer',
+      role: 'Chuyển hướng nghề nghiệp',
       initial: 'TB',
-      comment: 'Found exactly what I needed. The teaching style is clear and support is excellent.',
+      comment: 'Tôi tìm đúng thứ mình cần. Cách giảng dạy dễ hiểu và hỗ trợ rất tốt.',
       rating: 5
     },
     {
       name: 'Lê Thị C',
-      role: 'Recent Graduate',
+      role: 'Sinh viên mới tốt nghiệp',
       initial: 'LC',
-      comment: 'Boosted my confidence with practical knowledge and great networking opportunities.',
+      comment: 'Tăng sự tự tin nhờ kiến thức thực tiễn và cơ hội kết nối tuyệt vời.',
       rating: 5
     }
   ];
 
   const getCategoryLabel = (category: string) => {
     const map: { [key: string]: string } = {
-      'programming': 'Programming',
-      'design': 'Design',
-      'business': 'Business',
+      'programming': 'Lập trình',
+      'design': 'Thiết kế',
+      'business': 'Kinh doanh',
       'marketing': 'Marketing',
-      'language': 'Language',
-      'science': 'Science',
-      'other': 'Other'
+      'language': 'Ngôn ngữ',
+      'science': 'Khoa học',
+      'other': 'Khác'
     };
     return map[category] || category;
+  };
+
+  const getLevelLabel = (level: string) => {
+    const map: Record<string, string> = {
+      beginner: 'Cơ bản',
+      intermediate: 'Trung cấp',
+      advanced: 'Nâng cao'
+    };
+    return map[level] || level;
   };
 
   return (
@@ -124,7 +133,7 @@ const Home = () => {
         <div className="absolute inset-0 z-0">
           <img 
             src="https://res.cloudinary.com/dtv6qnrwy/image/upload/v1764396833/elearning/hero-backgrounds/dxj1reyn3t3em6uymicv.jpg" 
-            alt="Learning Background" 
+            alt="Hình nền học tập" 
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent"></div>
@@ -136,21 +145,21 @@ const Home = () => {
             <div className="space-y-6">
               <h1 className="text-white">
                 <span className="block text-8xl md:text-9xl font-bold mb-4 tracking-tight">
-                  LEARN
+                  HỌC
                 </span>
                 <span className="block text-5xl md:text-6xl font-semibold tracking-wide">
-                  anything you can
+                  bất cứ điều gì bạn muốn
                 </span>
               </h1>
 
               <p className="text-white/90 text-lg md:text-xl leading-relaxed max-w-xl">
-                Stay updated on what's happening in your learning journey and beyond.
+                Luôn cập nhật những điều đang diễn ra trong hành trình học tập của bạn và hơn thế nữa.
               </p>
 
               <div className="pt-6">
                 <Link to="/courses">
                   <button className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold px-10 py-4 rounded-lg text-lg shadow-2xl hover:shadow-orange-500/50 transition-all transform hover:scale-105 uppercase tracking-wide">
-                    Start Learning
+                    Bắt đầu học
                   </button>
                 </Link>
               </div>
@@ -162,7 +171,7 @@ const Home = () => {
         <div className="absolute bottom-10 left-10 text-white/40 text-sm hidden lg:block">
           <div className="flex items-center gap-2">
             <div className="w-8 h-px bg-white/40"></div>
-            <span>Scroll to explore</span>
+            <span>Cuộn để khám phá</span>
           </div>
         </div>
       </section>
@@ -172,10 +181,10 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Explore Top Categories
+              Khám phá danh mục nổi bật
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Choose your path and start your learning journey today
+              Chọn lộ trình và bắt đầu hành trình học tập của bạn ngay hôm nay
             </p>
           </div>
 
@@ -199,7 +208,7 @@ const Home = () => {
                     </h3>
                     <p className="text-gray-600 text-sm mb-4">{cat.description}</p>
                     <div className="flex items-center text-blue-600 font-medium group-hover:translate-x-2 transition-transform">
-                      <span className="mr-2">Explore</span>
+                      <span className="mr-2">Khám phá</span>
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -212,18 +221,18 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Featured Courses Section */}
+      {/* Phần khóa học nổi bật */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <div className="inline-block px-6 py-2 bg-blue-100 text-blue-600 rounded-full mb-4 font-semibold">
-              Featured
+              Nổi bật
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Popular Courses
+              Khóa học phổ biến
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Top-rated courses loved by students worldwide
+              Những khóa học được đánh giá cao và yêu thích
             </p>
           </div>
 
@@ -247,7 +256,7 @@ const Home = () => {
                     <div className="relative h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
                       {(course.totalStudents || 0) > 10 && (
                         <div className="absolute top-3 right-3 px-3 py-1 bg-cyan-400 text-blue-900 text-xs font-bold rounded-full">
-                          BESTSELLER
+                          BÁN CHẠY
                         </div>
                       )}
                       <div className="text-white text-4xl font-bold">
@@ -260,7 +269,7 @@ const Home = () => {
                           {getCategoryLabel(course.category)}
                         </span>
                         <span className="text-sm font-medium text-gray-600">
-                          {course.totalStudents || 0} students
+                          {course.totalStudents || 0} học viên
                         </span>
                       </div>
                       <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors">
@@ -274,7 +283,7 @@ const Home = () => {
                           <span className="text-xs text-gray-500">({course.rating.count})</span>
                         </div>
                         <div className="text-sm text-gray-600">
-                          {course.level}
+                          {getLevelLabel(course.level)}
                         </div>
                       </div>
                       <div className="pt-3 border-t">
@@ -303,7 +312,7 @@ const Home = () => {
           <div className="text-center mt-12">
             <Link to="/courses">
               <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-semibold">
-                View All Courses
+                Xem tất cả khóa học
               </Button>
             </Link>
           </div>
@@ -317,27 +326,27 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Learn Skills Valued by Top Companies
+              Học kỹ năng được doanh nghiệp hàng đầu đánh giá cao
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Gain expertise in platforms and tools used by leading organizations worldwide
+              Nâng cao năng lực với nền tảng và công cụ được các tổ chức hàng đầu sử dụng
             </p>
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
             {[
-              { name: 'Google', logo: 'https://www.vectorlogo.zone/logos/google/google-icon.svg', field: 'Technology' },
-              { name: 'Microsoft', logo: 'https://www.vectorlogo.zone/logos/microsoft/microsoft-icon.svg', field: 'Enterprise' },
-              { name: 'Amazon', logo: 'https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg', field: 'E-Commerce' },
-              { name: 'Apple', logo: 'https://www.vectorlogo.zone/logos/apple/apple-icon.svg', field: 'Innovation' },
-              { name: 'Facebook', logo: 'https://www.vectorlogo.zone/logos/facebook/facebook-icon.svg', field: 'Social Media' },
-              { name: 'Netflix', logo: 'https://www.vectorlogo.zone/logos/netflix/netflix-icon.svg', field: 'Streaming' },
-              { name: 'Adobe', logo: 'https://www.vectorlogo.zone/logos/adobe/adobe-icon.svg', field: 'Creative' },
+              { name: 'Google', logo: 'https://www.vectorlogo.zone/logos/google/google-icon.svg', field: 'Công nghệ' },
+              { name: 'Microsoft', logo: 'https://www.vectorlogo.zone/logos/microsoft/microsoft-icon.svg', field: 'Doanh nghiệp' },
+              { name: 'Amazon', logo: 'https://www.vectorlogo.zone/logos/amazon/amazon-icon.svg', field: 'Thương mại điện tử' },
+              { name: 'Apple', logo: 'https://www.vectorlogo.zone/logos/apple/apple-icon.svg', field: 'Đổi mới' },
+              { name: 'Facebook', logo: 'https://www.vectorlogo.zone/logos/facebook/facebook-icon.svg', field: 'Mạng xã hội' },
+              { name: 'Netflix', logo: 'https://www.vectorlogo.zone/logos/netflix/netflix-icon.svg', field: 'Phát trực tuyến' },
+              { name: 'Adobe', logo: 'https://www.vectorlogo.zone/logos/adobe/adobe-icon.svg', field: 'Sáng tạo' },
               { name: 'Salesforce', logo: 'https://www.vectorlogo.zone/logos/salesforce/salesforce-icon.svg', field: 'CRM' },
-              { name: 'IBM', logo: 'https://www.vectorlogo.zone/logos/ibm/ibm-icon.svg', field: 'AI & Cloud' },
-              { name: 'Oracle', logo: 'https://www.vectorlogo.zone/logos/oracle/oracle-icon.svg', field: 'Database' },
+              { name: 'IBM', logo: 'https://www.vectorlogo.zone/logos/ibm/ibm-icon.svg', field: 'AI & Đám mây' },
+              { name: 'Oracle', logo: 'https://www.vectorlogo.zone/logos/oracle/oracle-icon.svg', field: 'Cơ sở dữ liệu' },
               { name: 'SAP', logo: 'https://www.vectorlogo.zone/logos/sap/sap-icon.svg', field: 'ERP' },
-              { name: 'LinkedIn', logo: 'https://www.vectorlogo.zone/logos/linkedin/linkedin-icon.svg', field: 'Professional' }
+              { name: 'LinkedIn', logo: 'https://www.vectorlogo.zone/logos/linkedin/linkedin-icon.svg', field: 'Nghề nghiệp' }
             ].map((company, index) => (
               <div 
                 key={index}
@@ -358,10 +367,10 @@ const Home = () => {
           </div>
 
           <div className="text-center mt-12">
-            <p className="text-gray-600 mb-6 text-lg">Our courses prepare you for careers at these companies and more</p>
+            <p className="text-gray-600 mb-6 text-lg">Khóa học giúp bạn sẵn sàng cho sự nghiệp tại các công ty này và hơn thế nữa</p>
             <Link to="/courses">
               <Button className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-xl font-semibold text-lg shadow-lg">
-                Explore All Courses
+                Khám phá tất cả khóa học
               </Button>
             </Link>
           </div>
@@ -373,10 +382,10 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Learn From The Best
+              Học cùng chuyên gia
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Our instructors are industry leaders and experts in their fields
+              Giảng viên là những chuyên gia hàng đầu trong lĩnh vực
             </p>
           </div>
 
@@ -412,10 +421,10 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Student Success Stories
+              Câu chuyện thành công của học viên
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              See what our students have achieved
+              Xem những điều học viên đã đạt được
             </p>
           </div>
 

@@ -77,9 +77,9 @@ node scripts/clean-database.js           # Clear all collections
 ```
 
 ### Environment Setup
-- Backend: Copy `.env.example` → `.env`, configure MongoDB, JWT_SECRET, Cloudinary, SendGrid
+- Backend: Copy `.env.example` → `.env`, configure MongoDB, JWT_SECRET, Cloudinary, Resend
 - Frontend: Copy `.env.example` → `.env`, set `VITE_API_URL` (defaults to localhost:5000)
-- **Critical**: Email verification blocks access - configure SendGrid or set `emailVerified: true` in DB for testing
+- **Critical**: Email verification blocks access - configure Resend (see `DOCS.md`) hoặc set `emailVerified: true` trong DB để test nhanh
 
 ## Code Conventions
 
@@ -164,7 +164,7 @@ router.patch('/:id', protect, requireOwnershipOrAdmin, updateCourse);
 ### Debugging Issues
 - Backend logs: Check terminal for emoji-prefixed logs (🌐, 📋, ❌)
 - Frontend: Check browser console for API config logs
-- Common issue: Email not verified → manually update DB or configure SendGrid
+- Common issue: Email not verified → manually update DB or configure Resend
 - Socket.IO: Check connection in browser devtools Network → WS tab
 
 ## Testing Strategy
@@ -177,4 +177,4 @@ router.patch('/:id', protect, requireOwnershipOrAdmin, updateCourse);
 - Frontend deploys to Vercel (auto-detected Vite setup)
 - MongoDB Atlas for production database
 - Cloudinary for file hosting
-- SendGrid required for email functionality in production
+- Resend required for email functionality in production

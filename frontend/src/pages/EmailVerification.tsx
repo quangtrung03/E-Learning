@@ -250,7 +250,7 @@ const EmailVerification: React.FC = () => {
               </h1>
               <p className="mt-2 text-blue-100">
                 {status === 'loading' && 'Vui lòng chờ trong giây lát'}
-                {status === 'success' && 'Chào mừng bạn đến với E-Learning Platform'}
+                {status === 'success' && 'Chào mừng bạn đến với Nền tảng Học trực tuyến'}
                 {status === 'error' && 'Có vấn đề với quá trình xác thực'}
                 {status === 'manual' && 'Nhập token xác thực từ email'}
               </p>
@@ -278,7 +278,7 @@ const EmailVerification: React.FC = () => {
                     to="/dashboard"
                     className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 transition-colors"
                   >
-                    Đi đến Dashboard ngay
+                    Đi đến Bảng điều khiển ngay
                   </Link>
                 </div>
               </div>

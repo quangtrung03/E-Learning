@@ -14,6 +14,7 @@ const {
   getCourseDetail,
   getUserDetail,
   makeUserAdmin,
+  getAuditLogs,
   requestAdminRole,
   validateAdminToken,
   submitAdminRequest,
@@ -245,6 +246,9 @@ router.put('/users/:id/toggle-ban', toggleUserBan);
  *         description: Không tìm thấy người dùng
  */
 router.get('/users/:id', getUserDetail);
+
+// Audit logs
+router.get('/audit-logs', getAuditLogs);
 
 /**
  * @swagger

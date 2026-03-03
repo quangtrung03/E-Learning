@@ -94,7 +94,7 @@ const AdminUsersList = () => {
 
   const getRoleBadge = (user: User) => {
     if (user.isAdmin) {
-      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">Admin</span>;
+      return <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">Quản trị viên</span>;
     }
     // Check if user has created courses -> Teacher
     if (user.createdCourses && user.createdCourses.length > 0) {
@@ -133,7 +133,7 @@ const AdminUsersList = () => {
             </div>
             <Link to="/admin">
               <Button variant="outline">
-                ← Quay lại Dashboard
+                ← Quay lại Bảng điều khiển
               </Button>
             </Link>
           </div>
@@ -167,7 +167,7 @@ const AdminUsersList = () => {
                 <option value="all">Tất cả</option>
                 <option value="active">Hoạt động</option>
                 <option value="banned">Bị khóa</option>
-                <option value="admin">Admin</option>
+                <option value="admin">Quản trị viên</option>
               </select>
             </div>
             

@@ -4,6 +4,7 @@ import { courseAPI, uploadAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import AdvancedSearchFilters from '../components/ui/AdvancedSearchFilters';
+import FileUploadCard from '../components/upload/FileUploadCard';
 import { useToast } from '../context/ToastContext';
 
 interface Course {
@@ -80,10 +81,6 @@ const Courses = () => {
   const [formLoading, setFormLoading] = useState(false);
   const [priceType, setPriceType] = useState<string>('free');
   const [durationType, setDurationType] = useState<string>('custom');
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState<string>('');
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [isUploading, setIsUploading] = useState(false);
 
   const categories = [
     { value: '', label: 'Tất cả danh mục' },
@@ -233,55 +230,6 @@ const Courses = () => {
     }));
   };
 
-
-  // This function is no longer needed as validation moved to onChange
-  // Keeping it for backward compatibility but it does nothing
-  const handleThumbnailUpload = async () => {
-    if (!thumbnailFile) return;
-    
-    try {
-      setIsUploading(true);
-      setUploadProgress(0);
-      
-      const formDataUpload = new FormData();
-      formDataUpload.append('file', thumbnailFile);
-      
-      const response = await uploadAPI.uploadImage(formDataUpload, (progress) => {
-        setUploadProgress(progress);
-      });
-      
-      if (response.data.success) {
-        const uploadedUrl = response.data.data.url;
-        setFormData(prev => ({
-          ...prev,
-          thumbnail: uploadedUrl
-        }));
-        // Keep preview but clear file since it's now uploaded
-        setThumbnailFile(null);
-        toast.success('Upload ảnh thành công!');
-        console.log('✅ Ảnh đã lưu vào Cloudinary:', uploadedUrl);
-      }
-    } catch (error: any) {
-      console.error('Error uploading thumbnail:', error);
-      toast.error(error.response?.data?.message || 'Lỗi khi upload ảnh');
-      // Reset on error
-      setThumbnailFile(null);
-      setThumbnailPreview('');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
-  const clearThumbnail = () => {
-    setThumbnailFile(null);
-    setThumbnailPreview('');
-    setFormData(prev => ({ ...prev, thumbnail: '' }));
-    // Reset file input
-    const fileInput = document.getElementById('thumbnail-upload') as HTMLInputElement;
-    if (fileInput) fileInput.value = '';
-  };
-
   const loadDraftForEdit = (draft: Course) => {
     const draftThumbnail = (draft as any).thumbnail || '';
     
@@ -305,11 +253,8 @@ const Courses = () => {
       whatYouWillLearn: (draft as any).whatYouWillLearn || [''],
       tags: (draft as any).tags || ['']
     });
-    
-    if (draftThumbnail) {
-      setThumbnailPreview(draftThumbnail);
-      console.log('✅ Thumbnail loaded from draft:', draftThumbnail);
-    }
+
+    if (draftThumbnail) console.log('✅ Thumbnail loaded from draft:', draftThumbnail);
     
     setPriceType(draft.price === 0 ? 'free' : 'custom');
     setDurationType('custom');
@@ -376,7 +321,7 @@ const Courses = () => {
 
   const renderBrowseTab = () => (
     <div className="space-y-8">
-      {/* Featured Courses Section */}
+      {/* Phần khóa học nổi bật */}
       <Card className="p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -776,100 +721,37 @@ const Courses = () => {
                   Ảnh minh họa khóa học (tùy chọn)
                 </label>
                 <div className="space-y-3">
-                  {/* File input - Auto upload on select */}
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          // Validate file size (10MB)
-                          if (file.size > 10 * 1024 * 1024) {
-                            toast.error('Kích thước ảnh không được vượt quá 10MB');
-                            e.target.value = '';
-                            return;
-                          }
-                          // Validate file type
-                          if (!file.type.startsWith('image/')) {
-                            toast.error('Vui lòng chọn file ảnh hợp lệ');
-                            e.target.value = '';
-                            return;
-                          }
-                          
-                          setThumbnailFile(file);
-                          
-                          // Create preview
-                          const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setThumbnailPreview(reader.result as string);
-                            // Auto upload immediately after preview is ready
-                            handleThumbnailUpload();
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="hidden"
-                      id="thumbnail-upload"
-                      disabled={isUploading}
-                    />
-                    <label
-                      htmlFor="thumbnail-upload"
-                      className={`px-4 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <span className="text-gray-700">
-                        {isUploading ? '⏳ Đang upload...' : formData.thumbnail ? '✓ Đã có ảnh - Chọn ảnh khác' : '📁 Chọn ảnh'}
-                      </span>
-                    </label>
-                  </div>
+                  <FileUploadCard
+                    title="Upload ảnh minh họa"
+                    description="Định dạng: JPG, PNG, GIF. Tối đa 10MB. Khuyến nghị: 1200x800px"
+                    accept="image/*"
+                    maxSizeMB={10}
+                    validateFile={(file) => {
+                      if (!file.type.startsWith('image/')) return 'Vui lòng chọn file ảnh hợp lệ';
+                      return null;
+                    }}
+                    uploadedUrl={formData.thumbnail}
+                    onUploadedUrlChange={(url) => {
+                      handleInputChange('thumbnail', url);
+                      if (url) toast.success('Upload ảnh thành công!');
+                    }}
+                    uploadFile={async (file, onProgress) => {
+                      const formDataUpload = new FormData();
+                      formDataUpload.append('file', file);
+                      const response = await uploadAPI.uploadImage(formDataUpload, onProgress);
+                      return response.data.data;
+                    }}
+                  />
 
-                  {/* Preview - Show uploaded image or local preview */}
-                  {(thumbnailPreview || formData.thumbnail) && (
-                    <div className="relative inline-block">
+                  {formData.thumbnail && (
+                    <div className="inline-block">
                       <img
-                        src={thumbnailPreview || formData.thumbnail}
-                        alt="Preview"
-                        className="h-48 w-auto object-cover rounded-lg border-2 border-gray-200"
+                        src={formData.thumbnail}
+                        alt="Ảnh minh họa khóa học"
+                        className="h-48 w-auto object-cover rounded-lg border border-gray-200 bg-white"
                       />
-                      <button
-                        type="button"
-                        onClick={clearThumbnail}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-2 hover:bg-red-600 transition-colors"
-                        title="Xóa ảnh"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
                     </div>
                   )}
-
-                  {/* Upload progress */}
-                  {isUploading && (
-                    <div className="space-y-1">
-                      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-cyan-500 h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${uploadProgress}%` }}
-                        />
-                      </div>
-                      <p className="text-sm text-gray-600 text-center">{uploadProgress}%</p>
-                    </div>
-                  )}
-
-                  {/* Success message */}
-                  {formData.thumbnail && !isUploading && (
-                    <div className="flex items-center gap-2 text-green-600">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      <span className="text-sm font-medium">Ảnh đã được upload thành công</span>
-                    </div>
-                  )}
-
-                  <p className="text-xs text-gray-500">
-                    <span className="font-medium">Ảnh sẽ tự động upload khi bạn chọn file.</span> Định dạng: JPG, PNG, GIF. Kích thước tối đa: 10MB. Khuyến nghị: 1200x800px
-                  </p>
                 </div>
               </div>
 
@@ -932,7 +814,7 @@ const Courses = () => {
                     <option value="999000">999,000 VNĐ</option>
                     <option value="1499000">1,499,000 VNĐ (Nâng cao)</option>
                     <option value="1990000">1,990,000 VNĐ</option>
-                    <option value="2990000">2,990,000 VNĐ (Premium)</option>
+                    <option value="2990000">2,990,000 VNĐ (Cao cấp)</option>
                     <option value="custom">Tùy chỉnh...</option>
                   </select>
                   {priceType === 'custom' && (
@@ -981,7 +863,7 @@ const Courses = () => {
                     <option value="1800">30 giờ</option>
                     <option value="2400">40 giờ (Khóa chuyên sâu)</option>
                     <option value="3000">50 giờ</option>
-                    <option value="3600">60 giờ (Bootcamp)</option>
+                    <option value="3600">60 giờ (Khóa tăng tốc)</option>
                     <option value="custom">Tùy chỉnh...</option>
                   </select>
                   {durationType === 'custom' && (
@@ -1077,7 +959,7 @@ const Courses = () => {
           {/* Tags */}
           <section className="space-y-4">
             <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
-              🏷️ Tags (tùy chọn)
+              🏷️ Từ khóa (tùy chọn)
             </h3>
             {(Array.isArray(formData.tags) ? formData.tags : []).map((tag, index) => (
               <div key={index} className="flex gap-2">
@@ -1106,7 +988,7 @@ const Courses = () => {
               onClick={() => addArrayField('tags')}
               className="w-full"
             >
-              + Thêm tag
+              + Thêm từ khóa
             </Button>
           </section>
 

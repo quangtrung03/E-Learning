@@ -119,7 +119,7 @@ const Header = () => {
                     className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <Award className="w-4 h-4" />
-                    <span className="text-sm font-medium text-gray-900">Dashboard</span>
+                    <span className="text-sm font-medium text-gray-900">Bảng điều khiển</span>
                   </Link>
                   <Link
                     to="/messages"

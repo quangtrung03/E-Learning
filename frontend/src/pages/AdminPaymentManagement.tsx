@@ -12,7 +12,8 @@ import {
   Clock,
   XCircle,
   Search,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 
 interface Payment {
@@ -26,9 +27,9 @@ interface Payment {
     _id: string;
     title: string;
   };
-  amount: number;
-  paymentMethod: 'vnpay' | 'momo' | 'stripe' | 'banking';
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  amount: { original: number; discount: number; final: number; currency?: string };
+  paymentMethod: { type: string; provider: string };
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded' | 'disputed';
   transactionId?: string;
   createdAt: string;
   completedAt?: string;
@@ -96,16 +97,22 @@ const AdminPaymentManagement = () => {
         setPayments(paymentsData);
         
         // Calculate stats
-        const statsData = response.data.data.stats || {
-          totalRevenue: 0,
-          totalTransactions: paymentsData.length,
+        const statsData = response.data.stats || {
+          totalAmount: 0,
+          totalDiscount: 0,
+          completedPayments: 0,
+          failedPayments: 0
+        };
+
+        setStats({
+          totalRevenue: statsData.totalAmount || 0,
+          totalTransactions: response.data.pagination?.total || paymentsData.length,
           pendingPayments: paymentsData.filter((p: Payment) => p.status === 'pending').length,
           completedPayments: paymentsData.filter((p: Payment) => p.status === 'completed').length,
           failedPayments: paymentsData.filter((p: Payment) => p.status === 'failed').length,
           refundedPayments: paymentsData.filter((p: Payment) => p.status === 'refunded').length,
           revenueGrowth: 0
-        };
-        setStats(statsData);
+        });
 
         const pagination = response.data.pagination;
         if (pagination) {
@@ -143,12 +150,31 @@ const AdminPaymentManagement = () => {
     
     try {
       setProcessingId(paymentId);
-      await adminAPI.processRefund(paymentId, amount);
+      await adminAPI.processRefund(paymentId, reason, amount);
       alert('Đã hoàn tiền thành công!');
       fetchPayments();
     } catch (error: any) {
       console.error('Error refunding payment:', error);
       alert(error.response?.data?.message || 'Có lỗi xảy ra khi hoàn tiền');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleDisputePayment = async (paymentId: string) => {
+    const reason = prompt('Nhập lý do đánh dấu tranh chấp:');
+    if (!reason) return;
+
+    if (!confirm('Xác nhận đánh dấu payment này là tranh chấp?')) return;
+
+    try {
+      setProcessingId(paymentId);
+      await adminAPI.markPaymentDisputed(paymentId, reason);
+      alert('Đã đánh dấu tranh chấp thành công!');
+      fetchPayments();
+    } catch (error: any) {
+      console.error('Error disputing payment:', error);
+      alert(error.response?.data?.message || 'Có lỗi xảy ra khi đánh dấu tranh chấp');
     } finally {
       setProcessingId(null);
     }
@@ -165,6 +191,11 @@ const AdminPaymentManagement = () => {
         label: 'Hoàn thành',
         color: 'bg-green-100 text-green-800',
         icon: CheckCircle
+      },
+      disputed: {
+        label: 'Tranh chấp',
+        color: 'bg-orange-100 text-orange-800',
+        icon: AlertTriangle
       },
       failed: {
         label: 'Thất bại',
@@ -184,8 +215,10 @@ const AdminPaymentManagement = () => {
     const methods: Record<string, string> = {
       vnpay: 'VNPay',
       momo: 'MoMo',
+      zalopay: 'ZaloPay',
       stripe: 'Stripe',
-      banking: 'Chuyển khoản'
+      banking: 'Chuyển khoản',
+      'bank-transfer': 'Chuyển khoản'
     };
     return methods[method] || method;
   };
@@ -206,7 +239,9 @@ const AdminPaymentManagement = () => {
       const dateB = new Date(b.createdAt).getTime();
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     } else {
-      return sortOrder === 'desc' ? b.amount - a.amount : a.amount - b.amount;
+      const amountA = a.amount?.final || 0;
+      const amountB = b.amount?.final || 0;
+      return sortOrder === 'desc' ? amountB - amountA : amountA - amountB;
     }
   });
 
@@ -309,6 +344,7 @@ const AdminPaymentManagement = () => {
               <option value="all">Tất cả trạng thái</option>
               <option value="pending">Đang xử lý</option>
               <option value="completed">Hoàn thành</option>
+              <option value="disputed">Tranh chấp</option>
               <option value="failed">Thất bại</option>
               <option value="refunded">Đã hoàn tiền</option>
             </select>
@@ -407,12 +443,12 @@ const AdminPaymentManagement = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-semibold text-gray-900">
-                            {payment.amount.toLocaleString('vi-VN')}đ
+                            {(payment.amount?.final || 0).toLocaleString('vi-VN')}đ
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                            {getPaymentMethodLabel(payment.paymentMethod)}
+                            {getPaymentMethodLabel(payment.paymentMethod?.provider || payment.paymentMethod?.type)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -439,10 +475,30 @@ const AdminPaymentManagement = () => {
                               </Button>
                             )}
                             {payment.status === 'completed' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDisputePayment(payment._id)}
+                                  disabled={processingId === payment._id}
+                                >
+                                  {processingId === payment._id ? 'Đang xử lý...' : 'Tranh chấp'}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleRefundPayment(payment._id, payment.amount?.final || 0)}
+                                  disabled={processingId === payment._id}
+                                >
+                                  {processingId === payment._id ? 'Đang xử lý...' : 'Hoàn tiền'}
+                                </Button>
+                              </>
+                            )}
+                            {payment.status === 'disputed' && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleRefundPayment(payment._id, payment.amount)}
+                                onClick={() => handleRefundPayment(payment._id, payment.amount?.final || 0)}
                                 disabled={processingId === payment._id}
                               >
                                 {processingId === payment._id ? 'Đang xử lý...' : 'Hoàn tiền'}

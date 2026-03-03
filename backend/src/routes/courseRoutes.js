@@ -10,6 +10,8 @@ const {
   submitCourseForApproval,
   getMyCourses,
   getMyEnrolledCourses,
+  getMyCourseEnrollment,
+  updateMyLastLesson,
   getMyStudents,
   getMyRevenue
 } = require('../controllers/courseController');
@@ -238,6 +240,20 @@ router.get('/my-revenue', protect, getMyRevenue);
  *         description: Lấy danh sách thành công
  */
 router.get('/enrolled', protect, getMyEnrolledCourses);
+
+// Enrollment helpers (resume/progress)
+router.get('/:id/enrollment', protect, validateObjectId('id'), getMyCourseEnrollment);
+router.put(
+  '/:id/enrollment/last-lesson',
+  protect,
+  validateObjectId('id'),
+  [
+    body('lessonId')
+      .isMongoId()
+      .withMessage('Lesson ID không hợp lệ')
+  ],
+  updateMyLastLesson
+);
 
 /**
  * @swagger

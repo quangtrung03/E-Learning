@@ -1,10 +1,13 @@
 const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const User = require('../models/User');
+const Block = require('../models/Block');
 const { emitToConversation, emitToUser } = require('../services/socketService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
+
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // @desc    Lấy danh sách conversations của user
 // @route   GET /api/messages/conversations
@@ -37,16 +40,18 @@ const getConversations = async (req, res) => {
 // @access  Private
 const getOrCreateConversation = async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, participants } = req.body;
 
-    if (!userId) {
+    const targetUserId = userId || (Array.isArray(participants) ? participants[0] : null);
+
+    if (!targetUserId) {
       return res.status(400).json({
         success: false,
         message: 'User ID là bắt buộc'
       });
     }
 
-    if (userId === req.user.id) {
+    if (targetUserId === req.user.id) {
       return res.status(400).json({
         success: false,
         message: 'Không thể tạo cuộc trò chuyện với chính mình'
@@ -54,7 +59,7 @@ const getOrCreateConversation = async (req, res) => {
     }
 
     // Check if user exists
-    const targetUser = await User.findById(userId);
+    const targetUser = await User.findById(targetUserId);
     if (!targetUser) {
       return res.status(404).json({
         success: false,
@@ -62,10 +67,25 @@ const getOrCreateConversation = async (req, res) => {
       });
     }
 
+    // Block check (either direction)
+    const blockExists = await Block.findOne({
+      $or: [
+        { blocker: req.user.id, blocked: targetUserId },
+        { blocker: targetUserId, blocked: req.user.id }
+      ]
+    }).select('_id');
+
+    if (blockExists) {
+      return res.status(403).json({
+        success: false,
+        message: 'Không thể tạo cuộc trò chuyện do bị chặn'
+      });
+    }
+
     // Find existing conversation
     let conversation = await Conversation.findOne({
       type: 'direct',
-      participants: { $all: [req.user.id, userId], $size: 2 }
+      participants: { $all: [req.user.id, targetUserId], $size: 2 }
     })
       .populate('participants', 'name email avatar')
       .populate('lastMessage');
@@ -73,7 +93,7 @@ const getOrCreateConversation = async (req, res) => {
     // Create new if not exists
     if (!conversation) {
       conversation = await Conversation.create({
-        participants: [req.user.id, userId],
+        participants: [req.user.id, targetUserId],
         type: 'direct'
       });
 
@@ -91,6 +111,43 @@ const getOrCreateConversation = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi khi tạo cuộc trò chuyện'
+    });
+  }
+};
+
+// @desc    Tìm user để bắt đầu chat ("thêm bạn")
+// @route   GET /api/messages/users/search?q=...
+// @access  Private
+const searchUsers = async (req, res) => {
+  try {
+    const q = String(req.query.q || req.query.query || '').trim();
+
+    if (q.length < 2) {
+      return res.json({
+        success: true,
+        data: { users: [] }
+      });
+    }
+
+    const regex = new RegExp(escapeRegExp(q), 'i');
+
+    const users = await User.find({
+      _id: { $ne: req.user.id },
+      isActive: true,
+      $or: [{ name: regex }, { email: regex }]
+    })
+      .select('name email avatar')
+      .limit(10);
+
+    res.json({
+      success: true,
+      data: { users }
+    });
+  } catch (error) {
+    console.error('Error searching users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi khi tìm kiếm người dùng'
     });
   }
 };
@@ -188,6 +245,27 @@ const sendMessage = async (req, res) => {
         success: false,
         message: 'Bạn không có quyền gửi tin nhắn trong cuộc trò chuyện này'
       });
+    }
+
+    // Block check: if any other participant has blocked user, or user blocked them
+    const otherParticipantIds = (conversation.participants || [])
+      .map((p) => p.toString())
+      .filter((p) => p !== req.user.id);
+
+    if (otherParticipantIds.length > 0) {
+      const blockExists = await Block.findOne({
+        $or: [
+          { blocker: req.user.id, blocked: { $in: otherParticipantIds } },
+          { blocked: req.user.id, blocker: { $in: otherParticipantIds } }
+        ]
+      }).select('_id');
+
+      if (blockExists) {
+        return res.status(403).json({
+          success: false,
+          message: 'Không thể gửi tin nhắn do bị chặn'
+        });
+      }
     }
 
     // Create message
@@ -371,6 +449,15 @@ const upload = multer({
 // @access  Private
 const uploadMessageFile = async (req, res) => {
   try {
+    // Deprecation notice: chat attachments should use Cloudinary upload flow
+    // (frontend uploads via /api/upload/* and sends resulting absolute URL)
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('X-Deprecated-Endpoint', '/api/messages/upload');
+    if (req.requestId) {
+      res.setHeader('X-Request-Id', req.requestId);
+    }
+    console.warn(`⚠️ [${req.requestId || 'no-request-id'}] Deprecated endpoint used: POST /api/messages/upload`);
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -383,6 +470,8 @@ const uploadMessageFile = async (req, res) => {
 
     res.json({
       success: true,
+      deprecated: true,
+      message: 'Endpoint /api/messages/upload đã bị deprecate. Hãy dùng upload Cloudinary (/api/upload/*) và gửi URL tuyệt đối trong message.',
       data: {
         fileUrl,
         fileName: req.file.originalname,
@@ -402,6 +491,7 @@ const uploadMessageFile = async (req, res) => {
 module.exports = {
   getConversations,
   getOrCreateConversation,
+  searchUsers,
   getMessages,
   sendMessage,
   markAsRead,

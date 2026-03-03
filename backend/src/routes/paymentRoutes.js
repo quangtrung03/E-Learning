@@ -8,6 +8,7 @@ const {
   handlePaymentWebhook,
   getAllPayments,
   refundPayment,
+  markPaymentDisputed,
   fakePaymentSuccess,
   getPaymentByOrderId
 } = require('../controllers/paymentController');
@@ -65,8 +66,8 @@ const createPaymentValidation = [
     .isMongoId()
     .withMessage('Course ID không hợp lệ'),
   body('paymentMethod.type')
-    .isIn(['manual', 'bank-transfer']) // Temporarily only allow manual payment
-    .withMessage('Phương thức thanh toán không hợp lệ (hiện tại chỉ hỗ trợ chuyển khoản)'),
+    .isIn(['bank-transfer', 'vnpay', 'momo', 'zalopay', 'paypal'])
+    .withMessage('Phương thức thanh toán không hợp lệ'),
   body('paymentMethod.provider')
     .isLength({ min: 1 })
     .withMessage('Provider thanh toán là bắt buộc'),
@@ -266,6 +267,12 @@ router.put('/:id/confirm', protect, paymentLimiter, confirmPaymentValidation, co
  */
 router.get('/my-payments', getMyPayments);
 
+// Get payment by orderId (must be before '/:id' route)
+router.get('/order/:orderId', getPaymentByOrderId);
+
+// Fake payment success endpoint (for demo/testing)
+router.post('/:orderId/fake-success', fakePaymentSuccess);
+
 /**
  * @swagger
  * /payments/{id}:
@@ -338,6 +345,42 @@ router.get('/admin/all', getAllPayments);
 
 /**
  * @swagger
+ * /payments/{id}/dispute:
+ *   put:
+ *     summary: Mark payment as disputed (Admin)
+ *     tags: [Payments]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Lý do tranh chấp
+ *     responses:
+ *       200:
+ *         description: Updated successfully
+ *       400:
+ *         description: Only completed payments can be disputed
+ *       404:
+ *         description: Payment not found
+ */
+router.put('/:id/dispute', [
+  body('reason').optional().isLength({ min: 5, max: 500 }).withMessage('Lý do tranh chấp phải có từ 5-500 ký tự')
+], markPaymentDisputed);
+
+/**
+ * @swagger
  * /payments/{id}/refund:
  *   put:
  *     summary: Refund payment (Admin)
@@ -377,11 +420,5 @@ router.put('/:id/refund', [
   body('reason').isLength({ min: 5, max: 500 }).withMessage('Lý do refund phải có từ 5-500 ký tự'),
   body('refundAmount').optional().isFloat({ min: 0 }).withMessage('Số tiền refund phải >= 0')
 ], refundPayment);
-
-// Fake payment success endpoint (for demo)
-router.post('/:orderId/fake-success', protect, fakePaymentSuccess);
-
-// Get payment by orderId
-router.get('/order/:orderId', protect, getPaymentByOrderId);
 
 module.exports = router;

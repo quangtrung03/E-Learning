@@ -12,10 +12,18 @@ interface Payment {
     title: string;
     thumbnail?: string;
   };
-  amount: number;
-  paymentMethod: string;
-  status: 'pending' | 'completed' | 'failed' | 'refunded';
-  transactionId?: string;
+  amount: {
+    original: number;
+    discount: number;
+    final: number;
+    currency?: string;
+  };
+  paymentMethod: {
+    type: string;
+    provider: string;
+  };
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'refunded' | 'disputed';
+  transactionId: string;
   createdAt: string;
   completedAt?: string;
 }
@@ -33,7 +41,7 @@ const PaymentHistory = () => {
   const fetchPayments = async () => {
     try {
       const response = await paymentAPI.getMyPayments();
-      setPayments(response.data);
+      setPayments(response.data?.data?.payments || []);
     } catch (error: any) {
       showToast({ type: 'error', title: error.response?.data?.message || 'Không thể tải lịch sử thanh toán' });
     } finally {
@@ -49,6 +57,8 @@ const PaymentHistory = () => {
         return <XCircle className="w-5 h-5 text-red-600" />;
       case 'pending':
         return <Clock className="w-5 h-5 text-yellow-600" />;
+      case 'processing':
+        return <Clock className="w-5 h-5 text-yellow-600" />;
       default:
         return <Clock className="w-5 h-5 text-gray-600" />;
     }
@@ -62,6 +72,12 @@ const PaymentHistory = () => {
         return 'Thất bại';
       case 'pending':
         return 'Đang xử lý';
+      case 'processing':
+        return 'Đang xử lý';
+      case 'cancelled':
+        return 'Đã hủy';
+      case 'disputed':
+        return 'Tranh chấp';
       case 'refunded':
         return 'Đã hoàn tiền';
       default:
@@ -77,6 +93,12 @@ const PaymentHistory = () => {
         return 'bg-red-100 text-red-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
+      case 'processing':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'cancelled':
+        return 'bg-gray-100 text-gray-800';
+      case 'disputed':
+        return 'bg-orange-100 text-orange-800';
       case 'refunded':
         return 'bg-blue-100 text-blue-800';
       default:
@@ -94,6 +116,8 @@ const PaymentHistory = () => {
         return 'ZaloPay';
       case 'paypal':
         return 'PayPal';
+      case 'bank-transfer':
+        return 'Chuyển khoản';
       default:
         return method;
     }
@@ -101,6 +125,7 @@ const PaymentHistory = () => {
 
   const filteredPayments = payments.filter(payment => {
     if (filter === 'all') return true;
+    if (filter === 'pending') return payment.status === 'pending' || payment.status === 'processing';
     return payment.status === filter;
   });
 
@@ -161,7 +186,7 @@ const PaymentHistory = () => {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Đang xử lý ({payments.filter(p => p.status === 'pending').length})
+              Đang xử lý ({payments.filter(p => p.status === 'pending' || p.status === 'processing').length})
             </button>
             <button
               onClick={() => setFilter('failed')}
@@ -220,13 +245,13 @@ const PaymentHistory = () => {
                         <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <span>Mã đơn: {payment.orderId}</span>
                           <span>•</span>
-                          <span>{getPaymentMethodName(payment.paymentMethod)}</span>
+                          <span>{getPaymentMethodName(payment.paymentMethod.provider || payment.paymentMethod.type)}</span>
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-2xl font-bold text-blue-600 mb-2">
-                        {payment.amount.toLocaleString('vi-VN')}đ
+                        {payment.amount.final.toLocaleString('vi-VN')}đ
                       </div>
                       <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(payment.status)}`}>
                         {getStatusIcon(payment.status)}

@@ -115,7 +115,7 @@ const AdminUserDetail = () => {
 
   const getStatusBadge = (user: User) => {
     if (user.isAdmin) {
-      return <span className="px-3 py-1 text-sm font-semibold rounded-full bg-purple-100 text-purple-800">Admin</span>;
+      return <span className="px-3 py-1 text-sm font-semibold rounded-full bg-purple-100 text-purple-800">Quản trị viên</span>;
     }
     if (!user.isActive) {
       return <span className="px-3 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-800">Bị khóa</span>;

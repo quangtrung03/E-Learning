@@ -64,12 +64,12 @@ const Footer = () => {
               <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">ELearn</span>
             </div>
             <p className="text-gray-400 mb-6 leading-relaxed">
-              Transform your career with industry-leading courses taught by world-class experts.
+              Nâng tầm sự nghiệp với các khóa học chất lượng cao, được giảng dạy bởi chuyên gia hàng đầu.
             </p>
             
             {/* Social Links */}
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Connect With Us</h4>
+              <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Kết nối với chúng tôi</h4>
               <div className="flex space-x-3">
                 {socialLinks.map((social) => (
                   <a
@@ -90,30 +90,30 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-6 text-white">Quick Links</h3>
+            <h3 className="text-lg font-semibold mb-6 text-white">Liên kết nhanh</h3>
             <ul className="space-y-3">
               <li>
                 <Link to="/courses" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  All Courses
+                  Tất cả khóa học
                 </Link>
               </li>
               <li>
                 <Link to="/about" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  About Us
+                  Về chúng tôi
                 </Link>
               </li>
               <li>
                 <Link to="/contact" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  Contact
+                  Liên hệ
                 </Link>
               </li>
               <li>
                 <Link to="/blog" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  Blog
+                  Bài viết
                 </Link>
               </li>
             </ul>
@@ -121,30 +121,30 @@ const Footer = () => {
 
           {/* Support */}
           <div>
-            <h3 className="text-lg font-semibold mb-6 text-white">Support</h3>
+            <h3 className="text-lg font-semibold mb-6 text-white">Hỗ trợ</h3>
             <ul className="space-y-3">
               <li>
                 <Link to="/help" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  Help Center
+                  Trung tâm trợ giúp
                 </Link>
               </li>
               <li>
                 <Link to="/faq" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  FAQ
+                  Câu hỏi thường gặp
                 </Link>
               </li>
               <li>
                 <Link to="/privacy" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  Privacy Policy
+                  Chính sách bảo mật
                 </Link>
               </li>
               <li>
                 <Link to="/terms" className="text-gray-400 hover:text-cyan-400 transition-colors flex items-center group">
                   <span className="mr-2 group-hover:translate-x-1 transition-transform">→</span>
-                  Terms of Service
+                  Điều khoản dịch vụ
                 </Link>
               </li>
             </ul>
@@ -152,21 +152,21 @@ const Footer = () => {
 
           {/* Newsletter */}
           <div>
-            <h3 className="text-lg font-semibold mb-6 text-white">Stay Updated</h3>
+            <h3 className="text-lg font-semibold mb-6 text-white">Nhận cập nhật</h3>
             <p className="text-gray-400 mb-4 text-sm">
-              Subscribe to our newsletter for the latest courses and updates.
+              Đăng ký nhận bản tin để cập nhật khóa học mới và thông tin mới nhất.
             </p>
             <form className="space-y-3">
               <input
                 type="email"
-                placeholder="Enter your email"
+                placeholder="Nhập email của bạn"
                 className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
               />
               <button
                 type="submit"
                 className="w-full px-4 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-semibold rounded-lg transition-all duration-300 hover:shadow-lg hover:scale-105"
               >
-                Subscribe
+                Đăng ký
               </button>
             </form>
           </div>
@@ -176,19 +176,19 @@ const Footer = () => {
         <div className="pt-8 border-t border-gray-800">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <p className="text-gray-400 text-sm">
-              © {currentYear} ELearn Platform. All rights reserved.
+              © {currentYear} Nền tảng ELearn. Bảo lưu mọi quyền.
             </p>
             <div className="flex items-center space-x-6">
               <Link to="/privacy" className="text-gray-400 hover:text-cyan-400 text-sm transition-colors">
-                Privacy
+                Bảo mật
               </Link>
               <span className="text-gray-700">•</span>
               <Link to="/terms" className="text-gray-400 hover:text-cyan-400 text-sm transition-colors">
-                Terms
+                Điều khoản
               </Link>
               <span className="text-gray-700">•</span>
               <Link to="/sitemap" className="text-gray-400 hover:text-cyan-400 text-sm transition-colors">
-                Sitemap
+                Sơ đồ trang
               </Link>
             </div>
           </div>

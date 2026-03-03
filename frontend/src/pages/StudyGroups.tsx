@@ -40,14 +40,28 @@ const StudyGroups = () => {
   const navigate = useNavigate();
 
   const [myGroups, setMyGroups] = useState<StudyGroup[]>([]);
+  const [allGroups, setAllGroups] = useState<StudyGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [allGroupsLoading, setAllGroupsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'my-groups' | 'all-groups'>('my-groups');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterLevel, setFilterLevel] = useState<string>('all');
+  const [joinCode, setJoinCode] = useState('');
+  const [joiningByCode, setJoiningByCode] = useState(false);
 
   useEffect(() => {
     fetchMyGroups();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'all-groups') return;
+
+    const handle = setTimeout(() => {
+      fetchAllGroups();
+    }, 300);
+
+    return () => clearTimeout(handle);
+  }, [activeTab, searchQuery, filterLevel]);
 
   const fetchMyGroups = async () => {
     try {
@@ -58,9 +72,72 @@ const StudyGroups = () => {
       }
     } catch (error: any) {
       console.error('Error fetching my study groups:', error);
-      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể tải nhóm học tập' });
+      // Fallback to empty state instead of showing a scary error for benign cases
+      setMyGroups([]);
+
+      const status = error.response?.status;
+      if (status === 401) {
+        toast.showToast({ type: 'error', title: 'Vui lòng đăng nhập lại để xem nhóm học tập' });
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllGroups = async () => {
+    try {
+      setAllGroupsLoading(true);
+      const params: any = {
+        page: 1,
+        limit: 20,
+      };
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (filterLevel !== 'all') params.studyLevel = filterLevel;
+
+      const response = await studyGroupAPI.getStudyGroups(params);
+      if (response.data.success) {
+        setAllGroups(response.data.data.studyGroups || []);
+      } else {
+        setAllGroups([]);
+      }
+    } catch (error: any) {
+      console.error('Error fetching study groups:', error);
+      setAllGroups([]);
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể tải danh sách nhóm' });
+    } finally {
+      setAllGroupsLoading(false);
+    }
+  };
+
+  const handleJoinByCode = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) {
+      toast.showToast({ type: 'error', title: 'Vui lòng nhập mã nhóm' });
+      return;
+    }
+
+    try {
+      setJoiningByCode(true);
+      const lookup = await studyGroupAPI.getStudyGroupByCode(code);
+      const group = lookup.data?.data?.studyGroup as StudyGroup | undefined;
+      if (!lookup.data?.success || !group?._id) {
+        toast.showToast({ type: 'error', title: lookup.data?.message || 'Không tìm thấy nhóm' });
+        return;
+      }
+
+      const joinResp = await studyGroupAPI.joinStudyGroup(group._id, code);
+      if (joinResp.data?.success) {
+        toast.showToast({ type: 'success', title: joinResp.data?.message || 'Tham gia nhóm thành công!' });
+        setJoinCode('');
+        fetchMyGroups();
+        fetchAllGroups();
+      } else {
+        toast.showToast({ type: 'error', title: joinResp.data?.message || 'Không thể tham gia nhóm' });
+      }
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error.response?.data?.message || 'Không thể tham gia nhóm' });
+    } finally {
+      setJoiningByCode(false);
     }
   };
 
@@ -223,7 +300,7 @@ const StudyGroups = () => {
           </button>
         </div>
 
-        {/* Search and Filters */}
+        {/* Tìm kiếm và bộ lọc */}
         {activeTab === 'all-groups' && (
           <div className="mb-6 flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -235,6 +312,18 @@ const StudyGroups = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Mã nhóm"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value)}
+                className="w-36 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+              <Button onClick={handleJoinByCode} disabled={joiningByCode}>
+                Tham gia
+              </Button>
             </div>
             <select
               value={filterLevel}
@@ -272,15 +361,29 @@ const StudyGroups = () => {
             </div>
           )
         ) : (
-          <div className="text-center py-12">
-            <div className="text-6xl text-gray-300 mb-4">🔍</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Tính năng đang phát triển
-            </h3>
-            <p className="text-gray-600">
-              Tính năng tìm kiếm tất cả nhóm học tập sẽ sớm được ra mắt
-            </p>
-          </div>
+          allGroupsLoading ? (
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Đang tải danh sách nhóm...</p>
+            </div>
+          ) : allGroups.length === 0 ? (
+            <Card className="p-12 text-center">
+              <div className="text-6xl text-gray-300 mb-4">🔍</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Không tìm thấy nhóm
+              </h3>
+              <p className="text-gray-600">
+                Thử đổi từ khóa tìm kiếm hoặc tham gia bằng mã nhóm
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {allGroups.map((group) => {
+                const isMember = myGroups.some((g) => g._id === group._id);
+                return renderGroupCard(group, isMember);
+              })}
+            </div>
+          )
         )}
       </div>
     </div>

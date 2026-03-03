@@ -206,7 +206,7 @@ const AdminCoursesList = () => {
             </div>
             <Link to="/admin">
               <Button variant="outline">
-                ← Quay lại Dashboard
+                ← Quay lại Bảng điều khiển
               </Button>
             </Link>
           </div>

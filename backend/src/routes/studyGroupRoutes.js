@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const {
   createStudyGroup,
   getStudyGroups,
+  getStudyGroupByCode,
   getStudyGroup,
   updateStudyGroup,
   deleteStudyGroup,
@@ -184,6 +185,9 @@ const addResourceValidation = [
 
 // Protected routes
 router.use(protect);
+
+// Lookup / join by invite code (must be before '/:id')
+router.get('/by-code/:code', getStudyGroupByCode);
 
 /**
  * @swagger

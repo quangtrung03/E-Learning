@@ -1,4 +1,4 @@
-// UI Components - Complete library for E-Learning platform
+// UI Components - Thư viện component cho nền tảng học trực tuyến
 export { Button } from './Button';
 export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as Modal } from './Modal';

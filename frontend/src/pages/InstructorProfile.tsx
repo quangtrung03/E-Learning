@@ -382,7 +382,7 @@ const InstructorProfile = () => {
                           <div className="flex items-center gap-1">
                             <Star className="w-4 h-4 text-yellow-500 fill-current" />
                             <span className="text-sm font-medium text-gray-900">
-                              {course.rating?.average?.toFixed(1) || 'N/A'}
+                              {course.rating?.average?.toFixed(1) || 'Chưa có'}
                             </span>
                             <span className="text-sm text-gray-500">
                               ({course.rating?.count || 0})

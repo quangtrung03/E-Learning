@@ -5,11 +5,13 @@ const {
   getLesson,
   createLesson,
   updateLesson,
+  bulkSetLessonsHidden,
   deleteLesson,
   completeLesson,
   uncompleteLesson
 } = require('../controllers/lessonController');
 const { protect, checkEnrollment } = require('../middleware/auth');
+const { validateObjectId } = require('../middleware/validation');
 const { uploadLessonVideo, uploadLessonDocument } = require('../controllers/uploadController');
 const { uploadVideo, uploadDocument } = require('../middleware/upload');
 
@@ -150,7 +152,19 @@ const lessonUpdateValidation = [
  *         description: Không tìm thấy khóa học
  */
 // This route will be /api/lessons/by-course/:courseId after mounting
-router.get('/by-course/:courseId', protect, getLessonsByCourse);
+router.get('/by-course/:courseId', protect, validateObjectId('courseId'), getLessonsByCourse);
+
+// Bulk hide/show lessons within a course
+router.put(
+  '/by-course/:courseId/visibility',
+  protect,
+  validateObjectId('courseId'),
+  [
+    body('lessonIds').isArray({ min: 1 }).withMessage('lessonIds phải là mảng và không được rỗng'),
+    body('isHidden').isBoolean().withMessage('isHidden phải là boolean')
+  ],
+  bulkSetLessonsHidden
+);
 
 /**
  * @swagger
@@ -188,7 +202,7 @@ router.get('/by-course/:courseId', protect, getLessonsByCourse);
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.get('/:id', protect, checkEnrollment, getLesson);
+router.get('/:id', protect, validateObjectId('id'), checkEnrollment, getLesson);
 
 // Protected routes - cần authentication
 router.use(protect);
@@ -267,7 +281,7 @@ router.use(protect);
  *         description: Không tìm thấy khóa học
  */
 // This route will be /api/lessons/create/:courseId after mounting
-router.post('/create/:courseId', protect, lessonValidation, createLesson);
+router.post('/create/:courseId', protect, validateObjectId('courseId'), lessonValidation, createLesson);
 
 /**
  * @swagger
@@ -341,8 +355,8 @@ router.post('/create/:courseId', protect, lessonValidation, createLesson);
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.put('/:id', protect, lessonUpdateValidation, updateLesson);
-router.delete('/:id', protect, deleteLesson);
+router.put('/:id', protect, validateObjectId('id'), lessonUpdateValidation, updateLesson);
+router.delete('/:id', protect, validateObjectId('id'), deleteLesson);
 
 /**
  * @swagger
@@ -411,8 +425,8 @@ router.delete('/:id', protect, deleteLesson);
  *       404:
  *         description: Không tìm thấy bài học
  */
-router.post('/:id/complete', completeLesson);
-router.delete('/:id/complete', uncompleteLesson);
+router.post('/:id/complete', validateObjectId('id'), completeLesson);
+router.delete('/:id/complete', validateObjectId('id'), uncompleteLesson);
 
 /**
  * @route   POST /api/lessons/:id/upload-video

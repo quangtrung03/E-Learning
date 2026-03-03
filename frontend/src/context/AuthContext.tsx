@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import { authAPI } from '../services/api';
 import { useToast } from './ToastContext';
+import { setSentryUser } from '../sentry';
 
 // Types
 interface User {
@@ -217,6 +218,10 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    setSentryUser(state.user);
+  }, [state.user]);
 
   // Load user data on app start
   useEffect(() => {

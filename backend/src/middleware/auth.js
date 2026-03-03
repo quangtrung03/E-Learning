@@ -212,6 +212,14 @@ const checkEnrollment = async (req, res, next) => {
     if (req.user.isAdmin) {
       return next();
     }
+
+    // Chặn học viên truy cập lesson bị ẩn
+    if (lesson.isHidden) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bài học'
+      });
+    }
     
     // Cho phép preview lessons (không cần enrollment)
     if (lesson.isPreview) {

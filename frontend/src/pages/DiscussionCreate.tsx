@@ -175,7 +175,7 @@ const DiscussionCreate = () => {
           {/* Tags */}
           <div>
             <label htmlFor="tags" className="block text-sm font-semibold text-gray-700 mb-2">
-              Tags (tùy chọn)
+              Từ khóa (tùy chọn)
             </label>
             <input
               type="text"
@@ -183,12 +183,12 @@ const DiscussionCreate = () => {
               name="tags"
               value={formData.tags}
               onChange={handleChange}
-              placeholder="Nhập các tag cách nhau bằng dấu phẩy (ví dụ: javascript, react, học tập)"
+              placeholder="Nhập các từ khóa cách nhau bằng dấu phẩy (ví dụ: javascript, react, học tập)"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               disabled={submitting}
             />
             <p className="text-sm text-gray-500 mt-1">
-              Tags giúp người khác dễ dàng tìm thấy thảo luận của bạn
+              Từ khóa giúp người khác dễ dàng tìm thấy thảo luận của bạn
             </p>
           </div>
 
@@ -200,6 +200,7 @@ const DiscussionCreate = () => {
               <li>Nội dung chi tiết, có cấu trúc (tối thiểu 20 ký tự)</li>
               <li>Sử dụng danh mục phù hợp để phân loại</li>
               <li>Thêm tags để dễ tìm kiếm</li>
+              <li>Thêm từ khóa để dễ tìm kiếm</li>
               <li>Tôn trọng ý kiến của người khác</li>
             </ul>
           </div>

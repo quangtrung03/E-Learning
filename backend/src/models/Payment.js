@@ -231,6 +231,24 @@ const paymentSchema = new mongoose.Schema({
   maxRetries: {
     type: Number,
     default: 3
+  },
+  // Snapshot doanh thu/phí nền tảng tại thời điểm completed (audit + query nhanh)
+  platformFeeRate: {
+    type: Number,
+    default: null
+  },
+  platformFeeAmount: {
+    type: Number,
+    default: null
+  },
+  instructorNetAmount: {
+    type: Number,
+    default: null
+  },
+  instructorId: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User',
+    default: null
   }
 }, {
   timestamps: true
@@ -316,5 +334,7 @@ paymentSchema.index({ orderId: 1 });
 paymentSchema.index({ transactionId: 1 });
 paymentSchema.index({ 'invoice.number': 1 });
 paymentSchema.index({ status: 1, createdAt: -1 });
+paymentSchema.index({ status: 1, completedAt: -1 });
+paymentSchema.index({ instructorId: 1, status: 1, completedAt: -1 });
 
 module.exports = mongoose.model('Payment', paymentSchema);

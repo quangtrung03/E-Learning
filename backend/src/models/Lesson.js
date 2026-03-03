@@ -16,6 +16,11 @@ const lessonSchema = new mongoose.Schema({
     ref: 'Course',
     required: [true, 'Bài học phải thuộc về một khóa học']
   },
+  section: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'CourseSection',
+    default: null
+  },
   order: {
     type: Number,
     required: [true, 'Vui lòng nhập thứ tự bài học'],
@@ -93,6 +98,12 @@ const lessonSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Backward-compatible visibility control.
+  // If true, lesson is hidden from students (even if preview).
+  isHidden: {
+    type: Boolean,
+    default: false
+  },
   completedBy: [{
     student: {
       type: mongoose.Schema.ObjectId,
@@ -109,6 +120,7 @@ const lessonSchema = new mongoose.Schema({
 
 // Tạo index
 lessonSchema.index({ course: 1, order: 1 });
+lessonSchema.index({ course: 1, section: 1, order: 1 });
 
 // Populate course khi query
 lessonSchema.pre(/^find/, function(next) {

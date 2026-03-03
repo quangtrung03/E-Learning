@@ -1,12 +1,13 @@
-import { useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/Button';
-import api from '../services/api';
+import api, { uploadAPI } from '../services/api';
 import resolveAvatar from '../utils/resolveAvatar';
+import FileUploadCard from '../components/upload/FileUploadCard';
 
-// Admin Request Section Component
+// Component phần yêu cầu quản trị viên
 const AdminRequestSection: React.FC = () => {
   const { showToast } = useToast();
   const [requesting, setRequesting] = useState(false);
@@ -44,7 +45,7 @@ const AdminRequestSection: React.FC = () => {
               Trở thành Quản trị viên
             </h3>
             <p className="mt-2 text-blue-700">
-              Bạn muốn trở thành admin để quản lý hệ thống? Gửi yêu cầu ngay và chúng tôi sẽ xem xét.
+              Bạn muốn trở thành quản trị viên để quản lý hệ thống? Gửi yêu cầu ngay và chúng tôi sẽ xem xét.
             </p>
             <div className="mt-4">
               <Button
@@ -62,7 +63,7 @@ const AdminRequestSection: React.FC = () => {
                     Đang gửi...
                   </span>
                 ) : (
-                  'Gửi yêu cầu làm Admin'
+                  'Gửi yêu cầu làm quản trị viên'
                 )}
               </Button>
             </div>
@@ -76,7 +77,6 @@ const AdminRequestSection: React.FC = () => {
 const Profile: React.FC = () => {
   const { user, updateProfile } = useAuth();
   const navigate = useNavigate();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -84,10 +84,11 @@ const Profile: React.FC = () => {
     bio: user?.bio || '',
   });
 
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user?.avatar ? (resolveAvatar(user.avatar) || null) : null
+  const resolvedUserAvatar = useMemo(
+    () => (user?.avatar ? (resolveAvatar(user.avatar) || null) : null),
+    [user?.avatar]
   );
+  const [pendingAvatarUrl, setPendingAvatarUrl] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
@@ -97,32 +98,6 @@ const Profile: React.FC = () => {
       ...prev,
       [name]: value
     }));
-  };
-
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file size (5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setMessage({ type: 'error', text: 'File phải nhỏ hơn 5MB' });
-        return;
-      }
-
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setMessage({ type: 'error', text: 'Chỉ chấp nhận file hình ảnh' });
-        return;
-      }
-
-      setAvatarFile(file);
-      
-      // Create preview
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,16 +113,16 @@ const Profile: React.FC = () => {
       formDataToSend.append('phone', formData.phone);
       formDataToSend.append('bio', formData.bio);
       
-      // Append avatar if selected
-      if (avatarFile) {
-        formDataToSend.append('avatar', avatarFile);
+      // If avatar uploaded via shared uploader, send URL (backend supports both file and url)
+      if (pendingAvatarUrl) {
+        formDataToSend.append('avatarUrl', pendingAvatarUrl);
       }
 
       const success = await updateProfile(formDataToSend);
       
       if (success) {
         setMessage({ type: 'success', text: 'Cập nhật thông tin thành công!' });
-        setAvatarFile(null);
+        setPendingAvatarUrl('');
       } else {
         setMessage({ type: 'error', text: 'Có lỗi xảy ra khi cập nhật thông tin' });
       }
@@ -183,9 +158,9 @@ const Profile: React.FC = () => {
             <div className="flex flex-col items-center space-y-4">
               <div className="relative">
                 <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-200 border-4 border-white shadow-lg">
-                  {avatarPreview ? (
+                  {pendingAvatarUrl || resolvedUserAvatar ? (
                     <img
-                      src={avatarPreview}
+                      src={pendingAvatarUrl || (resolvedUserAvatar as string)}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />
@@ -197,26 +172,27 @@ const Profile: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-0 right-0 bg-primary-500 text-white p-2 rounded-full shadow-lg hover:bg-primary-600 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                </button>
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarChange}
-                className="hidden"
-              />
-              <p className="text-sm text-gray-500 text-center">
-                Click để thay đổi avatar (tối đa 5MB)
-              </p>
+              <div className="w-full max-w-md">
+                <FileUploadCard
+                  title="Ảnh đại diện"
+                  description="Định dạng ảnh (JPG/PNG/GIF). Tối đa 5MB."
+                  accept="image/*"
+                  maxSizeMB={5}
+                  validateFile={(file) => {
+                    if (!file.type.startsWith('image/')) return 'Chỉ chấp nhận file hình ảnh';
+                    return null;
+                  }}
+                  uploadedUrl={pendingAvatarUrl}
+                  onUploadedUrlChange={(url) => setPendingAvatarUrl(url)}
+                  uploadFile={async (file, onProgress) => {
+                    const formDataUpload = new FormData();
+                    formDataUpload.append('file', file);
+                    const response = await uploadAPI.uploadImage(formDataUpload, onProgress);
+                    return response.data.data;
+                  }}
+                />
+              </div>
             </div>
 
             {/* Form Fields */}
@@ -296,7 +272,7 @@ const Profile: React.FC = () => {
               </div>
             )}
 
-            {/* Admin Request Section */}
+            {/* Phần yêu cầu quản trị viên */}
             {!user?.isAdmin && (
               <AdminRequestSection />
             )}

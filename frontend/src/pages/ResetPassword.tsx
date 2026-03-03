@@ -437,7 +437,7 @@ const ResetPassword: React.FC = () => {
       {/* Footer */}
       <div className="mt-8 text-center">
         <p className="text-xs text-gray-500">
-          © 2025 E-Learning Platform. Bảo mật và an toàn cho người dùng.
+          © 2025 Nền tảng Học trực tuyến. Bảo mật và an toàn cho người dùng.
         </p>
       </div>
     </div>

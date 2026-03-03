@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/common/Layout';
 import Home from './pages/Home';
@@ -5,42 +6,55 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
-import CourseDetail from './pages/CourseDetail';
+import MyCourses from './pages/MyCourses';
 import Profile from './pages/Profile';
 import EmailVerification from './pages/EmailVerification';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 
 
-import LessonManagement from './pages/LessonManagement';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminUsersList from './pages/AdminUsersList';
-import AdminCoursesList from './pages/AdminCoursesList';
-import AdminUserDetail from './pages/AdminUserDetail';
-import AdminCourseDetail from './pages/AdminCourseDetail';
+import LessonViewer from './pages/LessonViewer';
 import AdminRequestForm from './pages/AdminRequestForm';
-import AdminRequestManagement from './pages/AdminRequestManagement';
 import AssignmentDetail from './pages/AssignmentDetail';
 import MyCertificates from './pages/MyCertificates';
-import Messages from './pages/MessagesEnhanced';
 import StudyGroups from './pages/StudyGroups';
 import StudyGroupDetail from './pages/StudyGroupDetail';
 import StudyGroupCreate from './pages/StudyGroupCreate';
-import LearningAnalytics from './pages/LearningAnalytics';
 import PaymentCheckout from './pages/PaymentCheckout';
 import PaymentHistory from './pages/PaymentHistory';
 import PaymentReturn from './pages/PaymentReturn';
+import PaymentSimulate from './pages/PaymentSimulate';
 import DiscussionList from './pages/DiscussionList';
 import DiscussionDetail from './pages/DiscussionDetail';
 import DiscussionCreate from './pages/DiscussionCreate';
 import SubmissionList from './pages/SubmissionList';
 import AssignmentGrading from './pages/AssignmentGrading';
-import AdminReviewManagement from './pages/AdminReviewManagement';
-import AdminCouponManagement from './pages/AdminCouponManagement';
 import CertificateVerification from './pages/CertificateVerification';
 import InstructorProfile from './pages/InstructorProfile';
-import AdminPaymentManagement from './pages/AdminPaymentManagement';
 import { useAuth } from './context/AuthContext';
+
+const LessonManagement = lazy(() => import('./pages/LessonManagement'));
+
+const CourseDetail = lazy(() => import('./pages/CourseDetail'));
+const LearningAnalytics = lazy(() => import('./pages/LearningAnalytics'));
+
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminUsersList = lazy(() => import('./pages/AdminUsersList'));
+const AdminCoursesList = lazy(() => import('./pages/AdminCoursesList'));
+const AdminUserDetail = lazy(() => import('./pages/AdminUserDetail'));
+const AdminCourseDetail = lazy(() => import('./pages/AdminCourseDetail'));
+const AdminRequestManagement = lazy(() => import('./pages/AdminRequestManagement'));
+const AdminReviewManagement = lazy(() => import('./pages/AdminReviewManagement'));
+const AdminCouponManagement = lazy(() => import('./pages/AdminCouponManagement'));
+const AdminPaymentManagement = lazy(() => import('./pages/AdminPaymentManagement'));
+
+const Messages = lazy(() => import('./pages/MessagesEnhanced'));
+
+const PageLoader = () => (
+  <div className="min-h-screen flex items-center justify-center">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+  </div>
+);
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -86,108 +100,136 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 function App() {
   return (
       <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route 
-            path="/courses" 
-            element={
-              <ProtectedRoute>
-                <Courses />
-              </ProtectedRoute>
-            } 
-          />
-          <Route path="/courses/:id" element={<CourseDetail />} />
-          <Route 
-            path="/login" 
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/register" 
-            element={
-              <PublicRoute>
-                <Register />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/profile" 
-            element={
-              <ProtectedRoute>
-                <Profile />
-              </ProtectedRoute>
-            } 
-          />
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route 
+              path="/courses" 
+              element={
+                <ProtectedRoute>
+                  <Courses />
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="/courses/:id" element={<CourseDetail />} />
+
+            <Route
+              path="/courses/:courseId/learn/:lessonId"
+              element={
+                <ProtectedRoute>
+                  <LessonViewer />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/login" 
+              element={
+                <PublicRoute>
+                  <Login />
+                </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/register" 
+              element={
+                <PublicRoute>
+                  <Register />
+                </PublicRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/my-courses" 
+              element={
+                <ProtectedRoute>
+                  <MyCourses />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              } 
+            />
 
 
-          <Route 
-            path="/courses/:courseId/lessons" 
-            element={
-              <ProtectedRoute>
-                <LessonManagement />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/users" 
-            element={
-              <ProtectedRoute>
-                <AdminUsersList />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/courses" 
-            element={
-              <ProtectedRoute>
-                <AdminCoursesList />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/users/:id" 
-            element={
-              <ProtectedRoute>
-                <AdminUserDetail />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/admin/courses/:id" 
-            element={
-              <ProtectedRoute>
-                <AdminCourseDetail />
-              </ProtectedRoute>
-            } 
-          />
-          <Route path="/verify-email" element={<EmailVerification />} />
-          <Route 
-            path="/forgot-password" 
-            element={
-              <PublicRoute>
-                <ForgotPassword />
-              </PublicRoute>
-            } 
-          />
+            <Route 
+              path="/courses/:courseId/lessons" 
+              element={
+                <ProtectedRoute>
+                  <LessonManagement />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/users" 
+              element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <AdminUsersList />
+                  </AdminRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/courses" 
+              element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <AdminCoursesList />
+                  </AdminRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/users/:id" 
+              element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <AdminUserDetail />
+                  </AdminRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/courses/:id" 
+              element={
+                <ProtectedRoute>
+                  <AdminRoute>
+                    <AdminCourseDetail />
+                  </AdminRoute>
+                </ProtectedRoute>
+              } 
+            />
+            <Route path="/verify-email" element={<EmailVerification />} />
+            <Route 
+              path="/forgot-password" 
+              element={
+                <PublicRoute>
+                  <ForgotPassword />
+                </PublicRoute>
+              } 
+            />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route 
             path="/assignments/:assignmentId" 
@@ -311,6 +353,15 @@ function App() {
               </ProtectedRoute>
             } 
           />
+
+          <Route 
+            path="/payment/simulate" 
+            element={
+              <ProtectedRoute>
+                <PaymentSimulate />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Admin Request Routes */}
           <Route 
@@ -362,8 +413,9 @@ function App() {
           <Route path="/certificates/verify/:hash" element={<CertificateVerification />} />
           <Route path="/instructors/:id" element={<InstructorProfile />} />
           
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </Layout>
   );
 }

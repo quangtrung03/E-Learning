@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { courseAPI, lessonAPI, uploadAPI } from '../services/api';
+import { courseAPI, lessonAPI, sectionAPI, uploadAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import FileUploadCard from '../components/upload/FileUploadCard';
 
 interface Lesson {
   _id: string;
@@ -16,11 +17,20 @@ interface Lesson {
   duration: number;
   order: number;
   isPreview: boolean;
+  isHidden?: boolean;
+  section?: null | string | { _id: string; title: string; order: number };
   resources?: Array<{
     name: string;
     url: string;
     type: 'pdf' | 'doc' | 'image' | 'link' | 'other';
   }>;
+}
+
+interface CourseSection {
+  _id: string;
+  title: string;
+  description?: string;
+  order: number;
 }
 
 import type { Course } from '../types/course';
@@ -40,23 +50,18 @@ const LessonManagement = () => {
   
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [sections, setSections] = useState<CourseSection[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [selectedLessonIds, setSelectedLessonIds] = useState<string[]>([]);
+
   // Video upload state
   const [videoInputType, setVideoInputType] = useState<'url' | 'file'>('url');
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [videoPreview, setVideoPreview] = useState<string>('');
-  const [videoUploadProgress, setVideoUploadProgress] = useState<number>(0);
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-
-  // Resource upload state
-  const [resourceUploadIndex, setResourceUploadIndex] = useState<number | null>(null);
-  const [resourceUploadProgress, setResourceUploadProgress] = useState<number>(0);
-  const [isUploadingResource, setIsUploadingResource] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -66,6 +71,7 @@ const LessonManagement = () => {
     videoUrl: '',
     duration: 30,
     order: 1,
+    section: '' as string | '',
     isPreview: false,
     resources: [] as Array<{
       name: string;
@@ -74,11 +80,59 @@ const LessonManagement = () => {
     }>
   });
 
+  const [sectionForm, setSectionForm] = useState({
+    title: '',
+    description: ''
+  });
+
   useEffect(() => {
     if (courseId) {
       fetchData();
     }
   }, [courseId]);
+
+  useEffect(() => {
+    setSelectedLessonIds((prev) => {
+      const existing = new Set((Array.isArray(lessons) ? lessons : []).map((l) => l._id));
+      return prev.filter((id) => existing.has(id));
+    });
+  }, [lessons]);
+
+  const isLessonSelected = (lessonId: string) => selectedLessonIds.includes(lessonId);
+
+  const toggleLessonSelected = (lessonId: string, selected: boolean) => {
+    setSelectedLessonIds((prev) => {
+      if (selected) return prev.includes(lessonId) ? prev : [...prev, lessonId];
+      return prev.filter((id) => id !== lessonId);
+    });
+  };
+
+  const toggleSelectAllLessons = (selected: boolean) => {
+    if (!selected) {
+      setSelectedLessonIds([]);
+      return;
+    }
+    setSelectedLessonIds((Array.isArray(lessons) ? lessons : []).map((l) => l._id));
+  };
+
+  const handleBulkVisibility = async (isHidden: boolean) => {
+    if (!courseId) return;
+    if (selectedLessonIds.length === 0) return;
+
+    const actionLabel = isHidden ? 'Ẩn' : 'Hiện';
+    if (!confirm(`${actionLabel} ${selectedLessonIds.length} bài học đã chọn?`)) {
+      return;
+    }
+
+    try {
+      await lessonAPI.bulkSetLessonVisibility(courseId, selectedLessonIds, isHidden);
+      await refreshLists();
+      setSelectedLessonIds([]);
+      toast.success(`Đã ${actionLabel.toLowerCase()} bài học`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái hiển thị');
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -98,6 +152,10 @@ const LessonManagement = () => {
       // Fetch lessons
       const lessonsResponse = await lessonAPI.getLessonsByCourse(courseId!);
       setLessons(lessonsResponse.data.data.lessons || []);
+
+      // Fetch sections
+      const sectionsResponse = await sectionAPI.getSectionsByCourse(courseId!);
+      setSections(sectionsResponse.data.data.sections || []);
 
     } catch (error: any) {
       setError(error.response?.data?.message || 'Có lỗi xảy ra khi tải dữ liệu');
@@ -136,110 +194,6 @@ const LessonManagement = () => {
     }));
   };
 
-  const handleVideoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file size (100MB)
-      if (file.size > 100 * 1024 * 1024) {
-        toast.error('Kích thước video không được vượt quá 100MB');
-        return;
-      }
-      // Validate file type
-      const validTypes = ['video/mp4', 'video/webm', 'video/mov'];
-      if (!validTypes.includes(file.type)) {
-        toast.error('Vui lòng chọn file video hợp lệ (MP4, WebM, MOV)');
-        return;
-      }
-      setVideoFile(file);
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setVideoPreview(previewUrl);
-    }
-  };
-
-  const handleVideoUpload = async () => {
-    if (!videoFile) return;
-    
-    try {
-      setIsUploadingVideo(true);
-      setVideoUploadProgress(0);
-      
-      const formDataUpload = new FormData();
-      formDataUpload.append('file', videoFile);
-      
-      const response = await uploadAPI.uploadVideo(formDataUpload, (progress) => {
-        setVideoUploadProgress(progress);
-      });
-      
-      if (response.data.success) {
-        // Use Cloudinary secure URL
-        setFormData(prev => ({
-          ...prev,
-          videoUrl: response.data.data.url // Cloudinary URL
-        }));
-        toast.success('Upload video thành công!');
-      }
-    } catch (error: any) {
-      console.error('Error uploading video:', error);
-      toast.error(error.response?.data?.message || 'Lỗi khi upload video');
-    } finally {
-      setIsUploadingVideo(false);
-      setVideoUploadProgress(0);
-    }
-  };
-
-  const clearVideo = () => {
-    setVideoFile(null);
-    setVideoPreview('');
-    if (videoPreview) {
-      URL.revokeObjectURL(videoPreview);
-    }
-    setFormData(prev => ({ ...prev, videoUrl: '' }));
-  };
-
-  const handleResourceFileUpload = async (index: number, file: File) => {
-    try {
-      // Validate file size (10MB for documents)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Kích thước file không được vượt quá 10MB');
-        return;
-      }
-
-      setIsUploadingResource(true);
-      setResourceUploadIndex(index);
-      setResourceUploadProgress(0);
-
-      const formDataUpload = new FormData();
-      formDataUpload.append('file', file);
-
-      // Use uploadImage endpoint for documents (Cloudinary supports PDF/DOC)
-      const response = await uploadAPI.uploadImage(formDataUpload, (progress) => {
-        setResourceUploadProgress(progress);
-      });
-
-      if (response.data.success) {
-        // Update resource with uploaded URL and file name
-        handleResourceChange(index, 'url', response.data.data.url);
-        if (!formData.resources[index].name) {
-          handleResourceChange(index, 'name', file.name);
-        }
-        // Auto-detect file type
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        if (ext === 'pdf') handleResourceChange(index, 'type', 'pdf');
-        else if (ext === 'doc' || ext === 'docx') handleResourceChange(index, 'type', 'doc');
-        else if (['jpg', 'jpeg', 'png', 'gif'].includes(ext || '')) handleResourceChange(index, 'type', 'image');
-
-        toast.success(`Upload ${file.name} thành công!`);
-      }
-    } catch (error: any) {
-      console.error('Error uploading resource:', error);
-      toast.error(error.response?.data?.message || 'Lỗi khi upload tài liệu');
-    } finally {
-      setIsUploadingResource(false);
-      setResourceUploadIndex(null);
-      setResourceUploadProgress(0);
-    }
-  };
 
   const resetForm = () => {
     setFormData({
@@ -250,13 +204,53 @@ const LessonManagement = () => {
       videoUrl: '',
       duration: 30,
       order: lessons.length + 1,
+      section: '',
       isPreview: false,
       resources: []
     });
     setEditingLesson(null);
     setVideoInputType('url');
-    clearVideo();
     setShowCreateForm(false);
+  };
+
+  const refreshLists = async () => {
+    const [lessonsResponse, sectionsResponse] = await Promise.all([
+      lessonAPI.getLessonsByCourse(courseId!),
+      sectionAPI.getSectionsByCourse(courseId!)
+    ]);
+    setLessons(lessonsResponse.data.data.lessons || []);
+    setSections(sectionsResponse.data.data.sections || []);
+  };
+
+  const handleCreateSection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sectionForm.title.trim()) return;
+
+    try {
+      await sectionAPI.createSection(courseId!, {
+        title: sectionForm.title.trim(),
+        description: sectionForm.description.trim() || undefined
+      });
+      setSectionForm({ title: '', description: '' });
+      await refreshLists();
+      toast.success('Đã tạo section');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo section');
+    }
+  };
+
+  const handleDeleteSection = async (sectionId: string, sectionTitle: string) => {
+    if (!confirm(`Bạn có chắc chắn muốn xóa section "${sectionTitle}"? (Các bài học trong section sẽ được đưa về "Chưa phân loại")`)) {
+      return;
+    }
+
+    try {
+      await sectionAPI.deleteSection(sectionId);
+      await refreshLists();
+      toast.success('Đã xóa section');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa section');
+    }
   };
 
   const handleCreateLesson = async (e: React.FormEvent) => {
@@ -267,14 +261,13 @@ const LessonManagement = () => {
       
       const lessonData = {
         ...formData,
+        section: formData.section || null,
         resources: formData.resources.filter(r => r.name && r.url)
       };
 
       await lessonAPI.createLesson(courseId!, lessonData);
       
-      // Refresh lessons list
-      const lessonsResponse = await lessonAPI.getLessonsByCourse(courseId!);
-      setLessons(lessonsResponse.data.data.lessons || []);
+      await refreshLists();
       
       resetForm();
       
@@ -295,14 +288,13 @@ const LessonManagement = () => {
       
       const lessonData = {
         ...formData,
+        section: formData.section || null,
         resources: formData.resources.filter(r => r.name && r.url)
       };
 
       await lessonAPI.updateLesson(editingLesson._id, lessonData);
       
-      // Refresh lessons list
-      const lessonsResponse = await lessonAPI.getLessonsByCourse(courseId!);
-      setLessons(lessonsResponse.data.data.lessons || []);
+      await refreshLists();
       
       resetForm();
       
@@ -321,9 +313,7 @@ const LessonManagement = () => {
     try {
       await lessonAPI.deleteLesson(lessonId);
       
-      // Refresh lessons list
-      const lessonsResponse = await lessonAPI.getLessonsByCourse(courseId!);
-      setLessons(lessonsResponse.data.data.lessons || []);
+      await refreshLists();
       
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi xóa bài học');
@@ -331,6 +321,11 @@ const LessonManagement = () => {
   };
 
   const startEdit = (lesson: Lesson) => {
+    const sectionId = typeof lesson.section === 'string'
+      ? lesson.section
+      : (lesson.section && typeof lesson.section === 'object')
+        ? lesson.section._id
+        : '';
     setFormData({
       title: lesson.title,
       description: lesson.description || '',
@@ -339,11 +334,21 @@ const LessonManagement = () => {
       videoUrl: lesson.videoUrl || '',
       duration: lesson.duration,
       order: lesson.order,
+      section: sectionId,
       isPreview: lesson.isPreview,
       resources: lesson.resources || []
     });
     setEditingLesson(lesson);
     setShowCreateForm(true);
+  };
+
+  const getSectionLabel = (lesson: Lesson) => {
+    if (!lesson.section) return 'Chưa phân loại';
+    if (typeof lesson.section === 'string') {
+      const match = sections.find(s => s._id === lesson.section);
+      return match?.title || 'Section';
+    }
+    return lesson.section.title;
   };
 
   const getContentTypeLabel = (type: string) => {
@@ -354,6 +359,100 @@ const LessonManagement = () => {
       quiz: 'Bài kiểm tra'
     };
     return types[type] || type;
+  };
+
+  const getLessonSectionId = (lesson: Lesson): string | null => {
+    if (!lesson.section) return null;
+    if (typeof lesson.section === 'string') return lesson.section;
+    if (typeof lesson.section === 'object' && lesson.section?._id) return lesson.section._id;
+    return null;
+  };
+
+  const normalizeOrder = <T extends { _id: string; order: number }>(items: T[]) => {
+    return items.map((item, index) => ({ ...item, order: index + 1 }));
+  };
+
+  const handleMoveSection = async (sectionId: string, direction: 'up' | 'down') => {
+    if (reordering) return;
+    const ordered = sections.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const normalized = normalizeOrder(ordered);
+    const fromIndex = normalized.findIndex((s) => s._id === sectionId);
+    if (fromIndex === -1) return;
+
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= normalized.length) return;
+
+    const swapped = normalized.slice();
+    const temp = swapped[fromIndex];
+    swapped[fromIndex] = swapped[toIndex];
+    swapped[toIndex] = temp;
+
+    const finalList = normalizeOrder(swapped);
+    const changed = finalList.filter((s) => {
+      const before = sections.find((x) => x._id === s._id);
+      return before && before.order !== s.order;
+    });
+
+    // Optimistic UI
+    setSections(finalList);
+
+    try {
+      setReordering(true);
+      await Promise.all(changed.map((s) => sectionAPI.updateSection(s._id, { order: s.order })));
+      toast.success('Đã cập nhật thứ tự section');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi sắp xếp section');
+      await refreshLists();
+    } finally {
+      setReordering(false);
+    }
+  };
+
+  const handleMoveLesson = async (lessonId: string, direction: 'up' | 'down') => {
+    if (reordering) return;
+    const current = lessons.find((l) => l._id === lessonId);
+    if (!current) return;
+
+    const sectionKey = getLessonSectionId(current) || '__unassigned__';
+    const group = lessons
+      .filter((l) => (getLessonSectionId(l) || '__unassigned__') === sectionKey)
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+    const normalized = normalizeOrder(group);
+    const fromIndex = normalized.findIndex((l) => l._id === lessonId);
+    if (fromIndex === -1) return;
+
+    const toIndex = direction === 'up' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= normalized.length) return;
+
+    const swapped = normalized.slice();
+    const temp = swapped[fromIndex];
+    swapped[fromIndex] = swapped[toIndex];
+    swapped[toIndex] = temp;
+
+    const finalGroup = normalizeOrder(swapped);
+    const changed = finalGroup.filter((l) => {
+      const before = lessons.find((x) => x._id === l._id);
+      return before && before.order !== l.order;
+    });
+
+    // Optimistic UI
+    setLessons((prev) => prev.map((l) => {
+      const updated = finalGroup.find((x) => x._id === l._id);
+      return updated ? { ...l, order: updated.order } : l;
+    }));
+
+    try {
+      setReordering(true);
+      await Promise.all(changed.map((l) => lessonAPI.updateLesson(l._id, { order: l.order })));
+      toast.success('Đã cập nhật thứ tự bài học');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi sắp xếp bài học');
+      await refreshLists();
+    } finally {
+      setReordering(false);
+    }
   };
 
   if (loading) {
@@ -399,6 +498,7 @@ const LessonManagement = () => {
             <div className="text-right">
               <div className="text-2xl font-bold">{lessons.length}</div>
               <div className="text-primary-200">bài học</div>
+              <div className="text-primary-200 mt-1">{sections.length} section</div>
             </div>
           </div>
         </div>
@@ -431,7 +531,102 @@ const LessonManagement = () => {
                 </div>
               </div>
 
+              {/* Sections */}
+              <div className="p-6 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900">Sections</h3>
+                  <span className="text-sm text-gray-600">{sections.length}</span>
+                </div>
+
+                <form onSubmit={handleCreateSection} className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    value={sectionForm.title}
+                    onChange={(e) => setSectionForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Tên section (VD: Chương 1 - Giới thiệu)"
+                  />
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    value={sectionForm.description}
+                    onChange={(e) => setSectionForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Mô tả (tuỳ chọn)"
+                  />
+                  <Button type="submit" className="w-full">Tạo section</Button>
+                </form>
+
+                {sections.length > 0 && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {sections
+                      .slice()
+                      .sort((a, b) => a.order - b.order)
+                        .map((s, index, arr) => (
+                          <div key={s._id} className="flex items-center gap-2 px-3 py-1 bg-white border border-gray-200 rounded-full">
+                            <span className="text-sm text-gray-800">{s.order}. {s.title}</span>
+
+                            <button
+                              type="button"
+                              disabled={reordering || index === 0}
+                              onClick={() => handleMoveSection(s._id, 'up')}
+                              className="text-gray-400 hover:text-primary-600 disabled:opacity-40 disabled:hover:text-gray-400 transition-colors"
+                              title="Đưa section lên"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              disabled={reordering || index === arr.length - 1}
+                              onClick={() => handleMoveSection(s._id, 'down')}
+                              className="text-gray-400 hover:text-primary-600 disabled:opacity-40 disabled:hover:text-gray-400 transition-colors"
+                              title="Đưa section xuống"
+                            >
+                              ↓
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={reordering}
+                              onClick={() => handleDeleteSection(s._id, s.title)}
+                              className="text-gray-400 hover:text-red-600 disabled:opacity-40 transition-colors"
+                              title="Xóa section"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                  </div>
+                )}
+              </div>
+
               {/* Lessons */}
+              <div className="px-6 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 text-primary-600"
+                    checked={Array.isArray(lessons) && lessons.length > 0 && selectedLessonIds.length === lessons.length}
+                    onChange={(e) => toggleSelectAllLessons(e.target.checked)}
+                    disabled={!Array.isArray(lessons) || lessons.length === 0}
+                  />
+                  <span>Chọn tất cả</span>
+                </label>
+
+                {selectedLessonIds.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">Đã chọn {selectedLessonIds.length}</span>
+                    <Button size="sm" variant="outline" onClick={() => handleBulkVisibility(false)}>
+                      Hiện
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => handleBulkVisibility(true)}>
+                      Ẩn
+                    </Button>
+                  </div>
+                )}
+              </div>
               <div className="divide-y divide-gray-200">
                 {(Array.isArray(lessons) && lessons.length === 0) ? (
                   <div className="p-12 text-center">
@@ -441,43 +636,141 @@ const LessonManagement = () => {
                     <Button onClick={() => { resetForm(); setShowCreateForm(true); }}>Tạo bài học đầu tiên</Button>
                   </div>
                 ) : (
-                  (Array.isArray(lessons) ? lessons : []).map((lesson) => (
-                    <div key={lesson._id} className="p-6 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span className="flex items-center justify-center w-8 h-8 bg-primary-100 text-primary-600 rounded-full text-sm font-semibold">{lesson.order}</span>
-                            <h3 className="text-lg font-semibold text-gray-900">{lesson.title}</h3>
-                            {lesson.isPreview && (<span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">MIỄN PHÍ</span>)}
-                          </div>
+                  (() => {
+                    const orderedSections = sections.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                    const lessonsList = (Array.isArray(lessons) ? lessons : []).slice();
 
-                          {lesson.description && (<p className="text-gray-600 mb-3">{lesson.description}</p>)}
+                    const lessonsBySection: Record<string, Lesson[]> = {};
+                    const unassigned: Lesson[] = [];
 
-                          <div className="flex items-center gap-4 text-sm text-gray-500">
-                            <div className="flex items-center">
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                              {lesson.duration} phút
+                    for (const lesson of lessonsList) {
+                      const sectionId = getLessonSectionId(lesson);
+                      if (!sectionId) {
+                        unassigned.push(lesson);
+                        continue;
+                      }
+                      if (!lessonsBySection[sectionId]) lessonsBySection[sectionId] = [];
+                      lessonsBySection[sectionId].push(lesson);
+                    }
+
+                    Object.values(lessonsBySection).forEach((list) => list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+                    unassigned.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+                    const renderLessonRow = (lesson: Lesson, index: number, arr: Lesson[]) => (
+                      <div key={lesson._id} className="p-6 hover:bg-gray-50 transition-colors">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 text-primary-600"
+                                checked={isLessonSelected(lesson._id)}
+                                onChange={(e) => toggleLessonSelected(lesson._id, e.target.checked)}
+                                aria-label={`Chọn bài học ${lesson.title}`}
+                              />
+                              <span className="flex items-center justify-center w-8 h-8 bg-primary-100 text-primary-600 rounded-full text-sm font-semibold">
+                                {lesson.order}
+                              </span>
+                              <h3 className="text-lg font-semibold text-gray-900">{lesson.title}</h3>
+                              <span className="px-2 py-1 text-xs font-medium text-gray-700 bg-gray-100 rounded-full">{getSectionLabel(lesson)}</span>
+                              {lesson.isHidden && (
+                                <span className="px-2 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full">ẨN</span>
+                              )}
+                              {lesson.isPreview && (
+                                <span className="px-2 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full">MIỄN PHÍ</span>
+                              )}
                             </div>
 
-                            <div className="flex items-center">
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                              {getContentTypeLabel(lesson.contentType)}
+                            {lesson.description && (<p className="text-gray-600 mb-3">{lesson.description}</p>)}
+
+                            <div className="flex items-center gap-4 text-sm text-gray-500">
+                              <div className="flex items-center">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                {lesson.duration} phút
+                              </div>
+
+                              <div className="flex items-center">
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                {getContentTypeLabel(lesson.contentType)}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="flex items-center gap-2 ml-4">
-                          <button onClick={() => startEdit(lesson)} className="p-2 text-gray-400 hover:text-primary-600 transition-colors" title="Chỉnh sửa">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                          </button>
+                          <div className="flex items-center gap-2 ml-4">
+                            <button
+                              type="button"
+                              disabled={reordering || index === 0}
+                              onClick={() => handleMoveLesson(lesson._id, 'up')}
+                              className="p-2 text-gray-400 hover:text-primary-600 disabled:opacity-40 disabled:hover:text-gray-400 transition-colors"
+                              title="Đưa bài lên"
+                            >
+                              ↑
+                            </button>
+                            <button
+                              type="button"
+                              disabled={reordering || index === arr.length - 1}
+                              onClick={() => handleMoveLesson(lesson._id, 'down')}
+                              className="p-2 text-gray-400 hover:text-primary-600 disabled:opacity-40 disabled:hover:text-gray-400 transition-colors"
+                              title="Đưa bài xuống"
+                            >
+                              ↓
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/courses/${courseId}/learn/${lesson._id}`)}
+                              className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                              title="Preview như học viên"
+                            >
+                              ▶
+                            </button>
 
-                          <button onClick={() => handleDeleteLesson(lesson._id, lesson.title)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Xóa">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                          </button>
+                            <button type="button" onClick={() => startEdit(lesson)} className="p-2 text-gray-400 hover:text-primary-600 transition-colors" title="Chỉnh sửa">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </button>
+
+                            <button type="button" onClick={() => handleDeleteLesson(lesson._id, lesson.title)} className="p-2 text-gray-400 hover:text-red-600 transition-colors" title="Xóa">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+
+                    return (
+                      <>
+                        {orderedSections.map((section) => {
+                          const list = lessonsBySection[section._id] || [];
+                          return (
+                            <div key={section._id}>
+                              <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="font-semibold text-gray-900">{section.order}. {section.title}</div>
+                                  <div className="text-sm text-gray-600">{list.length} bài</div>
+                                </div>
+                              </div>
+                              {list.length === 0 ? (
+                                <div className="p-6 text-sm text-gray-600">Chưa có bài học trong section này.</div>
+                              ) : (
+                                list.map((lesson, idx, arr) => renderLessonRow(lesson, idx, arr))
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {unassigned.length > 0 && (
+                          <div>
+                            <div className="px-6 py-3 bg-gray-50 border-b border-gray-200">
+                              <div className="flex items-center justify-between">
+                                <div className="font-semibold text-gray-900">Chưa phân loại</div>
+                                <div className="text-sm text-gray-600">{unassigned.length} bài</div>
+                              </div>
+                            </div>
+                            {unassigned.map((lesson, idx, arr) => renderLessonRow(lesson, idx, arr))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
                 )}
               </div>
             </Card>
@@ -549,6 +842,26 @@ const LessonManagement = () => {
                     </select>
                   </div>
 
+                  {/* Section */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Section
+                    </label>
+                    <select
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      value={formData.section}
+                      onChange={(e) => handleInputChange('section', e.target.value)}
+                    >
+                      <option value="">Chưa phân loại</option>
+                      {sections
+                        .slice()
+                        .sort((a, b) => a.order - b.order)
+                        .map((s) => (
+                          <option key={s._id} value={s._id}>{s.order}. {s.title}</option>
+                        ))}
+                    </select>
+                  </div>
+
                   {/* Video Section */}
                   {formData.contentType === 'video' && (
                     <div className="space-y-4">
@@ -595,87 +908,38 @@ const LessonManagement = () => {
 
                       {/* File Upload */}
                       {videoInputType === 'file' && (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="file"
-                              accept="video/mp4,video/webm,video/mov"
-                              onChange={handleVideoFileChange}
-                              className="hidden"
-                              id="video-upload"
-                            />
-                            <label
-                              htmlFor="video-upload"
-                              className="px-4 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors"
-                            >
-                              <span className="text-gray-700">🎥 Chọn video</span>
-                            </label>
-                            {videoFile && (
-                              <Button
-                                type="button"
-                                onClick={handleVideoUpload}
-                                disabled={isUploadingVideo || !!formData.videoUrl}
-                                variant="primary"
-                                size="sm"
-                              >
-                                {isUploadingVideo ? 'Đang upload...' : formData.videoUrl ? '✓ Đã upload' : '⬆️ Upload'}
-                              </Button>
-                            )}
-                          </div>
-
-                          {/* Video file info */}
-                          {videoFile && (
-                            <div className="bg-gray-50 p-3 rounded-lg">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium text-gray-900">{videoFile.name}</p>
-                                  <p className="text-xs text-gray-500">
-                                    {(videoFile.size / (1024 * 1024)).toFixed(2)} MB
-                                  </p>
-                                </div>
-                                {!formData.videoUrl && (
-                                  <button
-                                    type="button"
-                                    onClick={clearVideo}
-                                    className="text-red-500 hover:text-red-700"
-                                    title="Xóa video"
-                                  >
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Upload progress */}
-                          {isUploadingVideo && (
-                            <div className="space-y-1">
-                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                                <div
-                                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
-                                  style={{ width: `${videoUploadProgress}%` }}
-                                />
-                              </div>
-                              <p className="text-sm text-gray-600 text-center">{videoUploadProgress}%</p>
-                            </div>
-                          )}
-
-                          {/* Success message */}
-                          {formData.videoUrl && videoInputType === 'file' && (
-                            <div className="flex items-center gap-2 text-green-600">
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                              </svg>
-                              <span className="text-sm font-medium">Video đã được upload thành công</span>
-                            </div>
-                          )}
-
-                          <p className="text-xs text-gray-500">
-                            Định dạng: MP4, WebM, MOV. Kích thước tối đa: 100MB
-                          </p>
-                        </div>
+                        <FileUploadCard
+                          title="Video bài học"
+                          description="Định dạng: MP4, WebM, OGG, MOV. Kích thước tối đa: 100MB"
+                          accept="video/mp4,video/webm,video/ogg,video/quicktime"
+                          maxSizeMB={100}
+                          uploadedUrl={formData.videoUrl}
+                          validateFile={(file) => {
+                            const allowed = ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'];
+                            if (!allowed.includes(file.type)) {
+                              return 'Vui lòng chọn file video hợp lệ (MP4, WebM, OGG, MOV)';
+                            }
+                            return null;
+                          }}
+                          onUploadedUrlChange={(url) => {
+                            handleInputChange('videoUrl', url);
+                            if (url) toast.success('Upload video thành công!');
+                          }}
+                          uploadFile={async (file, onProgress) => {
+                            const formDataUpload = new FormData();
+                            formDataUpload.append('file', file);
+                            const response = await uploadAPI.uploadVideo(formDataUpload, onProgress);
+                            return {
+                              url: response.data.data.url,
+                              publicId: response.data.data.publicId,
+                              format: response.data.data.format,
+                              duration: response.data.data.duration,
+                              width: response.data.data.width,
+                              height: response.data.data.height,
+                              size: response.data.data.size,
+                            };
+                          }}
+                        />
                       )}
                     </div>
                   )}
@@ -788,48 +1052,48 @@ const LessonManagement = () => {
                           </button>
                         </div>
 
-                        {/* URL or File Upload */}
+                        {/* URL */}
                         <div className="flex gap-2 items-center">
                           <input
                             type="url"
-                            placeholder="Nhập URL hoặc upload file"
+                            placeholder="Nhập URL (nếu là link)"
                             className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded bg-white"
                             value={resource.url}
                             onChange={(e) => handleResourceChange(index, 'url', e.target.value)}
                           />
-                          <div className="flex gap-1">
-                            <input
-                              type="file"
-                              accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png,.gif"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleResourceFileUpload(index, file);
-                              }}
-                              className="hidden"
-                              id={`resource-upload-${index}`}
-                            />
-                            <label
-                              htmlFor={`resource-upload-${index}`}
-                              className="px-2 py-1 text-xs bg-white border border-gray-300 rounded cursor-pointer hover:bg-gray-50 transition-colors"
-                              title="Upload file"
-                            >
-                              📎 File
-                            </label>
-                          </div>
                         </div>
 
-                        {/* Upload progress */}
-                        {isUploadingResource && resourceUploadIndex === index && (
-                          <div className="space-y-1">
-                            <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                              <div
-                                className="bg-gradient-to-r from-green-500 to-emerald-500 h-1.5 rounded-full transition-all duration-300"
-                                style={{ width: `${resourceUploadProgress}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-600 text-center">{resourceUploadProgress}%</p>
-                          </div>
-                        )}
+                        {/* File Upload (Cloudinary) */}
+                        <FileUploadCard
+                          title="Upload file tài liệu"
+                          description="PDF/DOC/PPT/Excel/ZIP hoặc hình ảnh. Tối đa 10MB."
+                          accept="image/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.zip,.rar,.7z"
+                          maxSizeMB={10}
+                          uploadedUrl={resource.url}
+                          onUploadedUrlChange={(url) => handleResourceChange(index, 'url', url)}
+                          uploadFile={async (file, onProgress) => {
+                            if (!resource.name) handleResourceChange(index, 'name', file.name);
+
+                            const ext = file.name.split('.').pop()?.toLowerCase();
+                            if (ext === 'pdf') handleResourceChange(index, 'type', 'pdf');
+                            else if (ext === 'doc' || ext === 'docx') handleResourceChange(index, 'type', 'doc');
+                            else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext || ''))
+                              handleResourceChange(index, 'type', 'image');
+                            else if (ext === 'link') handleResourceChange(index, 'type', 'link');
+                            else handleResourceChange(index, 'type', 'other');
+
+                            const formDataUpload = new FormData();
+                            formDataUpload.append('file', file);
+
+                            const isImage = file.type.startsWith('image/');
+                            const response = isImage
+                              ? await uploadAPI.uploadImage(formDataUpload, onProgress)
+                              : await uploadAPI.uploadDocument(formDataUpload, onProgress);
+
+                            toast.success(`Upload ${file.name} thành công!`);
+                            return response.data.data;
+                          }}
+                        />
                       </div>
                     ))}
                   </div>

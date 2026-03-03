@@ -15,6 +15,7 @@ const {
   getAllReviews
 } = require('../controllers/reviewController');
 const { protect, requireAdmin } = require('../middleware/auth');
+const { reviewLimiter } = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -176,7 +177,7 @@ router.use(protect);
  *       404:
  *         description: Không tìm thấy khóa học
  */
-router.post('/', createReviewValidation, createReview);
+router.post('/', reviewLimiter, createReviewValidation, createReview);
 
 /**
  * @swagger
@@ -342,7 +343,7 @@ router.post('/:id/helpful', markReviewHelpful);
  *       404:
  *         description: Không tìm thấy đánh giá
  */
-router.post('/:id/report', reportReviewValidation, reportReview);
+router.post('/:id/report', reviewLimiter, reportReviewValidation, reportReview);
 
 /**
  * @swagger

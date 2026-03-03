@@ -1,100 +1,30 @@
-# 🎓 E-Learning Platform - Hệ thống Học Trực Tuyến
+# 🎓 E-Learning Platform
 
-> Nền tảng LMS đầy đủ tính năng với quản lý khóa học, thanh toán, chứng chỉ, và phân tích học tập.
+Nền tảng LMS full-stack với quản lý khóa học, học bài/assignment, thanh toán, chứng chỉ và analytics.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![MongoDB](https://img.shields.io/badge/MongoDB-4EA94B?logo=mongodb&logoColor=white)](https://www.mongodb.com/)
-[![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)](https://reactjs.org/)
-
-**Cập nhật:** 26/02/2026  
-**Trạng thái:** ✅ Production Ready  
-**Phiên bản:** 1.0.0
+**Cập nhật:** 03/03/2026
 
 ---
 
-## 📋 Tài liệu nhanh
+## 📋 Tài liệu
 
-- **📊 [PROJECT_STATUS.md](./PROJECT_STATUS.md)** - Tình trạng dự án và tính năng đã hoàn thành
-- **🚀 [Cài đặt nhanh](#-cài-đặt-nhanh)** - Setup trong 5 phút
-- **🔧 [Cấu hình](#-cấu-hình)** - Environment variables
-- **📖 [API Documentation](#-api-documentation)** - Swagger docs
+- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — Tình trạng dự án / tính năng
+- [DOCS.md](./DOCS.md) — Guide + Email (Resend) + Cloudinary
 
 ---
 
-## 🎯 Giới thiệu ngắn gọn
+## 🧰 Tech stack
 
-**E-Learning Platform** là LMS (Learning Management System) hoàn chỉnh, tối ưu để triển khai production. Hệ thống hỗ trợ:
-
-- 👨‍🎓 **Học viên:** Học tập, làm bài tập, nhận chứng chỉ
-- 👨‍🏫 **Giảng viên:** Quản lý khóa học, chấm bài, phân tích doanh thu
-- 👨‍💼 **Admin:** Quản lý nền tảng, duyệt review, quản lý coupon
-- 💳 **Thanh toán:** Stripe, VNPay, MoMo
-
-### ✨ Tính năng nổi bật
-
-✅ 100+ API endpoints | 30 frontend pages | 20+ data models  
-✅ Discussion forum, Study groups, Real-time messaging  
-✅ 4 loại bài tập (Quiz, Essay, Project, Coding)  
-✅ Auto-generate PDF certificates  
-✅ Advanced analytics & reporting  
-✅ Admin review moderation & coupon management  
-✅ N+1 query optimization - production ready
+- Backend: Node.js + Express + MongoDB/Mongoose
+- Frontend: React + TypeScript + Vite
+- Real-time: Socket.IO
+- Storage: GridFS (video), Cloudinary (images)
+- Email: Resend
+- Payments: Stripe, VNPay, MoMo
 
 ---
 
-## 🚀 Cài đặt nhanh
-- 👍 Like/Unlike posts
-- 🚩 Report nội dung vi phạm
-
-### 💳 Thanh toán & Coupon
-
-- **3 phương thức thanh toán:**
-  - 💳 Stripe (quốc tế)
-  - 🇻🇳 VNPay (Việt Nam)
-  - 📱 MoMo (Việt Nam)
-- 🎫 Mã giảm giá (Coupon) - phần trăm hoặc số tiền cố định
-- 🧾 Lịch sử giao dịch chi tiết
-- 💰 Quản lý doanh thu cho giảng viên
-
-### 📊 Phân tích & Thống kê
-
-#### Học viên:
-- ⏱️ Thống kê thời gian học
-- 📈 Biểu đồ tiến độ
-- 🎯 Điểm số các bài tập
-- 📚 Số khóa học đã hoàn thành
-
-#### Admin:
-- 📊 Dashboard tổng quan
-- 👥 Thống kê người dùng
-- 💰 Doanh thu
-- 📚 Khóa học phổ biến
-
-### 🔐 Admin Panel
-
-- 👥 Quản lý tất cả người dùng
-- 📚 Duyệt/từ chối khóa học
-- 🏷️ Quản lý danh mục
-- 🎫 Tạo & quản lý coupon
-- 📊 Xem analytics toàn hệ thống
-- 🔒 Khóa/mở khóa tài khoản
-- 👨‍💼 Cấp quyền Admin
-
----
-
-## 🛠️ Công nghệ sử dụng
-
-**Backend:** Node.js 18+, Express, MongoDB, Mongoose, Socket.IO, JWT  
-**Frontend:** React 18, TypeScript, Vite, Tailwind CSS, React Router  
-**Payments:** Stripe, VNPay, MoMo  
-**Storage:** GridFS, Cloudinary  
-**Email:** SendGrid  
-**Deploy:** Render (Backend), Vercel (Frontend)
-
----
-
-## 📦 Cài đặt nhanh
+## 🚀 Quick start (local)
 
 ### Yêu cầu hệ thống
 
@@ -112,42 +42,39 @@ cd E-Learning
 ### 2. Cài đặt dependencies
 
 ```bash
-# Backend
 cd backend
 npm install
 
-# Frontend
 cd ../frontend
 npm install
 ```
 
 ### 3. Cấu hình môi trường
 
-**Backend** - Tạo `backend/.env`:
+**Backend** — tạo `backend/.env` (có thể copy từ `backend/.env.example`):
 
 ```env
-# Server
 PORT=5000
-CLIENT_URL=http://localhost:5173
 NODE_ENV=development
-
-# Database
 MONGODB_URI=mongodb://localhost:27017/elearning
 
-# JWT
-JWT_SECRET=your_jwt_secret_key_here
-JWT_EXPIRE=7d
+JWT_SECRET=your_super_secret_jwt_key_change_this_in_production_must_be_32_chars_long
+JWT_EXPIRES_IN=7d
 
-# Email (SendGrid)  
-SENDGRID_API_KEY=your_sendgrid_api_key
-FROM_EMAIL=noreply@yourdomain.com
+# Email (Resend)
+RESEND_API_KEY=re_your_api_key_here_get_from_resend_dashboard
+RESEND_FROM_EMAIL=E-Learning Platform <onboarding@resend.dev>
+
+# URLs
+FRONTEND_URL=http://localhost:5173
+CORS_ORIGIN=http://localhost:5173
 
 # Storage (Cloudinary)
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-# Payments
+# Payments (tuỳ chọn khi dev)
 STRIPE_SECRET_KEY=sk_test_...
 VNPAY_TMN_CODE=your_tmn_code
 VNPAY_HASH_SECRET=your_hash_secret
@@ -156,7 +83,7 @@ MOMO_ACCESS_KEY=your_access_key
 MOMO_SECRET_KEY=your_secret_key
 ```
 
-> 📝 **Chi tiết setup:** [SENDGRID_SETUP.md](./backend/SENDGRID_SETUP.md), [CLOUDINARY_SETUP.md](./backend/CLOUDINARY_SETUP.md)
+> 📝 Setup dịch vụ: xem [DOCS.md](./DOCS.md)
 
 **Frontend** - Tạo `frontend/.env`:
 
@@ -182,35 +109,7 @@ npm run dev
 
 ---
 
-## ⚙️ Cấu hình
-
-### Backend Configuration
-
-Tạo file `.env` trong thư mục `backend/`:
-
-```env
-# Server
-NODE_ENV=development
-PORT=5000
-CLIENT_URL=http://localhost:5173
-
-# Database
-MONGODB_URI=mongodb://localhost:27017/elearning
-# Hoặc MongoDB Atlas
-
-## ⚙️ Cấu hình
-
-Xem chi tiết environment variables trong các file:
-- `backend/.env.example`
-- `frontend/.env.example`
-
-**Tài liệu setup chi tiết:**
-- [SENDGRID_SETUP.md](./backend/SENDGRID_SETUP.md) - Cấu hình email service
-- [CLOUDINARY_SETUP.md](./backend/CLOUDINARY_SETUP.md) - Cấu hình image storage
-
----
-
-## 📚 API Documentation
+## 📚 API documentation
 
 **Swagger UI:** http://localhost:5000/api-docs (khi backend chạy)
 
@@ -226,7 +125,7 @@ Xem chi tiết environment variables trong các file:
 
 ---
 
-## 🚀 Production Build
+## 🚀 Production build
 
 ### Backend
 
@@ -286,21 +185,16 @@ E-Learning/
 │   ├── public/
 │   └── package.json
 │
-└── Documentation/           # Tài liệu dự án
-    ├── PROJECT_STATUS.md    # ⭐ Tình trạng dự án
-    ├── README.md            # ← Tài liệu này
-    ├── SENDGRID_SETUP.md    # Setup email
-    └── CLOUDINARY_SETUP.md  # Setup storage
+└── *.md                     # Docs ở root (README/STATUS/GUIDE)
 ```
 
 ---
 
 ## 🎯 Tài liệu quan trọng
 
-- **📊 [PROJECT_STATUS.md](./PROJECT_STATUS.md)** - Tình trạng dự án, tính năng đã hoàn thành, roadmap
-- **📖 [Swagger API Docs](http://localhost:5000/api-docs)** - API documentation đầy đủ
-- **📧 [SENDGRID_SETUP.md](./backend/SENDGRID_SETUP.md)** - Cấu hình email service
-- **☁️ [CLOUDINARY_SETUP.md](./backend/CLOUDINARY_SETUP.md)** - Cấu hình image/video storage
+- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — Tình trạng dự án, tính năng
+- [DOCS.md](./DOCS.md) — Guide + Email (Resend) + Cloudinary
+- Swagger UI: http://localhost:5000/api-docs
 
 ---
 
@@ -350,13 +244,7 @@ E-Learning/
 
 ---
 
-## 📄 License
-
-MIT License - Xem [LICENSE](./LICENSE) để biết thêm chi tiết.
-
----
-
-**🎉 Hệ thống đã sẵn sàng cho production! Xem [PROJECT_STATUS.md](./PROJECT_STATUS.md) để biết chi tiết về các tính năng đã hoàn thành.**
+Xem [PROJECT_STATUS.md](./PROJECT_STATUS.md) để biết chi tiết tính năng.
 
 │   │
 │   ├── scripts/             # Utility scripts

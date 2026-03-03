@@ -21,10 +21,11 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`🚫 Auth rate limit exceeded for IP: ${req.ip}`);
+    console.log(`🚫 [${req.requestId}] Auth rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       success: false,
       message: 'Quá nhiều lần thử đăng nhập. Vui lòng thử lại sau 15 phút',
+      requestId: req.requestId,
       retryAfter: 900 // seconds
     });
   }
@@ -44,10 +45,11 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`🚫 Registration rate limit exceeded for IP: ${req.ip}`);
+    console.log(`🚫 [${req.requestId}] Registration rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       success: false,
       message: 'Quá nhiều tài khoản đăng ký. Vui lòng thử lại sau 1 giờ',
+      requestId: req.requestId,
       retryAfter: 3600
     });
   }
@@ -67,10 +69,11 @@ const uploadLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`🚫 Upload rate limit exceeded for IP: ${req.ip}, User: ${req.user?.email}`);
+    console.log(`🚫 [${req.requestId}] Upload rate limit exceeded for IP: ${req.ip}, User: ${req.user?.email}`);
     res.status(429).json({
       success: false,
       message: 'Bạn đã upload quá nhiều file. Vui lòng thử lại sau 1 giờ',
+      requestId: req.requestId,
       retryAfter: 3600
     });
   },
@@ -94,10 +97,11 @@ const paymentLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`🚫 Payment rate limit exceeded for IP: ${req.ip}, User: ${req.user?.email}`);
+    console.log(`🚫 [${req.requestId}] Payment rate limit exceeded for IP: ${req.ip}, User: ${req.user?.email}`);
     res.status(429).json({
       success: false,
       message: 'Bạn đã thực hiện quá nhiều giao dịch. Vui lòng thử lại sau 1 giờ',
+      requestId: req.requestId,
       retryAfter: 3600
     });
   }
@@ -117,10 +121,11 @@ const emailLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`🚫 Email rate limit exceeded for IP: ${req.ip}`);
+    console.log(`🚫 [${req.requestId}] Email rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       success: false,
       message: 'Bạn đã gửi quá nhiều email. Vui lòng thử lại sau 1 giờ',
+      requestId: req.requestId,
       retryAfter: 3600
     });
   }
@@ -140,10 +145,11 @@ const reviewLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   handler: (req, res) => {
-    console.log(`🚫 Review rate limit exceeded for IP: ${req.ip}, User: ${req.user?.email}`);
+    console.log(`🚫 [${req.requestId}] Review rate limit exceeded for IP: ${req.ip}, User: ${req.user?.email}`);
     res.status(429).json({
       success: false,
       message: 'Bạn đã tạo quá nhiều đánh giá. Vui lòng thử lại sau',
+      requestId: req.requestId,
       retryAfter: 86400
     });
   }
@@ -164,10 +170,11 @@ const messageLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: false,
   handler: (req, res) => {
-    console.log(`🚫 Message rate limit exceeded for User: ${req.user?.email}`);
+    console.log(`🚫 [${req.requestId}] Message rate limit exceeded for User: ${req.user?.email}`);
     res.status(429).json({
       success: false,
       message: 'Bạn đang gửi tin nhắn quá nhanh. Vui lòng chờ một chút',
+      requestId: req.requestId,
       retryAfter: 60
     });
   }

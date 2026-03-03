@@ -750,6 +750,8 @@ const getRevenueAnalytics = async (req, res) => {
     const Payment = require('../models/Payment');
     const { timeframe = '30d', courseId } = req.query;
 
+    const PLATFORM_FEE_RATE = 0.25;
+
     // Calculate date range
     let startDate;
     switch (timeframe) {
@@ -771,7 +773,7 @@ const getRevenueAnalytics = async (req, res) => {
 
     let query = {
       status: 'completed',
-      paidAt: { $gte: startDate }
+      completedAt: { $ne: null, $gte: startDate }
     };
 
     // Filter by course if instructor
@@ -799,41 +801,70 @@ const getRevenueAnalytics = async (req, res) => {
     const payments = await Payment.find(query)
       .populate('course', 'title price instructor')
       .populate('user', 'name email')
-      .sort({ paidAt: -1 });
+      .sort({ completedAt: -1 });
 
     // Calculate totals
-    const totalRevenue = payments.reduce((sum, p) => sum + p.amount.final, 0);
-    const totalDiscount = payments.reduce((sum, p) => sum + p.amount.discount, 0);
+    const totalRevenue = payments.reduce((sum, p) => sum + (p.amount?.final || 0), 0);
+    const totalDiscount = payments.reduce((sum, p) => sum + (p.amount?.discount || 0), 0);
+    const totalPlatformFee = payments.reduce((sum, p) => {
+      const gross = p.amount?.final || 0;
+      const fee = (p.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+      return sum + fee;
+    }, 0);
+    const totalNetRevenue = payments.reduce((sum, p) => {
+      const gross = p.amount?.final || 0;
+      const fee = (p.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+      const net = (p.instructorNetAmount ?? Math.max(0, gross - fee)) || 0;
+      return sum + net;
+    }, 0);
     const totalTransactions = payments.length;
     const avgTransactionValue = totalTransactions > 0 ? totalRevenue / totalTransactions : 0;
 
     // Revenue by date
     const revenueByDate = {};
     payments.forEach(payment => {
-      const date = payment.paidAt.toISOString().split('T')[0];
+      const timestamp = payment.completedAt || payment.createdAt;
+      const date = new Date(timestamp).toISOString().split('T')[0];
+
       if (!revenueByDate[date]) {
-        revenueByDate[date] = { revenue: 0, count: 0 };
+        revenueByDate[date] = { revenue: 0, platformFee: 0, net: 0, count: 0 };
       }
-      revenueByDate[date].revenue += payment.amount.final;
+
+      const gross = payment.amount?.final || 0;
+      const fee = (payment.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+      const net = (payment.instructorNetAmount ?? Math.max(0, gross - fee)) || 0;
+
+      revenueByDate[date].revenue += gross;
+      revenueByDate[date].platformFee += fee;
+      revenueByDate[date].net += net;
       revenueByDate[date].count += 1;
     });
 
     // Revenue by course
     const revenueByCourse = {};
     payments.forEach(payment => {
-      const courseId = payment.course._id.toString();
+      const courseIdStr = payment.course._id.toString();
       const courseTitle = payment.course.title;
-      if (!revenueByCourse[courseId]) {
-        revenueByCourse[courseId] = {
-          courseId,
+      if (!revenueByCourse[courseIdStr]) {
+        revenueByCourse[courseIdStr] = {
+          courseId: courseIdStr,
           courseTitle,
           revenue: 0,
+          platformFee: 0,
+          netRevenue: 0,
           sales: 0,
           avgPrice: 0
         };
       }
-      revenueByCourse[courseId].revenue += payment.amount.final;
-      revenueByCourse[courseId].sales += 1;
+
+      const gross = payment.amount?.final || 0;
+      const fee = (payment.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+      const net = (payment.instructorNetAmount ?? Math.max(0, gross - fee)) || 0;
+
+      revenueByCourse[courseIdStr].revenue += gross;
+      revenueByCourse[courseIdStr].platformFee += fee;
+      revenueByCourse[courseIdStr].netRevenue += net;
+      revenueByCourse[courseIdStr].sales += 1;
     });
 
     // Calculate avg price for each course
@@ -864,6 +895,10 @@ const getRevenueAnalytics = async (req, res) => {
           totalRevenueFormatted: formatVND(totalRevenue),
           totalDiscount,
           totalDiscountFormatted: formatVND(totalDiscount),
+          totalPlatformFee,
+          totalPlatformFeeFormatted: formatVND(totalPlatformFee),
+          totalNetRevenue,
+          totalNetRevenueFormatted: formatVND(totalNetRevenue),
           totalTransactions,
           avgTransactionValue,
           avgTransactionValueFormatted: formatVND(avgTransactionValue)
@@ -873,12 +908,18 @@ const getRevenueAnalytics = async (req, res) => {
             date,
             revenue: data.revenue,
             revenueFormatted: formatVND(data.revenue),
+            platformFee: data.platformFee,
+            platformFeeFormatted: formatVND(data.platformFee),
+            netRevenue: data.net,
+            netRevenueFormatted: formatVND(data.net),
             transactions: data.count
           }))
           .sort((a, b) => new Date(a.date) - new Date(b.date)),
         topCourses: topCourses.map(course => ({
           ...course,
           revenueFormatted: formatVND(course.revenue),
+          platformFeeFormatted: formatVND(course.platformFee),
+          netRevenueFormatted: formatVND(course.netRevenue),
           avgPriceFormatted: formatVND(course.avgPrice)
         })),
         recentTransactions: payments.slice(0, 20).map(p => ({
@@ -888,7 +929,7 @@ const getRevenueAnalytics = async (req, res) => {
           amount: p.amount.final,
           amountFormatted: formatVND(p.amount.final),
           discount: p.amount.discount,
-          paidAt: p.paidAt,
+          completedAt: p.completedAt,
           paymentMethod: p.paymentMethod.type
         }))
       }
@@ -899,6 +940,134 @@ const getRevenueAnalytics = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi lấy revenue analytics',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Báo cáo phí nền tảng theo tháng (Admin)
+// @route   GET /api/analytics/platform-fee?year=YYYY&month=MM
+// @access  Private (Admin)
+const getPlatformFeeReport = async (req, res) => {
+  try {
+    const PLATFORM_FEE_RATE = 0.25;
+
+    const now = new Date();
+    const year = req.query.year ? parseInt(req.query.year, 10) : now.getFullYear();
+    const month = req.query.month ? parseInt(req.query.month, 10) : now.getMonth() + 1;
+
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tham số year/month không hợp lệ'
+      });
+    }
+
+    const startDate = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+    const endDate = new Date(Date.UTC(year, month, 1, 0, 0, 0));
+
+    const payments = await Payment.find({
+      status: 'completed',
+      $or: [
+        { completedAt: { $gte: startDate, $lt: endDate } },
+        { completedAt: null, createdAt: { $gte: startDate, $lt: endDate } }
+      ]
+    })
+      .select('course amount.final platformFeeAmount instructorNetAmount instructorId completedAt createdAt')
+      .populate({
+        path: 'course',
+        select: 'title instructor',
+        populate: { path: 'instructor', select: 'name email' }
+      })
+      .populate('instructorId', 'name email')
+      .lean();
+
+    let totalGross = 0;
+    let totalPlatformFee = 0;
+    let totalNet = 0;
+
+    const byInstructor = new Map();
+    const byCourse = new Map();
+
+    for (const p of payments) {
+      const gross = p.amount?.final || 0;
+      const fee = (p.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+      const net = (p.instructorNetAmount ?? Math.max(0, gross - fee)) || 0;
+
+      totalGross += gross;
+      totalPlatformFee += fee;
+      totalNet += net;
+
+      const courseId = p.course?._id?.toString() || p.course?.toString();
+      const courseTitle = p.course?.title || '';
+
+      const instructorFromPayment = p.instructorId && (p.instructorId._id ? p.instructorId._id.toString() : p.instructorId.toString());
+      const instructorFromCourse = p.course?.instructor && (p.course.instructor._id ? p.course.instructor._id.toString() : p.course.instructor.toString());
+      const instructorId = instructorFromPayment || instructorFromCourse || 'unknown';
+
+      const instructorName = (p.instructorId && p.instructorId.name) || (p.course?.instructor && p.course.instructor.name) || 'Không rõ';
+      const instructorEmail = (p.instructorId && p.instructorId.email) || (p.course?.instructor && p.course.instructor.email) || '';
+
+      // Group by instructor
+      if (!byInstructor.has(instructorId)) {
+        byInstructor.set(instructorId, {
+          instructorId: instructorId === 'unknown' ? null : instructorId,
+          instructorName,
+          instructorEmail,
+          gross: 0,
+          platformFee: 0,
+          net: 0,
+          transactions: 0
+        });
+      }
+      const instructorAgg = byInstructor.get(instructorId);
+      instructorAgg.gross += gross;
+      instructorAgg.platformFee += fee;
+      instructorAgg.net += net;
+      instructorAgg.transactions += 1;
+
+      // Group by course
+      const courseKey = courseId || 'unknown-course';
+      if (!byCourse.has(courseKey)) {
+        byCourse.set(courseKey, {
+          courseId: courseId || null,
+          courseTitle,
+          instructorId: instructorId === 'unknown' ? null : instructorId,
+          instructorName,
+          gross: 0,
+          platformFee: 0,
+          net: 0,
+          transactions: 0
+        });
+      }
+      const courseAgg = byCourse.get(courseKey);
+      courseAgg.gross += gross;
+      courseAgg.platformFee += fee;
+      courseAgg.net += net;
+      courseAgg.transactions += 1;
+    }
+
+    const byInstructorArr = Array.from(byInstructor.values()).sort((a, b) => b.platformFee - a.platformFee);
+    const byCourseArr = Array.from(byCourse.values()).sort((a, b) => b.platformFee - a.platformFee);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        period: { year, month },
+        summary: {
+          totalGross,
+          totalPlatformFee,
+          totalNet,
+          totalTransactions: payments.length
+        },
+        byInstructor: byInstructorArr,
+        byCourse: byCourseArr
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy báo cáo phí nền tảng',
       error: error.message
     });
   }
@@ -1889,5 +2058,6 @@ module.exports = {
   exportAnalytics,
   updateLearningProgress,
   setLearningGoals,
-  getRevenueAnalytics
+  getRevenueAnalytics,
+  getPlatformFeeReport
 };

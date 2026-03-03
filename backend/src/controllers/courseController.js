@@ -567,6 +567,9 @@ const getMyEnrolledCourses = async (req, res) => {
           enrolledAt: enrollment.enrolledAt,
           progress: enrollment.progress,
           status: enrollment.status,
+          lastAccessedAt: enrollment.lastAccessedAt,
+          lastLessonId: enrollment.lastLesson ? enrollment.lastLesson.toString() : null,
+          lastLessonAccessedAt: enrollment.lastLessonAccessedAt || null,
           // Add indicator if course was deleted
           isDeleted: course.deleted || false
         };
@@ -593,6 +596,124 @@ const getMyEnrolledCourses = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi lấy khóa học đã đăng ký',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Lấy enrollment của tôi cho 1 khóa học (resume/progress)
+// @route   GET /api/courses/:id/enrollment
+// @access  Private
+const getMyCourseEnrollment = async (req, res) => {
+  try {
+    const Enrollment = require('../models/Enrollment');
+    const enrollment = await Enrollment.findOne({
+      user: req.user._id,
+      course: req.params.id
+    })
+      .select('user course status progress enrolledAt completedAt lastAccessedAt lastLesson lastLessonAccessedAt completedLessons')
+      .lean();
+
+    if (!enrollment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Bạn chưa đăng ký khóa học này'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        enrollment: {
+          status: enrollment.status,
+          progress: enrollment.progress,
+          enrolledAt: enrollment.enrolledAt,
+          completedAt: enrollment.completedAt,
+          lastAccessedAt: enrollment.lastAccessedAt,
+          lastLessonId: enrollment.lastLesson ? enrollment.lastLesson.toString() : null,
+          lastLessonAccessedAt: enrollment.lastLessonAccessedAt || null,
+          completedLessonsCount: Array.isArray(enrollment.completedLessons) ? enrollment.completedLessons.length : 0
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error in getMyCourseEnrollment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy thông tin ghi danh',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Cập nhật bài học gần nhất (resume) cho enrollment của tôi
+// @route   PUT /api/courses/:id/enrollment/last-lesson
+// @access  Private
+const updateMyLastLesson = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Dữ liệu không hợp lệ',
+        errors: errors.array()
+      });
+    }
+
+    const { lessonId } = req.body;
+    if (!lessonId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu lessonId'
+      });
+    }
+
+    const Enrollment = require('../models/Enrollment');
+    const Lesson = require('../models/Lesson');
+
+    const lesson = await Lesson.findById(lessonId).select('course');
+    if (!lesson) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy bài học'
+      });
+    }
+
+    if (lesson.course.toString() !== req.params.id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bài học không thuộc khóa học này'
+      });
+    }
+
+    const enrollment = await Enrollment.findOne({
+      user: req.user._id,
+      course: req.params.id
+    });
+
+    if (!enrollment) {
+      return res.status(403).json({
+        success: false,
+        message: 'Bạn chưa đăng ký khóa học này'
+      });
+    }
+
+    await enrollment.setLastLesson(lessonId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã cập nhật bài học đang học',
+      data: {
+        lastLessonId: enrollment.lastLesson ? enrollment.lastLesson.toString() : null,
+        lastLessonAccessedAt: enrollment.lastLessonAccessedAt || null,
+        lastAccessedAt: enrollment.lastAccessedAt
+      }
+    });
+  } catch (error) {
+    console.error('Error in updateMyLastLesson:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật bài học đang học',
       error: error.message
     });
   }
@@ -647,7 +768,10 @@ const getMyStudents = async (req, res) => {
           courseTitle: enrollment.course.title,
           enrolledAt: enrollment.enrolledAt,
           progress: enrollment.progress,
-          status: enrollment.status
+          status: enrollment.status,
+          lastAccessedAt: enrollment.lastAccessedAt,
+          lastLessonId: enrollment.lastLesson ? enrollment.lastLesson.toString() : null,
+          lastLessonAccessedAt: enrollment.lastLessonAccessedAt || null
         });
       }
     }
@@ -750,13 +874,28 @@ const getMyRevenue = async (req, res) => {
 
     const courseIds = myCourses.map(c => c._id);
 
+    const PLATFORM_FEE_RATE = 0.25;
+
     // FIX N+1: Batch query all payments for all courses in one query
     const allPayments = await Payment.find({
       course: { $in: courseIds },
       status: 'completed'
-    }).select('course amount.final user createdAt')
+    }).select('course amount.final user createdAt completedAt platformFeeAmount instructorNetAmount')
       .populate('user', 'name email avatar')
       .lean();
+
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthPlatformFee = allPayments.reduce((sum, p) => {
+      const timestamp = p.completedAt || p.createdAt;
+      if (!timestamp) return sum;
+      const date = new Date(timestamp);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (monthKey !== currentMonthKey) return sum;
+      const gross = p.amount.final || 0;
+      const fee = (p.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+      return sum + fee;
+    }, 0);
 
     // FIX N+1: Batch query all reviews for all courses in one query
     const allReviews = await Review.find({ 
@@ -788,6 +927,8 @@ const getMyRevenue = async (req, res) => {
 
     const revenueData = [];
     let totalRevenue = 0;
+    let totalPlatformFee = 0;
+    let totalNetRevenue = 0;
 
     for (const course of myCourses) {
       const courseId = course._id.toString();
@@ -795,7 +936,21 @@ const getMyRevenue = async (req, res) => {
       const reviews = (reviewsByCourse[courseId] || []).slice(0, 5); // Limit to 5 latest
 
       const courseRevenue = payments.reduce((sum, p) => sum + p.amount.final, 0);
+      const coursePlatformFee = payments.reduce((sum, p) => {
+        const gross = p.amount.final || 0;
+        const fee = (p.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+        return sum + fee;
+      }, 0);
+      const courseNetRevenue = payments.reduce((sum, p) => {
+        const gross = p.amount.final || 0;
+        const fee = (p.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+        const net = (p.instructorNetAmount ?? Math.max(0, gross - fee)) || 0;
+        return sum + net;
+      }, 0);
+
       totalRevenue += courseRevenue;
+      totalPlatformFee += coursePlatformFee;
+      totalNetRevenue += courseNetRevenue;
 
       // Tính doanh thu theo thời gian
       const revenueByDate = {};
@@ -803,14 +958,31 @@ const getMyRevenue = async (req, res) => {
       const revenueByYear = {};
 
       payments.forEach(payment => {
-        const date = new Date(payment.createdAt);
+        const timestamp = payment.completedAt || payment.createdAt;
+        const date = new Date(timestamp);
         const dateKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
         const yearKey = date.getFullYear().toString(); // YYYY
 
-        revenueByDate[dateKey] = (revenueByDate[dateKey] || 0) + payment.amount.final;
-        revenueByMonth[monthKey] = (revenueByMonth[monthKey] || 0) + payment.amount.final;
-        revenueByYear[yearKey] = (revenueByYear[yearKey] || 0) + payment.amount.final;
+        const gross = payment.amount.final || 0;
+        const fee = (payment.platformFeeAmount ?? Math.round(gross * PLATFORM_FEE_RATE)) || 0;
+        const net = (payment.instructorNetAmount ?? Math.max(0, gross - fee)) || 0;
+
+        if (!revenueByDate[dateKey]) revenueByDate[dateKey] = { gross: 0, platformFee: 0, net: 0 };
+        if (!revenueByMonth[monthKey]) revenueByMonth[monthKey] = { gross: 0, platformFee: 0, net: 0 };
+        if (!revenueByYear[yearKey]) revenueByYear[yearKey] = { gross: 0, platformFee: 0, net: 0 };
+
+        revenueByDate[dateKey].gross += gross;
+        revenueByDate[dateKey].platformFee += fee;
+        revenueByDate[dateKey].net += net;
+
+        revenueByMonth[monthKey].gross += gross;
+        revenueByMonth[monthKey].platformFee += fee;
+        revenueByMonth[monthKey].net += net;
+
+        revenueByYear[yearKey].gross += gross;
+        revenueByYear[yearKey].platformFee += fee;
+        revenueByYear[yearKey].net += net;
       });
 
       revenueData.push({
@@ -821,16 +993,35 @@ const getMyRevenue = async (req, res) => {
         studentsCount: course.totalStudents || 0, // Use virtual count
         rating: course.rating,
         revenue: courseRevenue,
+        platformFeeAmount: coursePlatformFee,
+        netRevenue: courseNetRevenue,
         payments: payments.map(p => ({
           user: p.user,
           amount: p.amount.final,
-          date: p.createdAt
+          platformFeeAmount: (p.platformFeeAmount ?? Math.round((p.amount.final || 0) * PLATFORM_FEE_RATE)) || 0,
+          instructorNetAmount: (p.instructorNetAmount ?? Math.max(0, (p.amount.final || 0) - ((p.platformFeeAmount ?? Math.round((p.amount.final || 0) * PLATFORM_FEE_RATE)) || 0))) || 0,
+          date: p.completedAt || p.createdAt
         })),
         reviews: reviews,
         analytics: {
-          byDate: Object.entries(revenueByDate).map(([date, amount]) => ({ date, amount })),
-          byMonth: Object.entries(revenueByMonth).map(([month, amount]) => ({ month, amount })),
-          byYear: Object.entries(revenueByYear).map(([year, amount]) => ({ year, amount }))
+          byDate: Object.entries(revenueByDate).map(([date, v]) => ({
+            date,
+            amount: v.gross,
+            platformFeeAmount: v.platformFee,
+            netAmount: v.net
+          })),
+          byMonth: Object.entries(revenueByMonth).map(([month, v]) => ({
+            month,
+            amount: v.gross,
+            platformFeeAmount: v.platformFee,
+            netAmount: v.net
+          })),
+          byYear: Object.entries(revenueByYear).map(([year, v]) => ({
+            year,
+            amount: v.gross,
+            platformFeeAmount: v.platformFee,
+            netAmount: v.net
+          }))
         }
       });
     }
@@ -843,6 +1034,10 @@ const getMyRevenue = async (req, res) => {
       count: revenueData.length,
       data: {
         totalRevenue,
+        totalPlatformFee,
+        totalNetRevenue,
+        currentMonthKey,
+        currentMonthPlatformFee,
         courses: revenueData
       }
     });
@@ -867,6 +1062,8 @@ module.exports = {
   submitCourseForApproval,
   getMyCourses,
   getMyEnrolledCourses,
+  getMyCourseEnrollment,
+  updateMyLastLesson,
   getMyStudents,
   getMyRevenue
 };

@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+// Ensure models are registered for virtual populates used in getMe()
+require('../models/Enrollment');
 const EmailVerification = require('../models/EmailVerification');
 const PasswordReset = require('../models/PasswordReset');
 const AdminRequest = require('../models/AdminRequest');
@@ -276,7 +278,13 @@ const login = async (req, res) => {
 const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
-      .populate('enrolledCourses.course', 'title thumbnail price')
+      .populate({
+        path: 'enrolledCourses',
+        populate: {
+          path: 'course',
+          select: 'title thumbnail price'
+        }
+      })
       .populate('createdCourses', 'title thumbnail price students');
     
     res.status(200).json({
@@ -300,13 +308,18 @@ const getMe = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
-    const { name, phone, bio } = req.body;
+    const { name, phone, bio, avatarUrl } = req.body;
     
     // Prepare update object
     const updateData = {};
     if (name) updateData.name = name;
     if (phone) updateData.phone = phone;
     if (bio) updateData.bio = bio;
+
+    // Optional: allow setting avatar by URL (e.g., after uploading via /api/upload/image)
+    if (avatarUrl && typeof avatarUrl === 'string') {
+      updateData.avatar = avatarUrl;
+    }
     
     // If avatar file is uploaded, upload to Cloudinary
     if (req.file) {

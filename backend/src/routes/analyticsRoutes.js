@@ -12,7 +12,8 @@ const {
   getEngagementMetrics,
   getLearningPath,
   exportAnalytics,
-  getRevenueAnalytics
+  getRevenueAnalytics,
+  getPlatformFeeReport
 } = require('../controllers/analyticsController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -535,5 +536,8 @@ router.get('/export', exportAnalytics);
 
 // Revenue analytics (Admin & Teachers only)
 router.get('/revenue', protect, getRevenueAnalytics);
+
+// Platform fee monthly report (Admin only)
+router.get('/platform-fee', protect, requireAdmin, getPlatformFeeReport);
 
 module.exports = router;

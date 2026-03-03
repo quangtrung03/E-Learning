@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const Payment = require('../models/Payment');
+const AuditLog = require('../models/AuditLog');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const Coupon = require('../models/Coupon');
@@ -8,6 +9,37 @@ const crypto = require('crypto');
 const axios = require('axios');
 const { deleteEnrollment } = require('../utils/enrollmentHelpers');
 const { sanitizeGatewayResponse } = require('../utils/paymentHelpers');
+
+const PLATFORM_FEE_RATE = 0.25;
+
+const applyPlatformFeeSnapshot = async (payment) => {
+  if (!payment) return;
+  if (payment.platformFeeRate != null && payment.platformFeeAmount != null && payment.instructorNetAmount != null) return;
+
+  const gross = payment.amount?.final ?? 0;
+  const platformFeeAmount = Math.round(gross * PLATFORM_FEE_RATE);
+  const instructorNetAmount = Math.max(0, gross - platformFeeAmount);
+
+  // Ensure course is populated enough to read instructor
+  let instructorId = null;
+  if (payment.course && typeof payment.course === 'object' && payment.course.instructor) {
+    instructorId = payment.course.instructor._id || payment.course.instructor;
+  }
+  if (!instructorId && payment.course) {
+    const courseId = typeof payment.course === 'object' ? payment.course._id : payment.course;
+    if (courseId) {
+      const courseDoc = await Course.findById(courseId).select('instructor');
+      instructorId = courseDoc?.instructor || null;
+    }
+  }
+
+  payment.platformFeeRate = PLATFORM_FEE_RATE;
+  payment.platformFeeAmount = platformFeeAmount;
+  payment.instructorNetAmount = instructorNetAmount;
+  payment.instructorId = instructorId;
+
+  await payment.save();
+};
 
 // @desc    Tạo payment intent (bước đầu thanh toán)
 // @route   POST /api/payments/create-intent
@@ -24,6 +56,14 @@ const createPaymentIntent = async (req, res) => {
     }
 
     const { courseId, couponCode, paymentMethod, billingAddress } = req.body;
+
+    const user = await User.findById(req.user.id).select('name email phone');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy người dùng'
+      });
+    }
 
     // Kiểm tra khóa học
     const course = await Course.findById(courseId);
@@ -42,7 +82,6 @@ const createPaymentIntent = async (req, res) => {
     }
 
     // Kiểm tra user đã đăng ký chưa
-    const Enrollment = require('../models/Enrollment');
     const isEnrolled = await Enrollment.isEnrolled(req.user.id, courseId);
 
     if (isEnrolled) {
@@ -89,6 +128,35 @@ const createPaymentIntent = async (req, res) => {
       }
     }
 
+    // Normalize payment method
+    const normalizedPaymentMethod =
+      typeof paymentMethod === 'string'
+        ? { type: paymentMethod, provider: paymentMethod }
+        : (paymentMethod || {});
+
+    const paymentTypeRaw = normalizedPaymentMethod.type;
+    const paymentType = paymentTypeRaw === 'manual' ? 'bank-transfer' : paymentTypeRaw;
+    const paymentProvider = (normalizedPaymentMethod.provider || paymentType || 'bank-transfer').toLowerCase();
+
+    // Ensure required billing address fields exist (schema requires fullName + email)
+    const billingAddressFinal = {
+      fullName: billingAddress?.fullName || user.name || 'Học viên',
+      email: billingAddress?.email || user.email,
+      phone: billingAddress?.phone || user.phone || null,
+      address: billingAddress?.address || null,
+      city: billingAddress?.city || null,
+      state: billingAddress?.state || null,
+      zipCode: billingAddress?.zipCode || null,
+      country: billingAddress?.country || 'VN'
+    };
+
+    if (!billingAddressFinal.email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Thiếu email để tạo thanh toán. Vui lòng cập nhật email trong hồ sơ.'
+      });
+    }
+
     // Tạo orderId unique
     const orderId = `ORD_${Date.now()}_${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
     const transactionId = `TXN_${Date.now()}_${crypto.randomBytes(8).toString('hex').toUpperCase()}`;
@@ -105,14 +173,14 @@ const createPaymentIntent = async (req, res) => {
         currency: 'VND'
       },
       paymentMethod: {
-        type: paymentMethod.type,
-        provider: paymentMethod.provider || 'manual'
+        type: paymentType,
+        provider: paymentProvider
       },
       status: 'pending',
       transactionId,
       couponCode: appliedCoupon ? appliedCoupon.code : null,
       discountApplied: appliedCoupon ? (discountAmount / originalAmount) * 100 : 0,
-      billingAddress,
+      billingAddress: billingAddressFinal,
       metadata: {
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
@@ -126,14 +194,14 @@ const createPaymentIntent = async (req, res) => {
     let paymentGatewayResponse = {};
     let redirectUrl = null;
 
-    switch (paymentMethod.provider) {
+    switch (paymentProvider) {
       case 'fake':
       case 'demo':
         // Fake payment for demo - auto success
         paymentGatewayResponse = {
           status: 'success',
           message: 'Thanh toán demo thành công',
-          redirectUrl: `${process.env.FRONTEND_URL}/payment/success/${payment.orderId}`
+          redirectUrl: `${process.env.FRONTEND_URL}/payment/simulate?orderId=${encodeURIComponent(payment.orderId)}&provider=${encodeURIComponent(paymentProvider)}`
         };
         redirectUrl = paymentGatewayResponse.redirectUrl;
         break;
@@ -143,7 +211,7 @@ const createPaymentIntent = async (req, res) => {
         paymentGatewayResponse = {
           status: 'pending',
           message: 'VNPay đang được phát triển',
-          redirectUrl: `${process.env.FRONTEND_URL}/payment/vnpay/${payment.orderId}`
+          redirectUrl: `${process.env.FRONTEND_URL}/payment/simulate?orderId=${encodeURIComponent(payment.orderId)}&provider=${encodeURIComponent(paymentProvider)}`
         };
         redirectUrl = paymentGatewayResponse.redirectUrl;
         break;
@@ -153,12 +221,20 @@ const createPaymentIntent = async (req, res) => {
         paymentGatewayResponse = {
           status: 'pending',
           message: 'MoMo đang được phát triển',
-          redirectUrl: `${process.env.FRONTEND_URL}/payment/momo/${payment.orderId}`
+          redirectUrl: `${process.env.FRONTEND_URL}/payment/simulate?orderId=${encodeURIComponent(payment.orderId)}&provider=${encodeURIComponent(paymentProvider)}`
+        };
+        redirectUrl = paymentGatewayResponse.redirectUrl;
+        break;
+
+      case 'zalopay':
+        paymentGatewayResponse = {
+          status: 'pending',
+          message: 'ZaloPay đang được phát triển',
+          redirectUrl: `${process.env.FRONTEND_URL}/payment/simulate?orderId=${encodeURIComponent(payment.orderId)}&provider=${encodeURIComponent(paymentProvider)}`
         };
         redirectUrl = paymentGatewayResponse.redirectUrl;
         break;
         
-      case 'manual':
       case 'bank-transfer':
       default:
         paymentGatewayResponse = {
@@ -169,18 +245,60 @@ const createPaymentIntent = async (req, res) => {
             accountNumber: '1234567890',
             accountName: 'CONG TY E-LEARNING',
             transferNote: `EL${payment.orderId}`,
-            qrCode: `${process.env.FRONTEND_URL}/payment/qr/${payment.orderId}`
+            qrCode: `${process.env.FRONTEND_URL}/payment/simulate?orderId=${encodeURIComponent(payment.orderId)}&provider=${encodeURIComponent(paymentProvider)}`
           }
         };
+        redirectUrl = `${process.env.FRONTEND_URL}/payment/simulate?orderId=${encodeURIComponent(payment.orderId)}&provider=${encodeURIComponent(paymentProvider)}`;
         break;
     }
 
     // ✅ SECURITY FIX: Sanitize gateway response before saving
     payment.paymentGatewayResponse = sanitizeGatewayResponse(
       paymentGatewayResponse, 
-      paymentMethod.provider
+      paymentProvider
     );
     await payment.save();
+
+    // Demo/fake provider: auto-complete payment for testing
+    if (paymentProvider === 'demo' || paymentProvider === 'fake') {
+      payment.status = 'completed';
+      payment.completedAt = new Date();
+      payment.paymentGatewayResponse = {
+        ...payment.paymentGatewayResponse,
+        autoCompleted: true,
+        completedAt: payment.completedAt
+      };
+      await payment.save();
+
+      await applyPlatformFeeSnapshot(payment);
+
+      const existingEnrollment = await Enrollment.findOne({
+        user: payment.user,
+        course: payment.course
+      });
+
+      if (!existingEnrollment) {
+        try {
+          await Enrollment.create({
+            user: payment.user,
+            course: payment.course,
+            payment: payment._id,
+            enrolledAt: new Date(),
+            progress: 0,
+            status: 'active'
+          });
+        } catch (e) {
+          if (e?.code !== 11000) throw e;
+        }
+      }
+
+      if (payment.couponCode) {
+        const coupon = await Coupon.findOne({ code: payment.couponCode });
+        if (coupon) {
+          await coupon.useCoupon(payment.user, payment.amount.discount, payment.amount.final);
+        }
+      }
+    }
 
     res.status(201).json({
       success: true,
@@ -233,10 +351,62 @@ const confirmPayment = async (req, res) => {
       });
     }
 
-    if (payment.user._id.toString() !== req.user.id) {
+    // Owner OR admin mới được thao tác
+    if (payment.user._id.toString() !== req.user.id && !req.user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Không có quyền truy cập payment này'
+      });
+    }
+
+    if (req.body.manualConfirm && !req.user.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Chỉ admin mới có thể xác nhận thủ công'
+      });
+    }
+
+    if (payment.status === 'completed') {
+      // Idempotent: ensure enrollment exists and return success
+      let existingEnrollment = await Enrollment.findOne({
+        user: payment.user._id,
+        course: payment.course._id
+      });
+
+      if (!existingEnrollment) {
+        try {
+          existingEnrollment = await Enrollment.create({
+            user: payment.user._id,
+            course: payment.course._id,
+            payment: payment._id,
+            enrolledAt: new Date(),
+            progress: 0,
+            status: 'active'
+          });
+        } catch (e) {
+          if (e?.code !== 11000) throw e;
+          existingEnrollment = await Enrollment.findOne({
+            user: payment.user._id,
+            course: payment.course._id
+          });
+        }
+      }
+
+      await applyPlatformFeeSnapshot(payment);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Payment đã được xác nhận trước đó',
+        data: {
+          payment: {
+            id: payment._id,
+            orderId: payment.orderId,
+            status: payment.status,
+            completedAt: payment.completedAt,
+            amount: payment.amount
+          },
+          course: payment.course
+        }
       });
     }
 
@@ -256,7 +426,7 @@ const confirmPayment = async (req, res) => {
     if (verificationResult || req.body.manualConfirm) {
       // Cập nhật payment status
       payment.status = 'completed';
-      payment.paidAt = new Date();
+      payment.completedAt = new Date();
       payment.paymentGatewayResponse = {
         ...payment.paymentGatewayResponse,
         confirmation: paymentData,
@@ -266,16 +436,28 @@ const confirmPayment = async (req, res) => {
 
       await payment.save();
 
+      await applyPlatformFeeSnapshot(payment);
+
       // Enroll user vào course bằng Enrollment model
-      const Enrollment = require('../models/Enrollment');
-      await Enrollment.create({
+      const existingEnrollment = await Enrollment.findOne({
         user: payment.user._id,
-        course: payment.course._id,
-        payment: payment._id,
-        enrolledAt: new Date(),
-        progress: 0,
-        status: 'active'
+        course: payment.course._id
       });
+
+      if (!existingEnrollment) {
+        try {
+          await Enrollment.create({
+            user: payment.user._id,
+            course: payment.course._id,
+            payment: payment._id,
+            enrolledAt: new Date(),
+            progress: 0,
+            status: 'active'
+          });
+        } catch (e) {
+          if (e?.code !== 11000) throw e;
+        }
+      }
 
       // Sử dụng coupon nếu có
       if (payment.couponCode) {
@@ -297,7 +479,7 @@ const confirmPayment = async (req, res) => {
             id: payment._id,
             orderId: payment.orderId,
             status: payment.status,
-            paidAt: payment.paidAt,
+            completedAt: payment.completedAt,
             amount: payment.amount
           },
           course: payment.course
@@ -569,10 +751,10 @@ const refundPayment = async (req, res) => {
       });
     }
 
-    if (payment.status !== 'completed') {
+    if (!['completed', 'disputed'].includes(payment.status)) {
       return res.status(400).json({
         success: false,
-        message: 'Chỉ có thể refund payments đã hoàn thành'
+        message: 'Chỉ có thể refund payments đã hoàn thành hoặc đang tranh chấp'
       });
     }
 
@@ -598,6 +780,24 @@ const refundPayment = async (req, res) => {
 
     await payment.save();
 
+    try {
+      await AuditLog.create({
+        actor: req.user.id,
+        action: 'PAYMENT_REFUND',
+        entityType: 'Payment',
+        entityId: payment._id,
+        details: {
+          orderId: payment.orderId,
+          courseId: payment.course,
+          userId: payment.user,
+          refundAmount: refundAmountFinal,
+          reason: reason || null
+        }
+      });
+    } catch (logError) {
+      console.error('❌ Failed to create audit log (refundPayment):', logError.message);
+    }
+
     // Remove enrollment using Enrollment model
     await deleteEnrollment(payment.user._id, payment.course._id);
 
@@ -621,6 +821,56 @@ const refundPayment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Lỗi server khi xử lý refund',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Admin: Mark payment as disputed
+// @route   PUT /api/payments/:id/dispute
+// @access  Private (Admin)
+const markPaymentDisputed = async (req, res) => {
+  try {
+    const { reason } = req.body;
+
+    const payment = await Payment.findById(req.params.id)
+      .populate('user', 'name email')
+      .populate('course', 'title');
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy payment'
+      });
+    }
+
+    if (payment.status !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Chỉ có thể đánh dấu tranh chấp với payments đã hoàn thành'
+      });
+    }
+
+    payment.status = 'disputed';
+    payment.timeline = Array.isArray(payment.timeline) ? payment.timeline : [];
+    payment.timeline.push({
+      status: 'disputed',
+      message: reason || 'Payment bị đánh dấu tranh chấp',
+      timestamp: new Date(),
+      data: { actor: req.user.id }
+    });
+
+    await payment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Đã đánh dấu payment là tranh chấp',
+      data: { payment }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi cập nhật trạng thái tranh chấp',
       error: error.message
     });
   }
@@ -850,17 +1100,18 @@ const fakePaymentSuccess = async (req, res) => {
 
     // Update payment to completed
     payment.status = 'completed';
-    payment.paidAt = new Date();
+    payment.completedAt = new Date();
     payment.paymentGatewayResponse = {
       ...payment.paymentGatewayResponse,
       fakeSuccess: true,
-      completedAt: new Date(),
+      completedAt: payment.completedAt,
       message: 'Demo payment - auto completed'
     };
     await payment.save();
 
+    await applyPlatformFeeSnapshot(payment);
+
     // Check if already enrolled using Enrollment model
-    const Enrollment = require('../models/Enrollment');
     const existingEnrollment = await Enrollment.findOne({
       user: payment.user._id,
       course: payment.course._id
@@ -902,7 +1153,7 @@ const fakePaymentSuccess = async (req, res) => {
           id: payment._id,
           orderId: payment.orderId,
           status: payment.status,
-          paidAt: payment.paidAt,
+          completedAt: payment.completedAt,
           amount: payment.amount
         },
         course: {
@@ -971,6 +1222,7 @@ module.exports = {
   handlePaymentWebhook,
   getAllPayments,
   refundPayment,
+  markPaymentDisputed,
   fakePaymentSuccess,
   getPaymentByOrderId
 };

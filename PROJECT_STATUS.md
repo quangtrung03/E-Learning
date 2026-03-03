@@ -1,7 +1,7 @@
 # 📊 PROJECT STATUS - E-Learning Platform
 
-**Last Updated:** 26/02/2026  
-**Status:** ✅ Week 1-3 Complete | 🚀 Production Ready
+**Last Updated:** 03/03/2026  
+**Status:** ✅ Core ready (enhancements optional)
 
 ---
 
@@ -14,6 +14,13 @@
 | **Performance** | ✅ Optimized | N+1 queries fixed, ready for scale |
 | **Admin Tools** | ✅ Complete | Review moderation + Coupon management |
 | **Features** | ✅ Ready | Discussion, Assignment, Study Groups, Analytics |
+
+---
+
+## 🧭 ROADMAP V3 (Mar 2026) — Recent Progress
+
+- ✅ Phase 4 (Instructor/Admin suite): lesson bulk ẩn/hiện, filter khóa học theo status, báo cáo phí nền tảng theo tháng (instructor/admin), audit log tối thiểu, disputes management trong Admin Payments.
+- ✅ Phase 5 (Production readiness): backend hỗ trợ `X-Request-Id` cho trace, logging cơ bản, rate limiting.
 
 ---
 
@@ -328,8 +335,7 @@
   - Frontend: `frontend/.env.example`
 
 ### Cloud Services Setup
-- **Email:** [SENDGRID_SETUP.md](./backend/SENDGRID_SETUP.md)
-- **Storage:** [CLOUDINARY_SETUP.md](./backend/CLOUDINARY_SETUP.md)
+- [DOCS.md](./DOCS.md) — Email (Resend) + Cloudinary
 
 ### Tech Stack
 - **Backend:** Node.js 18+, Express 4.18, MongoDB Atlas
@@ -337,7 +343,7 @@
 - **Real-time:** Socket.IO
 - **Payments:** Stripe, VNPay, MoMo
 - **Storage:** GridFS, Cloudinary
-- **Email:** SendGrid
+- **Email:** Resend
 
 ---
 

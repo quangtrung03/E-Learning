@@ -181,9 +181,9 @@ const AdminRequestManagement: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Quản lý yêu cầu Admin</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Quản lý yêu cầu quản trị viên</h1>
         <p className="mt-2 text-gray-600">
-          Xem và duyệt các yêu cầu trở thành admin từ người dùng
+          Xem và duyệt các yêu cầu trở thành quản trị viên từ người dùng
         </p>
       </div>
 
@@ -414,7 +414,7 @@ const AdminRequestManagement: React.FC = () => {
                 {/* Reason */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                    Lý do muốn trở thành Admin
+                    Lý do muốn trở thành quản trị viên
                   </h3>
                   <p className="text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg">
                     {selectedRequest.reason}
@@ -429,7 +429,7 @@ const AdminRequestManagement: React.FC = () => {
                     </h3>
                     <div className="space-y-2">
                       <p><strong>Người xử lý:</strong> {selectedRequest.processedBy.name}</p>
-                      <p><strong>Thời gian xử lý:</strong> {selectedRequest.processedAt ? formatDate(selectedRequest.processedAt) : 'N/A'}</p>
+                      <p><strong>Thời gian xử lý:</strong> {selectedRequest.processedAt ? formatDate(selectedRequest.processedAt) : 'Chưa có'}</p>
                       {selectedRequest.rejectionReason && (
                         <div>
                           <p><strong>Lý do từ chối:</strong></p>

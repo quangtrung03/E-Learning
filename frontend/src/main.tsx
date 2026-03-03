@@ -6,6 +6,9 @@ import { ToastProvider } from './context/ToastContext';
 import { SocketProvider } from './context/SocketContext';
 import App from './App.tsx';
 import './index.css';
+import { initSentry } from './sentry';
+
+initSentry();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
