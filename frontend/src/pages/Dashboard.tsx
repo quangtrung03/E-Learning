@@ -5,11 +5,14 @@ import { courseAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
+import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
+import resolveFileUrl from '../utils/resolveFileUrl';
 
 interface Course {
   _id: string;
   title: string;
   description: string;
+  thumbnail?: string;
   category: string;
   level: string;
   price?: number;
@@ -95,6 +98,8 @@ interface UserStats {
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
+  const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
   const [stats, setStats] = useState<UserStats>({
     totalCourses: 0,
     enrolledCourses: 0,
@@ -467,10 +472,19 @@ const Dashboard = () => {
                 {(Array.isArray(recentCourses) ? recentCourses : []).map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
                   <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
-                    <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center relative">
-                      <span className="text-white text-4xl font-bold">
-                        {course.title.charAt(0)}
-                      </span>
+                    <div className="h-48 rounded-t-xl flex items-center justify-center relative overflow-hidden bg-gray-100">
+                      {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
+                        <img
+                          src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
+                          alt={course.title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-secondary-400 flex items-center justify-center">
+                          <span className="text-white text-4xl font-bold">{course.title.charAt(0)}</span>
+                        </div>
+                      )}
                       <div className="absolute top-3 right-3 bg-white text-gray-800 px-2 py-1 rounded-full text-xs font-bold">
                         ⭐ {course.rating?.average?.toFixed(1) || '0.0'}
                       </div>

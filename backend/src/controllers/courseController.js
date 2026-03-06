@@ -475,13 +475,23 @@ const getMyCourses = async (req, res) => {
     }
     
     // return plain JS objects and populate instructor for predictable JSON shape
-    const courses = await Course.find(query)
+    const coursesRaw = await Course.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate('instructor', 'name avatar')
       .populate('totalStudents') // Virtual count of enrolled students
       .lean();
+
+    const courses = (coursesRaw || []).map((course) => {
+      const price = Number(course?.price || 0);
+      const discount = Number(course?.discount || 0);
+      const computedFinalPrice = Math.round(price * (1 - discount / 100));
+      return {
+        ...course,
+        finalPrice: typeof course?.finalPrice === 'number' ? course.finalPrice : computedFinalPrice
+      };
+    });
     
     console.log('📦 Found courses:', courses.length, courses.map(c => c.title));
     
@@ -562,8 +572,12 @@ const getMyEnrolledCourses = async (req, res) => {
       .filter(enrollment => courseMap[enrollment.course?.toString()]) // Chỉ lấy courses còn tồn tại
       .map(enrollment => {
         const course = courseMap[enrollment.course.toString()];
+        const price = Number(course?.price || 0);
+        const discount = Number(course?.discount || 0);
+        const computedFinalPrice = Math.round(price * (1 - discount / 100));
         return {
           ...course,
+          finalPrice: typeof course?.finalPrice === 'number' ? course.finalPrice : computedFinalPrice,
           enrolledAt: enrollment.enrolledAt,
           progress: enrollment.progress,
           status: enrollment.status,
@@ -857,7 +871,7 @@ const getMyRevenue = async (req, res) => {
 
     // Lấy tất cả khóa học của instructor
     const myCourses = await Course.find({ instructor: req.user._id })
-      .select('title price finalPrice students rating createdAt')
+      .select('title price discount rating createdAt')
       .populate('totalStudents') // Virtual count
       .lean();
 
@@ -931,6 +945,10 @@ const getMyRevenue = async (req, res) => {
     let totalNetRevenue = 0;
 
     for (const course of myCourses) {
+      const coursePrice = Number(course?.price || 0);
+      const courseDiscount = Number(course?.discount || 0);
+      const computedFinalPrice = Math.round(coursePrice * (1 - courseDiscount / 100));
+
       const courseId = course._id.toString();
       const payments = paymentsByCourse[courseId] || [];
       const reviews = (reviewsByCourse[courseId] || []).slice(0, 5); // Limit to 5 latest
@@ -988,8 +1006,8 @@ const getMyRevenue = async (req, res) => {
       revenueData.push({
         courseId: course._id,
         title: course.title,
-        price: course.price,
-        finalPrice: course.finalPrice,
+        price: coursePrice,
+        finalPrice: computedFinalPrice,
         studentsCount: course.totalStudents || 0, // Use virtual count
         rating: course.rating,
         revenue: courseRevenue,

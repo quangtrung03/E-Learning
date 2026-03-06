@@ -812,8 +812,8 @@ const Messages = () => {
 
                             const isImage = file.type.startsWith('image/');
                             const response = isImage
-                              ? await uploadAPI.uploadImage(formData, onProgress)
-                              : await uploadAPI.uploadDocument(formData, onProgress);
+                              ? await uploadAPI.uploadImage(formData, onProgress, 'message_attachment_image')
+                              : await uploadAPI.uploadDocument(formData, onProgress, 'message_attachment_document');
 
                             const uploaded = response.data.data;
 

@@ -4,11 +4,14 @@ import { courseAPI } from '../services/api';
 import { Button } from '../components/ui';
 import { Card } from '../components/ui';
 import { useToast } from '../context/ToastContext';
+import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
+import resolveFileUrl from '../utils/resolveFileUrl';
 
 interface Course {
   _id: string;
   title: string;
   description: string;
+  thumbnail?: string;
   category: string;
   level: string;
   price?: number;
@@ -30,6 +33,8 @@ interface Course {
 
 const MyCourses = () => {
   const toast = useToast();
+  const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
+  const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
   const [createdCourses, setCreatedCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [activeTab, setActiveTab] = useState<'created' | 'enrolled'>('created');
@@ -139,10 +144,19 @@ const MyCourses = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
   {(Array.isArray(createdCourses) ? createdCourses : []).map((course) => (
           <Card key={course._id} className="hover:shadow-lg transition-shadow">
-            <div className="h-32 bg-gradient-to-r from-primary-400 to-primary-600 rounded-t-xl flex items-center justify-center">
-              <span className="text-white text-xl font-bold">
-                {course.title.charAt(0)}
-              </span>
+            <div className="h-32 rounded-t-xl flex items-center justify-center relative overflow-hidden bg-gray-100">
+              {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
+                <img
+                  src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
+                  alt={course.title}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-r from-primary-400 to-primary-600 flex items-center justify-center">
+                  <span className="text-white text-xl font-bold">{course.title.charAt(0)}</span>
+                </div>
+              )}
             </div>
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">
@@ -225,10 +239,19 @@ const MyCourses = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
   {(Array.isArray(enrolledCourses) ? enrolledCourses : []).map((course) => (
           <Card key={course._id} className="hover:shadow-lg transition-shadow">
-            <div className="h-32 bg-gradient-to-r from-blue-400 to-purple-600 rounded-t-xl flex items-center justify-center">
-              <span className="text-white text-xl font-bold">
-                {course.title.charAt(0)}
-              </span>
+            <div className="h-32 rounded-t-xl flex items-center justify-center relative overflow-hidden bg-gray-100">
+              {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
+                <img
+                  src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
+                  alt={course.title}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-600 flex items-center justify-center">
+                  <span className="text-white text-xl font-bold">{course.title.charAt(0)}</span>
+                </div>
+              )}
             </div>
             <div className="p-4">
               <div className="flex items-center justify-between mb-2">

@@ -928,7 +928,7 @@ const LessonManagement = () => {
                           uploadFile={async (file, onProgress) => {
                             const formDataUpload = new FormData();
                             formDataUpload.append('file', file);
-                            const response = await uploadAPI.uploadVideo(formDataUpload, onProgress);
+                            const response = await uploadAPI.uploadVideo(formDataUpload, onProgress, 'lesson_video');
                             return {
                               url: response.data.data.url,
                               publicId: response.data.data.publicId,
@@ -1087,8 +1087,8 @@ const LessonManagement = () => {
 
                             const isImage = file.type.startsWith('image/');
                             const response = isImage
-                              ? await uploadAPI.uploadImage(formDataUpload, onProgress)
-                              : await uploadAPI.uploadDocument(formDataUpload, onProgress);
+                              ? await uploadAPI.uploadImage(formDataUpload, onProgress, 'lesson_resource_image')
+                              : await uploadAPI.uploadDocument(formDataUpload, onProgress, 'lesson_resource_document');
 
                             toast.success(`Upload ${file.name} thành công!`);
                             return response.data.data;

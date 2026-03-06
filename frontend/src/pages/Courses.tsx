@@ -6,11 +6,14 @@ import { Card } from '../components/ui/Card';
 import AdvancedSearchFilters from '../components/ui/AdvancedSearchFilters';
 import FileUploadCard from '../components/upload/FileUploadCard';
 import { useToast } from '../context/ToastContext';
+import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
+import resolveFileUrl from '../utils/resolveFileUrl';
 
 interface Course {
   _id: string;
   title: string;
   description: string;
+  thumbnail?: string;
   category: string;
   level: string;
   price: number;
@@ -31,6 +34,8 @@ interface Course {
 const Courses = () => {
   const navigate = useNavigate();
   const toastContext = useToast();
+  const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
+  const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
   
   // Toast helper functions
   const toast = {
@@ -346,10 +351,19 @@ const Courses = () => {
             {(Array.isArray(featuredCourses) ? featuredCourses : []).map((course) => (
               <Link key={course._id} to={`/courses/${course._id}`}>
                 <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
-                  <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center relative">
-                    <span className="text-white text-4xl font-bold">
-                      {course.title.charAt(0)}
-                    </span>
+                  <div className="h-48 rounded-t-xl flex items-center justify-center relative overflow-hidden bg-gray-100">
+                    {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
+                      <img
+                        src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
+                        alt={course.title}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-secondary-400 flex items-center justify-center">
+                        <span className="text-white text-4xl font-bold">{course.title.charAt(0)}</span>
+                      </div>
+                    )}
                     <div className="absolute top-3 right-3 bg-yellow-400 text-yellow-800 px-2 py-1 rounded-full text-xs font-bold">
                       ⭐ {course.rating.average.toFixed(1)}
                     </div>
@@ -432,10 +446,19 @@ const Courses = () => {
                 {(Array.isArray(courses) ? courses : []).map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
                   <Card className="hover:shadow-lg transition-all duration-300 hover:scale-105">
-                    <div className="h-48 bg-gradient-to-br from-primary-400 to-secondary-400 rounded-t-xl flex items-center justify-center">
-                      <span className="text-white text-4xl font-bold">
-                        {course.title.charAt(0)}
-                      </span>
+                    <div className="h-48 rounded-t-xl flex items-center justify-center relative overflow-hidden bg-gray-100">
+                      {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
+                        <img
+                          src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
+                          alt={course.title}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-secondary-400 flex items-center justify-center">
+                          <span className="text-white text-4xl font-bold">{course.title.charAt(0)}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="p-6">
                       <div className="flex items-center gap-2 mb-3">
@@ -594,10 +617,19 @@ const Courses = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {draftCourses.map((course) => (
               <Card key={course._id} className="hover:shadow-lg transition-all duration-300">
-                <div className="h-48 bg-gradient-to-br from-gray-400 to-gray-600 rounded-t-xl flex items-center justify-center relative">
-                  <span className="text-white text-4xl font-bold">
-                    {course.title.charAt(0)}
-                  </span>
+                <div className="h-48 rounded-t-xl flex items-center justify-center relative overflow-hidden bg-gray-100">
+                  {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
+                    <img
+                      src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
+                      alt={course.title}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-br from-gray-400 to-gray-600 flex items-center justify-center">
+                      <span className="text-white text-4xl font-bold">{course.title.charAt(0)}</span>
+                    </div>
+                  )}
                   <div className="absolute top-3 right-3 px-3 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded-full">
                     NHÁP
                   </div>
@@ -738,7 +770,7 @@ const Courses = () => {
                     uploadFile={async (file, onProgress) => {
                       const formDataUpload = new FormData();
                       formDataUpload.append('file', file);
-                      const response = await uploadAPI.uploadImage(formDataUpload, onProgress);
+                      const response = await uploadAPI.uploadImage(formDataUpload, onProgress, 'course_thumbnail');
                       return response.data.data;
                     }}
                   />

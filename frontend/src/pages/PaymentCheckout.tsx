@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { CreditCard, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
 import { courseAPI, paymentAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
+import resolveFileUrl from '../utils/resolveFileUrl';
 
 interface Course {
   _id: string;
@@ -20,6 +22,9 @@ const PaymentCheckout = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
+
+  const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
+  const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
   
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,6 +101,8 @@ const PaymentCheckout = () => {
     return null;
   }
 
+  const courseThumbnailSrc = resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl;
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -113,9 +120,9 @@ const PaymentCheckout = () => {
           <div className="p-8">
             {/* Course Info */}
             <div className="flex items-start space-x-4 pb-6 border-b">
-              {course.thumbnail && (
+              {courseThumbnailSrc && (
                 <img
-                  src={course.thumbnail}
+                  src={courseThumbnailSrc}
                   alt={course.title}
                   className="w-32 h-20 object-cover rounded-lg"
                 />

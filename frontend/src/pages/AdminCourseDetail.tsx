@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { ConfirmDialog } from '../components/ui';
 import api from '../services/api';
 import resolveAvatar from '../utils/resolveAvatar';
+import resolveFileUrl from '../utils/resolveFileUrl';
 import type { Course } from '../types/course';
 
 
@@ -169,7 +170,7 @@ const AdminCourseDetail = () => {
                 {course.thumbnail && (
                   <div className="flex-shrink-0">
                     <img 
-                      src={resolveAvatar(course.thumbnail) || undefined} 
+                      src={resolveFileUrl(course.thumbnail) || undefined} 
                       alt={course.title}
                       className="w-32 h-24 object-cover rounded-lg"
                     />

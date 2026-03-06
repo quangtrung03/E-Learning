@@ -208,6 +208,7 @@ app.use('/api/lessons', require('./routes/lessonRoutes'));
 app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/certificates', require('./routes/certificateRoutes'));
 app.use('/api/upload', require('./routes/uploadRoutes'));
+app.use('/api/settings', require('./routes/settingsRoutes'));
 
 // New feature routes
 app.use('/api/payments', require('./routes/paymentRoutes'));

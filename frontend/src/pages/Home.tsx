@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { courseAPI, contentAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
+import resolveFileUrl from '../utils/resolveFileUrl';
 
 interface Category {
   _id: string;
@@ -27,6 +29,7 @@ interface Course {
   _id: string;
   title: string;
   description: string;
+  thumbnail?: string;
   category: string;
   level: string;
   price: number;
@@ -42,6 +45,8 @@ interface Course {
 }
 
 const Home = () => {
+  const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
+  const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
@@ -192,13 +197,16 @@ const Home = () => {
             {categories.map((cat, index) => (
               <Link key={index} to="/courses">
                 <div className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white border-gray-200 hover:border-blue-400 cursor-pointer shadow-lg hover:shadow-2xl">
-                  <div className="h-48 relative overflow-hidden">
+                  <div className="h-48 relative overflow-hidden bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-white text-4xl font-bold">{cat.name.charAt(0)}</div>
+                    </div>
                     <img 
                       src={cat.imageUrl} 
                       alt={cat.name}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       onError={(e) => {
-                        e.currentTarget.src = 'https://via.placeholder.com/400x300?text=' + cat.name;
+                        e.currentTarget.style.display = 'none';
                       }}
                     />
                   </div>
@@ -253,15 +261,26 @@ const Home = () => {
               {featuredCourses.map((course) => (
                 <Link key={course._id} to={`/courses/${course._id}`}>
                   <Card className="group hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 h-full border-0 overflow-hidden">
-                    <div className="relative h-48 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+                    <div className="relative h-48 flex items-center justify-center overflow-hidden bg-gray-100">
                       {(course.totalStudents || 0) > 10 && (
                         <div className="absolute top-3 right-3 px-3 py-1 bg-cyan-400 text-blue-900 text-xs font-bold rounded-full">
                           BÁN CHẠY
                         </div>
                       )}
-                      <div className="text-white text-4xl font-bold">
-                        {getCategoryLabel(course.category).charAt(0)}
-                      </div>
+                      {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
+                        <img
+                          src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
+                          alt={course.title}
+                          className="absolute inset-0 h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+                          <div className="text-white text-4xl font-bold">
+                            {getCategoryLabel(course.category).charAt(0)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="p-5 space-y-3">
                       <div className="flex items-center justify-between">
@@ -393,12 +412,15 @@ const Home = () => {
             {instructors.map((instructor, idx) => (
               <div key={idx} className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400 shadow-lg hover:shadow-2xl">
                 <div className={`h-64 bg-gradient-to-br ${instructor.gradient} flex items-center justify-center relative overflow-hidden`}>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-white text-5xl font-bold">{instructor.name.charAt(0)}</div>
+                  </div>
                   <img 
                     src={instructor.imageUrl} 
                     alt={instructor.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     onError={(e) => {
-                      e.currentTarget.src = 'https://via.placeholder.com/400x300?text=' + instructor.name;
+                      e.currentTarget.style.display = 'none';
                     }}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>

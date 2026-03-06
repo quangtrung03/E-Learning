@@ -47,6 +47,7 @@ const AdminRequestManagement = lazy(() => import('./pages/AdminRequestManagement
 const AdminReviewManagement = lazy(() => import('./pages/AdminReviewManagement'));
 const AdminCouponManagement = lazy(() => import('./pages/AdminCouponManagement'));
 const AdminPaymentManagement = lazy(() => import('./pages/AdminPaymentManagement'));
+const AdminDefaultThumbnails = lazy(() => import('./pages/AdminDefaultThumbnails'));
 
 const Messages = lazy(() => import('./pages/MessagesEnhanced'));
 
@@ -404,6 +405,17 @@ function App() {
               <ProtectedRoute>
                 <AdminRoute>
                   <AdminPaymentManagement />
+                </AdminRoute>
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/settings/thumbnails" 
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminDefaultThumbnails />
                 </AdminRoute>
               </ProtectedRoute>
             } 

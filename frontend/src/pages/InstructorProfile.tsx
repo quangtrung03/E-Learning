@@ -19,6 +19,8 @@ import {
   Globe
 } from 'lucide-react';
 import resolveAvatar from '../utils/resolveAvatar';
+import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
+import resolveFileUrl from '../utils/resolveFileUrl';
 
 interface Instructor {
   _id: string;
@@ -63,6 +65,8 @@ interface Course {
 
 const InstructorProfile = () => {
   const { id } = useParams<{ id: string }>();
+  const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
+  const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
   const [instructor, setInstructor] = useState<Instructor | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -346,17 +350,18 @@ const InstructorProfile = () => {
                 {courses.map((course) => (
                   <Link key={course._id} to={`/courses/${course._id}`}>
                     <Card className="hover:shadow-lg transition-all duration-300 h-full">
-                      <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-600 rounded-t-xl flex items-center justify-center">
-                        {course.thumbnail ? (
+                      <div className="h-48 rounded-t-xl flex items-center justify-center relative overflow-hidden bg-gray-100">
+                        {resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl ? (
                           <img
-                            src={course.thumbnail}
+                            src={(resolveFileUrl(course.thumbnail) || fallbackCourseThumbnailUrl)!}
                             alt={course.title}
-                            className="w-full h-full object-cover rounded-t-xl"
+                            className="w-full h-full object-cover"
+                            loading="lazy"
                           />
                         ) : (
-                          <span className="text-white text-4xl font-bold">
-                            {course.title.charAt(0)}
-                          </span>
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center">
+                            <span className="text-white text-4xl font-bold">{course.title.charAt(0)}</span>
+                          </div>
                         )}
                       </div>
 

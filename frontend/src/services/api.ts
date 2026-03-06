@@ -384,6 +384,15 @@ export const adminAPI = {
     api.put(`/payments/${paymentId}/dispute`, { reason }),
   processRefund: (paymentId: string, reason: string, refundAmount?: number): Promise<AxiosResponse<any>> =>
     api.put(`/payments/${paymentId}/refund`, { reason, refundAmount }),
+
+  // Settings: default course thumbnails
+  getCourseThumbnails: (): Promise<AxiosResponse<any>> => api.get('/admin/settings/course-thumbnails'),
+  addCourseThumbnail: (url: string, setActive: boolean = true): Promise<AxiosResponse<any>> =>
+    api.post('/admin/settings/course-thumbnails', { url, setActive }),
+  setActiveCourseThumbnail: (url: string): Promise<AxiosResponse<any>> =>
+    api.put('/admin/settings/course-thumbnails/active', { url }),
+  removeCourseThumbnail: (url: string): Promise<AxiosResponse<any>> =>
+    api.delete('/admin/settings/course-thumbnails', { data: { url } }),
 };
 
 // Content API
@@ -395,8 +404,9 @@ export const contentAPI = {
 
 // Upload API
 export const uploadAPI = {
-  uploadImage: (formData: FormData, onProgress?: (progress: number) => void) => {
-    return api.post('/upload/image', formData, {
+  uploadImage: (formData: FormData, onProgress?: (progress: number) => void, type?: string) => {
+    const qs = type ? `?type=${encodeURIComponent(type)}` : '';
+    return api.post(`/upload/image${qs}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -408,8 +418,9 @@ export const uploadAPI = {
       },
     });
   },
-  uploadVideo: (formData: FormData, onProgress?: (progress: number) => void) => {
-    return api.post('/upload/video', formData, {
+  uploadVideo: (formData: FormData, onProgress?: (progress: number) => void, type?: string) => {
+    const qs = type ? `?type=${encodeURIComponent(type)}` : '';
+    return api.post(`/upload/video${qs}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -421,8 +432,9 @@ export const uploadAPI = {
       },
     });
   },
-  uploadAudio: (formData: FormData, onProgress?: (progress: number) => void) => {
-    return api.post('/upload/audio', formData, {
+  uploadAudio: (formData: FormData, onProgress?: (progress: number) => void, type?: string) => {
+    const qs = type ? `?type=${encodeURIComponent(type)}` : '';
+    return api.post(`/upload/audio${qs}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -434,8 +446,9 @@ export const uploadAPI = {
       },
     });
   },
-  uploadDocument: (formData: FormData, onProgress?: (progress: number) => void) => {
-    return api.post('/upload/document', formData, {
+  uploadDocument: (formData: FormData, onProgress?: (progress: number) => void, type?: string) => {
+    const qs = type ? `?type=${encodeURIComponent(type)}` : '';
+    return api.post(`/upload/document${qs}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -447,6 +460,11 @@ export const uploadAPI = {
       },
     });
   },
+};
+
+// Public Settings API
+export const settingsAPI = {
+  getDefaultCourseThumbnail: (): Promise<AxiosResponse<any>> => api.get('/settings/default-course-thumbnail'),
 };
 
 // Coupon API calls

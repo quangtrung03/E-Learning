@@ -118,13 +118,13 @@ const Profile: React.FC = () => {
         formDataToSend.append('avatarUrl', pendingAvatarUrl);
       }
 
-      const success = await updateProfile(formDataToSend);
-      
-      if (success) {
+      const result = await updateProfile(formDataToSend);
+
+      if (result.success) {
         setMessage({ type: 'success', text: 'Cập nhật thông tin thành công!' });
         setPendingAvatarUrl('');
       } else {
-        setMessage({ type: 'error', text: 'Có lỗi xảy ra khi cập nhật thông tin' });
+        setMessage({ type: 'error', text: result.message || 'Có lỗi xảy ra khi cập nhật thông tin' });
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Có lỗi xảy ra khi cập nhật thông tin' });
@@ -188,7 +188,7 @@ const Profile: React.FC = () => {
                   uploadFile={async (file, onProgress) => {
                     const formDataUpload = new FormData();
                     formDataUpload.append('file', file);
-                    const response = await uploadAPI.uploadImage(formDataUpload, onProgress);
+                    const response = await uploadAPI.uploadImage(formDataUpload, onProgress, 'avatar');
                     return response.data.data;
                   }}
                 />

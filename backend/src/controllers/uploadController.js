@@ -4,6 +4,14 @@ const { uploadImage, deleteImage, getPublicIdFromUrl, cloudinary } = require('..
 const fs = require('fs');
 const path = require('path');
 
+const ensureTempDir = () => {
+  const tempDir = path.join(__dirname, '../../uploads/temp');
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+  return tempDir;
+};
+
 /**
  * @desc    Upload course thumbnail
  * @route   POST /api/courses/:id/upload-thumbnail
@@ -48,7 +56,8 @@ const uploadCourseThumbnail = async (req, res) => {
     }
 
     // Upload new thumbnail to Cloudinary
-    const tempPath = path.join('/tmp', `${Date.now()}-${req.file.originalname}`);
+    const tempDir = ensureTempDir();
+    const tempPath = path.join(tempDir, `${Date.now()}-${req.file.originalname}`);
     fs.writeFileSync(tempPath, req.file.buffer);
     
     const cloudinaryUrl = await uploadImage(tempPath, 'course-thumbnails');
@@ -140,10 +149,7 @@ const uploadLessonVideo = async (req, res) => {
     }
 
     // Create temp directory if not exists
-    const tempDir = path.join(__dirname, '../../uploads/temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    const tempDir = ensureTempDir();
 
     // Upload new video to Cloudinary
     const tempPath = path.join(tempDir, `${Date.now()}-${req.file.originalname}`);
@@ -152,7 +158,7 @@ const uploadLessonVideo = async (req, res) => {
     console.log('📤 Uploading video to Cloudinary...');
     
     const result = await cloudinary.uploader.upload(tempPath, {
-      folder: 'elearning/videos',
+      folder: 'elearning/lesson-videos',
       resource_type: 'video',
       // Optional: Generate different quality versions
       eager: [
@@ -263,11 +269,12 @@ const uploadLessonDocument = async (req, res) => {
     }
 
     // Upload document to Cloudinary
-    const tempPath = path.join('/tmp', `${Date.now()}-${req.file.originalname}`);
+    const tempDir = ensureTempDir();
+    const tempPath = path.join(tempDir, `${Date.now()}-${req.file.originalname}`);
     fs.writeFileSync(tempPath, req.file.buffer);
     
     const result = await cloudinary.uploader.upload(tempPath, {
-      folder: 'elearning/lesson-documents',
+      folder: 'elearning/lesson-resources/documents',
       resource_type: 'raw', // For PDFs and other documents
       format: path.extname(req.file.originalname).slice(1) // Remove dot from extension
     });

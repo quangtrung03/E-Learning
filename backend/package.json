@@ -17,9 +17,16 @@
     "production-check": "node scripts/production-check.js",
     "make-admin": "node scripts/make-admin.js",
     "test-admin": "node scripts/test-admin-flow.js",
-    "seed": "node scripts/comprehensive-seed.js",
+    "db:clean": "node scripts/clean-database.js",
+    "seed": "node scripts/seed-rich.js",
     "backup": "node scripts/backup-database.js",
     "seed:demo": "node scripts/seed-demo.js",
+    "seed:rich": "node scripts/seed-rich.js",
+    "seed:rich:reset": "cross-env SEED_RESET=true SEED_CONFIRM=YES node scripts/seed-rich.js",
+    "seed:rich:reset:cloudinary": "cross-env SEED_RESET=true SEED_CONFIRM=YES SEED_CLOUDINARY_IMAGES=true SEED_CLOUDINARY_VIDEOS=true node scripts/seed-rich.js",
+    "cloudinary:purge:elearning": "node scripts/cloudinary-purge-elearning.js",
+    "cloudinary:purge:elearning:confirm": "cross-env CLOUDINARY_PURGE_PREFIX=elearning/ CLOUDINARY_PURGE_CONFIRM=YES node scripts/cloudinary-purge-elearning.js",
+    "cloudinary:purge:elearning:prod": "cross-env CLOUDINARY_PURGE_PREFIX=elearning/ CLOUDINARY_PURGE_CONFIRM=YES CLOUDINARY_PURGE_ALLOW_PROD=YES node scripts/cloudinary-purge-elearning.js",
     "deploy": "npm run build && npm run production-check"
   },
   "keywords": [

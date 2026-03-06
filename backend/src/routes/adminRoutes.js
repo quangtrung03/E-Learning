@@ -24,6 +24,12 @@ const {
   rejectAdminRequestDetailed
 } = require('../controllers/adminController');
 const { deleteCourse } = require('../controllers/courseController');
+const {
+  adminGetCourseThumbnails,
+  adminAddCourseThumbnail,
+  adminSetActiveCourseThumbnail,
+  adminRemoveCourseThumbnail,
+} = require('../controllers/settingsController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -315,5 +321,11 @@ router.put('/requests/:id/reject', [
     .isLength({ max: 500 })
     .withMessage('Lý do từ chối không được quá 500 ký tự')
 ], rejectAdminRequestDetailed);
+
+// Settings: default course thumbnails
+router.get('/settings/course-thumbnails', adminGetCourseThumbnails);
+router.post('/settings/course-thumbnails', adminAddCourseThumbnail);
+router.put('/settings/course-thumbnails/active', adminSetActiveCourseThumbnail);
+router.delete('/settings/course-thumbnails', adminRemoveCourseThumbnail);
 
 module.exports = router;

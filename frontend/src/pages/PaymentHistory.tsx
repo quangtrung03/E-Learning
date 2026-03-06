@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { CreditCard, CheckCircle, XCircle, Clock, Eye, Download } from 'lucide-react';
 import { paymentAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
+import resolveFileUrl from '../utils/resolveFileUrl';
 
 interface Payment {
   _id: string;
@@ -30,9 +32,14 @@ interface Payment {
 
 const PaymentHistory = () => {
   const { showToast } = useToast();
+  const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
+  const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
+
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending' | 'failed'>('all');
+
+  const getCourseThumbnailSrc = (thumbnail?: string) => resolveFileUrl(thumbnail) || fallbackCourseThumbnailUrl;
 
   useEffect(() => {
     fetchPayments();
@@ -231,9 +238,9 @@ const PaymentHistory = () => {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-start space-x-4 flex-1">
-                      {payment.course.thumbnail && (
+                      {getCourseThumbnailSrc(payment.course.thumbnail) && (
                         <img
-                          src={payment.course.thumbnail}
+                          src={getCourseThumbnailSrc(payment.course.thumbnail)!}
                           alt={payment.course.title}
                           className="w-24 h-16 object-cover rounded-lg"
                         />

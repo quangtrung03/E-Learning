@@ -137,10 +137,10 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
         error: action.payload,
       };
 
-    case AUTH_ACTIONS.LOAD_USER:
+    case AUTH_ACTIONS.LOAD_USER: {
       const token = localStorage.getItem('token');
       const userStr = localStorage.getItem('user');
-      
+
       if (token && userStr) {
         try {
           const user = JSON.parse(userStr) as User;
@@ -156,11 +156,12 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
           localStorage.removeItem('user');
         }
       }
-      
+
       return {
         ...state,
         isLoading: false,
       };
+    }
 
     case AUTH_ACTIONS.LOAD_USER_SUCCESS:
       localStorage.setItem('user', JSON.stringify(action.payload));

@@ -419,6 +419,22 @@ const AdminDashboard = () => {
               </div>
             </Card>
           </Link>
+
+          <Link to="/admin/settings/thumbnails">
+            <Card className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Thumbnail mặc định</p>
+                  <p className="text-lg font-bold text-gray-900">Quản lý</p>
+                </div>
+                <div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
+                  <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </div>
+              </div>
+            </Card>
+          </Link>
         </div>
 
         {/* Platform Fee Report */}

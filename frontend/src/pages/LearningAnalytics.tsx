@@ -354,13 +354,18 @@ const LearningAnalytics = () => {
         <Card className="p-6 mb-6">
           <h3 className="text-lg font-semibold mb-4">📖 Tiến độ từng khóa học</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.courseProgress}>
+            <BarChart
+              data={analytics.courseProgress}
+              barCategoryGap="35%"
+              barGap={8}
+              margin={{ top: 10, right: 20, left: 0, bottom: 30 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="courseTitle" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={80} />
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="progress" fill="#8b5cf6" name="Tiến độ (%)" />
+              <Bar dataKey="progress" fill="#8b5cf6" name="Tiến độ (%)" barSize={28} />
             </BarChart>
           </ResponsiveContainer>
         </Card>
