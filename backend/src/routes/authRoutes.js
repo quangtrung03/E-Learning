@@ -275,8 +275,9 @@ router.post('/verify-email', verifyEmail);
  *       400:
  *         description: Email đã được xác thực hoặc không tồn tại
  */
-// Sử dụng protectWithoutEmailVerification để user chưa verify vẫn có thể resend
-router.post('/resend-verification', protectWithoutEmailVerification, emailLimiter, resendVerification);
+// Public endpoint (user chưa verify cũng phải gọi được).
+// Rate-limited to reduce abuse.
+router.post('/resend-verification', emailLimiter, resendVerification);
 
 /**
  * @swagger

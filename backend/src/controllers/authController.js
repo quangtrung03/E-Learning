@@ -9,6 +9,8 @@ const PasswordReset = require('../models/PasswordReset');
 const AdminRequest = require('../models/AdminRequest');
 const emailService = require('../config/email-new');
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Tạo JWT token
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -90,10 +92,12 @@ const register = async (req, res, next) => {
     });
     
     // Generate token và OTP manually để debug
-    console.log('🎫 Generating token and OTP manually...');
+    if (!isProduction) console.log('🎫 Generating token and OTP manually...');
     const { token: verificationToken, otp: verificationOTP } = verification.generateToken();
-    console.log('✅ Token generated:', verificationToken);
-    console.log('✅ OTP generated:', verificationOTP);
+    if (!isProduction) {
+      console.log('✅ Token generated:', verificationToken);
+      console.log('✅ OTP generated:', verificationOTP);
+    }
     
     await verification.save();
     console.log('💾 Verification saved to database');
@@ -406,7 +410,11 @@ const verifyEmail = async (req, res) => {
       });
     }
     
-    console.log('🔍 Verifying email - token:', token, 'otp:', otp, 'email:', email);
+    if (!isProduction) {
+      console.log('🔍 Verifying email - token:', token, 'otp:', otp, 'email:', email);
+    } else {
+      console.log('🔍 Verifying email for:', email || '(token-based)');
+    }
     
     // Tìm verification record bằng token hoặc OTP
     let verification;
@@ -494,22 +502,23 @@ const resendVerification = async (req, res) => {
       });
     }
     
-    console.log('🔄 Resending verification email to:', email);
+    console.log('🔄 Resending verification email requested for:', email);
     
     // Tìm user
     const user = await User.findOne({ email });
+    // Security: don't reveal whether the email exists or is already verified
+    const genericOkMessage = 'Nếu email tồn tại trong hệ thống và chưa được xác thực, chúng tôi đã gửi lại email xác thực. Vui lòng kiểm tra hộp thư.';
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy tài khoản với email này'
+      return res.status(200).json({
+        success: true,
+        message: genericOkMessage
       });
     }
-    
-    // Kiểm tra đã xác thực chưa
+
     if (user.emailVerified) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email đã được xác thực rồi'
+      return res.status(200).json({
+        success: true,
+        message: genericOkMessage
       });
     }
     
@@ -527,8 +536,10 @@ const resendVerification = async (req, res) => {
     
     // Generate token và OTP manually
     const { token: verificationToken, otp: verificationOTP } = verification.generateToken();
-    console.log('✅ Resend - Token generated:', verificationToken);
-    console.log('✅ Resend - OTP generated:', verificationOTP);
+    if (!isProduction) {
+      console.log('✅ Resend - Token generated:', verificationToken);
+      console.log('✅ Resend - OTP generated:', verificationOTP);
+    }
     
     await verification.save();
     
@@ -542,17 +553,15 @@ const resendVerification = async (req, res) => {
     
     if (emailResult.success) {
       console.log('✅ Verification email resent successfully');
-      res.status(200).json({
-        success: true,
-        message: 'Email xác thực đã được gửi lại. Vui lòng kiểm tra hộp thư của bạn.'
-      });
     } else {
       console.log('❌ Failed to resend verification email:', emailResult.error);
-      res.status(500).json({
-        success: false,
-        message: 'Không thể gửi email xác thực. Vui lòng thử lại sau.'
-      });
     }
+
+    // Always return generic 200 to prevent account enumeration
+    res.status(200).json({
+      success: true,
+      message: genericOkMessage
+    });
     
   } catch (error) {
     console.error('❌ Resend verification error:', error);
@@ -600,8 +609,10 @@ const forgotPassword = async (req, res) => {
     
     // Tạo token và OTP reset password mới
     const { token: resetToken, otp: resetOTP } = PasswordReset.generateToken();
-    console.log('✅ Reset token generated:', resetToken);
-    console.log('✅ Reset OTP generated:', resetOTP);
+    if (!isProduction) {
+      console.log('✅ Reset token generated:', resetToken);
+      console.log('✅ Reset OTP generated:', resetOTP);
+    }
     
     // Lưu token vào database
     const passwordReset = new PasswordReset({
@@ -655,8 +666,10 @@ const forgotPassword = async (req, res) => {
 const resetPassword = async (req, res) => {
   try {
     console.log('\n🔐 RESET PASSWORD ATTEMPT:');
-    console.log('🎫 Token:', req.body.token);
-    console.log('🔢 OTP:', req.body.otp);
+    if (!isProduction) {
+      console.log('🎫 Token:', req.body.token);
+      console.log('🔢 OTP:', req.body.otp);
+    }
     
     const { token, otp, email, newPassword } = req.body;
     
