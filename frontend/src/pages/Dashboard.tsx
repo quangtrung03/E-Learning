@@ -863,7 +863,7 @@ const Dashboard = () => {
               {selectedCourse.reviews.length > 0 && (
                 <div>
                   <h4 className="font-semibold text-gray-900 mb-3">
-                    Đánh giá (⭐ {selectedCourse.rating.average.toFixed(1)} - {selectedCourse.rating.count} reviews)
+                    Đánh giá (⭐ {selectedCourse.rating?.average?.toFixed(1) || '0.0'} - {selectedCourse.rating?.count || 0} reviews)
                   </h4>
                   <div className="space-y-3 max-h-48 overflow-y-auto">
                     {selectedCourse.reviews.map((review: any) => (
@@ -923,7 +923,7 @@ const Dashboard = () => {
                         <div className="flex items-center space-x-4 text-sm text-gray-600">
                           <span>💵 {course.finalPrice.toLocaleString('vi-VN')}đ</span>
                           <span>👥 {course.studentsCount} học viên</span>
-                          <span>⭐ {course.rating.average.toFixed(1)}</span>
+                          <span>⭐ {course.rating?.average?.toFixed(1) || '0.0'}</span>
                         </div>
                       </div>
                       <div className="text-right">

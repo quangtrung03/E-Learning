@@ -298,8 +298,8 @@ const Home = () => {
                       <div className="flex items-center justify-between pt-2">
                         <div className="flex items-center gap-1">
                           <span className="text-yellow-400">★</span>
-                          <span className="text-sm font-bold">{course.rating.average.toFixed(1)}</span>
-                          <span className="text-xs text-gray-500">({course.rating.count})</span>
+                          <span className="text-sm font-bold">{course.rating?.average?.toFixed(1) || '0.0'}</span>
+                          <span className="text-xs text-gray-500">({course.rating?.count || 0})</span>
                         </div>
                         <div className="text-sm text-gray-600">
                           {getLevelLabel(course.level)}
