@@ -101,8 +101,27 @@ class NotificationService {
         ...(resendAttachments ? { attachments: resendAttachments } : {})
       });
 
+      if (result?.error) {
+        console.error('❌ Resend returned an error (email NOT sent)');
+        console.error('   to:', to);
+        console.error('   from:', from);
+        console.error('   subject:', subject);
+        console.error('   error:', result.error);
+        throw new Error(result.error.message || 'Resend error');
+      }
+
+      const messageId = result?.data?.id;
+      if (!messageId) {
+        console.warn('⚠️ Resend response missing message id; treating as failure');
+        console.warn('   to:', to);
+        console.warn('   from:', from);
+        console.warn('   subject:', subject);
+        console.warn('   raw:', result);
+        throw new Error('Email send response missing message id');
+      }
+
       console.log(`📧 Email sent successfully to ${to} via Resend`);
-      console.log('📧 Message ID:', result.data?.id);
+      console.log('📧 Message ID:', messageId);
       return result;
     } catch (error) {
       console.error('❌ Error sending email:', error);

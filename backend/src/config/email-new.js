@@ -377,21 +377,45 @@ const sendEmail = async (to, subject, html) => {
       return { success: false, error: 'Email service initialization failed' };
     }
 
-    // Send email via Resend
+    const from = process.env.RESEND_FROM_EMAIL || 'E-Learning Platform <onboarding@resend.dev>';
+
+    // Resend SDK returns { data, error } (it may NOT throw on API errors)
     const result = await resendClient.emails.send({
-      from: process.env.RESEND_FROM_EMAIL || 'E-Learning Platform <onboarding@resend.dev>',
+      from,
       to: [to],
       subject: subject,
       html: html
     });
 
+    if (result?.error) {
+      console.error('❌ Resend returned an error (email NOT sent)');
+      console.error('   to:', to);
+      console.error('   from:', from);
+      console.error('   subject:', subject);
+      console.error('   error:', result.error);
+      return {
+        success: false,
+        error: result.error.message || 'Resend error'
+      };
+    }
+
+    const messageId = result?.data?.id;
+    if (!messageId) {
+      console.warn('⚠️ Resend response missing message id; treat as failure for safety');
+      console.warn('   to:', to);
+      console.warn('   from:', from);
+      console.warn('   subject:', subject);
+      console.warn('   raw:', result);
+      return {
+        success: false,
+        error: 'Email send response missing message id'
+      };
+    }
+
     console.log('✅ Email sent successfully via Resend');
-    console.log('📧 Message ID:', result.data?.id);
-    
-    return { 
-      success: true, 
-      messageId: result.data?.id 
-    };
+    console.log('📧 Message ID:', messageId);
+
+    return { success: true, messageId };
     
   } catch (error) {
     console.error('❌ Email sending failed:', error.message);

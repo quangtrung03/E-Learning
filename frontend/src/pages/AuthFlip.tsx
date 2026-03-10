@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Card, Button, Input, LoadingSpinner } from '../components/ui';
@@ -131,8 +131,47 @@ const AuthFlip = ({ initialMode = 'login' }: Props) => {
     if (error) clearError();
   };
 
+  // The register face is absolutely positioned for the flip animation.
+  // Without reserving height, the page height is based on the (shorter) login face,
+  // causing the register form to overflow and visually overlap the footer.
+  const loginFaceRef = useRef<HTMLDivElement>(null);
+  const registerFaceRef = useRef<HTMLDivElement>(null);
+  const [flipHeight, setFlipHeight] = useState<number | null>(null);
+
+  const measureFlipHeight = () => {
+    const loginH = loginFaceRef.current?.offsetHeight ?? 0;
+    const registerH = registerFaceRef.current?.offsetHeight ?? 0;
+    const next = Math.max(loginH, registerH);
+    setFlipHeight(next > 0 ? next : null);
+  };
+
+  useLayoutEffect(() => {
+    // Run at least once after mount and after mode changes.
+    // Use RAF to ensure the browser has applied layout after transforms.
+    requestAnimationFrame(() => measureFlipHeight());
+  }, [mode]);
+
+  useEffect(() => {
+    measureFlipHeight();
+
+    const onResize = () => measureFlipHeight();
+    window.addEventListener('resize', onResize);
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(() => measureFlipHeight());
+      if (loginFaceRef.current) ro.observe(loginFaceRef.current);
+      if (registerFaceRef.current) ro.observe(registerFaceRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', onResize);
+      if (ro) ro.disconnect();
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+    <div className="w-full flex justify-center bg-gradient-to-br from-blue-50 via-white to-cyan-50">
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-md mx-auto">
           <div className="flex items-center justify-center mb-6">
@@ -158,14 +197,14 @@ const AuthFlip = ({ initialMode = 'login' }: Props) => {
             </div>
           </div>
 
-          <div className="relative [perspective:1000px]">
+          <div className="relative [perspective:1000px]" style={flipHeight ? { height: flipHeight } : undefined}>
             <div
               className={`relative transition-transform duration-700 [transform-style:preserve-3d] ${
                 isRegister ? '[transform:rotateY(180deg)]' : ''
               }`}
             >
               {/* Front: Login */}
-              <div className="[backface-visibility:hidden]">
+              <div ref={loginFaceRef} className="[backface-visibility:hidden]">
                 <Card>
                   <Card.Body className="space-y-6">
                     <div className="text-center">
@@ -262,7 +301,10 @@ const AuthFlip = ({ initialMode = 'login' }: Props) => {
               </div>
 
               {/* Back: Register */}
-              <div className="absolute inset-0 [transform:rotateY(180deg)] [backface-visibility:hidden]">
+              <div
+                ref={registerFaceRef}
+                className="absolute inset-0 [transform:rotateY(180deg)] [backface-visibility:hidden]"
+              >
                 <Card>
                   <Card.Body className="space-y-6">
                     <div className="text-center">
