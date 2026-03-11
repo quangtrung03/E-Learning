@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const crypto = require('crypto');
+const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const connectDB = require('./config/database');
@@ -177,8 +178,9 @@ app.use('/api/', limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files (uploads)
-app.use('/uploads', express.static('uploads'));
+// Serve static files (uploads) - use absolute path to avoid cwd issues
+const uploadsDir = path.join(__dirname, '..', 'uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 // Swagger UI - chỉ trong development
 if (process.env.NODE_ENV === 'development') {
@@ -203,6 +205,8 @@ app.get('/api/health', (req, res) => {
 // API Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/courses', require('./routes/courseRoutes'));
+// NOTE: /api/admin/media MUST be registered before /api/admin to avoid double-auth middleware
+app.use('/api/admin/media', require('./routes/mediaRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/lessons', require('./routes/lessonRoutes'));
 app.use('/api/assignments', require('./routes/assignmentRoutes'));
@@ -224,9 +228,7 @@ app.use('/api/sections', require('./routes/sectionRoutes'));
 // Content routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/instructors', require('./routes/instructorRoutes'));
-
-// Static file serving for uploads
-app.use('/uploads', express.static('uploads'));
+app.use('/api/testimonials', require('./routes/testimonialRoutes'));
 
 // 404 Handler
 app.use('*', (req, res) => {

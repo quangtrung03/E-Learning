@@ -48,8 +48,10 @@ const AdminReviewManagement = lazy(() => import('./pages/AdminReviewManagement')
 const AdminCouponManagement = lazy(() => import('./pages/AdminCouponManagement'));
 const AdminPaymentManagement = lazy(() => import('./pages/AdminPaymentManagement'));
 const AdminDefaultThumbnails = lazy(() => import('./pages/AdminDefaultThumbnails'));
+const AdminMediaManager = lazy(() => import('./pages/AdminMediaManager'));
 
 const Messages = lazy(() => import('./pages/MessagesEnhanced'));
+const TestimonialProfile = lazy(() => import('./pages/TestimonialProfile'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -420,10 +422,22 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          
+
+          <Route
+            path="/admin/media"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminMediaManager />
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+
           {/* Public Routes */}
           <Route path="/certificates/verify/:hash" element={<CertificateVerification />} />
           <Route path="/instructors/:id" element={<InstructorProfile />} />
+          <Route path="/testimonials/:slug" element={<TestimonialProfile />} />
           
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

@@ -44,12 +44,53 @@ interface Course {
   };
 }
 
+interface Testimonial {
+  _id: string;
+  name: string;
+  slug: string;
+  role: string;
+  comment: string;
+  rating: number;
+  avatarUrl?: string;
+}
+
+const fallbackTestimonials: Testimonial[] = [
+  {
+    _id: 'fallback-0',
+    name: 'Nguyễn Anh',
+    slug: 'nguyen-anh',
+    role: 'Kỹ sư phần mềm tại FPT',
+    comment: 'Chương trình học có lộ trình rõ ràng và giảng viên tận tâm đã giúp tôi đạt được công việc mơ ước.',
+    rating: 5,
+    avatarUrl: ''
+  },
+  {
+    _id: 'fallback-1',
+    name: 'Trần Văn Bình',
+    slug: 'tran-van-binh',
+    role: 'Chuyển hướng nghề nghiệp',
+    comment: 'Tôi tìm đúng thứ mình cần. Cách giảng dạy dễ hiểu và hỗ trợ rất tốt.',
+    rating: 5,
+    avatarUrl: ''
+  },
+  {
+    _id: 'fallback-2',
+    name: 'Lê Thị Cẩm',
+    slug: 'le-thi-cam',
+    role: 'Sinh viên mới tốt nghiệp',
+    comment: 'Tăng sự tự tin nhờ kiến thức thực tiễn và cơ hội kết nối tuyệt vời.',
+    rating: 5,
+    avatarUrl: ''
+  }
+];
+
 const Home = () => {
   const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
   const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
   const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [instructors, setInstructors] = useState<Instructor[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,10 +99,11 @@ const Home = () => {
 
   const fetchData = async () => {
     try {
-      const [coursesRes, categoriesRes, instructorsRes] = await Promise.all([
+      const [coursesRes, categoriesRes, instructorsRes, testimonialsRes] = await Promise.all([
         courseAPI.getAllCourses({ limit: 8, sort: 'newest' }),
         contentAPI.getCategories(),
-        contentAPI.getInstructors()
+        contentAPI.getInstructors(),
+        contentAPI.getTestimonials()
       ]);
       
       if (coursesRes.data.success && coursesRes.data.data.courses) {
@@ -75,38 +117,17 @@ const Home = () => {
       if (instructorsRes.data.success) {
         setInstructors(instructorsRes.data.data);
       }
+
+      if (testimonialsRes.data.success) {
+        setTestimonials(testimonialsRes.data.data);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
+      setTestimonials(fallbackTestimonials);
     } finally {
       setLoading(false);
     }
   };
-
-
-
-  const testimonials = [
-    {
-      name: 'Nguyễn Anh',
-      role: 'Kỹ sư phần mềm tại FPT',
-      initial: 'NA',
-      comment: 'Chương trình học có lộ trình rõ ràng và giảng viên tận tâm đã giúp tôi đạt được công việc mơ ước.',
-      rating: 5
-    },
-    {
-      name: 'Trần Văn B',
-      role: 'Chuyển hướng nghề nghiệp',
-      initial: 'TB',
-      comment: 'Tôi tìm đúng thứ mình cần. Cách giảng dạy dễ hiểu và hỗ trợ rất tốt.',
-      rating: 5
-    },
-    {
-      name: 'Lê Thị C',
-      role: 'Sinh viên mới tốt nghiệp',
-      initial: 'LC',
-      comment: 'Tăng sự tự tin nhờ kiến thức thực tiễn và cơ hội kết nối tuyệt vời.',
-      rating: 5
-    }
-  ];
 
   const getCategoryLabel = (category: string) => {
     const map: { [key: string]: string } = {
@@ -451,27 +472,49 @@ const Home = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, idx) => (
-              <div key={idx} className="backdrop-blur-sm border rounded-2xl p-8 transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400">
-                <div className="flex gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+            {testimonials.map((testimonial) => {
+              const avatar = resolveFileUrl(testimonial.avatarUrl);
+              const initial = testimonial.name?.slice(0, 1)?.toUpperCase() || 'U';
+
+              return (
+                <Link
+                  key={testimonial._id}
+                  to={`/testimonials/${testimonial.slug}`}
+                  className="block"
+                  aria-label={`Xem hồ sơ: ${testimonial.name}`}
+                >
+                  <div className="backdrop-blur-sm border rounded-2xl p-8 transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400">
+                    <div className="flex gap-1 mb-4">
+                      {[...Array(testimonial.rating)].map((_, i) => (
+                        <svg key={i} className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                  ))}
-                </div>
-                <p className="text-gray-700 leading-relaxed mb-6 italic">"{testimonial.comment}"</p>
-                <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-bold text-white">{testimonial.initial}</span>
+                        </svg>
+                      ))}
+                    </div>
+                    <p className="text-gray-700 leading-relaxed mb-6 italic">"{testimonial.comment}"</p>
+                    <div className="flex items-center gap-4 pt-4 border-t border-gray-200">
+                      <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
+                        <span className="text-lg font-bold text-white">{initial}</span>
+                        {avatar ? (
+                          <img
+                            src={avatar}
+                            alt={testimonial.name}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900">{testimonial.name}</h4>
+                        <p className="text-sm text-gray-600">{testimonial.role}</p>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-bold text-gray-900">{testimonial.name}</h4>
-                    <p className="text-sm text-gray-600">{testimonial.role}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>

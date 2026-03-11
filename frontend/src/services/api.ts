@@ -400,6 +400,8 @@ export const contentAPI = {
   getCategories: () => api.get('/categories'),
   getInstructors: () => api.get('/instructors'),
   getInstructor: (id: string) => api.get(`/instructors/${id}`),
+  getTestimonials: () => api.get('/testimonials'),
+  getTestimonial: (slug: string) => api.get(`/testimonials/${slug}`),
 };
 
 // Upload API
