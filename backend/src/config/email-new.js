@@ -1,28 +1,15 @@
-const { Resend } = require('resend');
+const axios = require('axios');
 
-// Lazy-init Resend to avoid crash when this module is required before dotenv.config()
-let resend = null;
-
-const getResend = () => {
-  if (!resend && process.env.RESEND_API_KEY) {
-    resend = new Resend(process.env.RESEND_API_KEY);
-    console.log('✅ Resend email service initialized');
-    console.log('📧 Email service: Resend (Primary)');
-  }
-  return resend;
-};
-
-// Validate Resend configuration (run after dotenv loads)
+// Validate Brevo config on startup
 const validateResendConfig = () => {
-  if (!process.env.RESEND_API_KEY) {
-    console.warn('⚠️ RESEND_API_KEY not found - email functionality will be disabled');
-    console.warn('⚠️ Please add RESEND_API_KEY to your .env file or Render Environment Variables');
-  } else if (!process.env.RESEND_API_KEY.startsWith('re_')) {
-    console.warn('⚠️ RESEND_API_KEY format incorrect - should start with "re_"');
+  if (!process.env.BREVO_API_KEY) {
+    console.warn('⚠️ BREVO_API_KEY not found – email functionality will be disabled');
+  } else {
+    console.log('✅ Brevo email service ready');
+    console.log('📧 Sender:', process.env.BREVO_FROM_EMAIL);
   }
 };
 
-// Defer validation until server starts
 setTimeout(validateResendConfig, 100);
 
 // Get frontend URL based on environment
@@ -365,62 +352,45 @@ const emailTemplates = {
 // Send email function using Resend
 const sendEmail = async (to, subject, html) => {
   try {
-    // Check if Resend is configured
-    if (!process.env.RESEND_API_KEY) {
-      console.error('❌ RESEND_API_KEY not configured');
+    if (!process.env.BREVO_API_KEY) {
+      console.error('❌ BREVO_API_KEY not configured');
       return { success: false, error: 'Email service not configured' };
     }
 
-    const resendClient = getResend();
-    if (!resendClient) {
-      console.error('❌ Failed to initialize Resend client');
-      return { success: false, error: 'Email service initialization failed' };
-    }
+    const payload = {
+      sender: {
+        name: process.env.BREVO_FROM_NAME || 'E-Learning Platform',
+        email: process.env.BREVO_FROM_EMAIL
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html
+    };
 
-    const from = process.env.RESEND_FROM_EMAIL || 'E-Learning Platform <onboarding@resend.dev>';
+    console.log('📤 Sending email via Brevo...');
+    console.log('   to:', to);
+    console.log('   subject:', subject);
 
-    // Resend SDK returns { data, error } (it may NOT throw on API errors)
-    const result = await resendClient.emails.send({
-      from,
-      to: [to],
-      subject: subject,
-      html: html
-    });
+    const response = await axios.post(
+      'https://api.brevo.com/v3/smtp/email',
+      payload,
+      {
+        headers: {
+          'api-key': process.env.BREVO_API_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    if (result?.error) {
-      console.error('❌ Resend returned an error (email NOT sent)');
-      console.error('   to:', to);
-      console.error('   from:', from);
-      console.error('   subject:', subject);
-      console.error('   error:', result.error);
-      return {
-        success: false,
-        error: result.error.message || 'Resend error'
-      };
-    }
-
-    const messageId = result?.data?.id;
-    if (!messageId) {
-      console.warn('⚠️ Resend response missing message id; treat as failure for safety');
-      console.warn('   to:', to);
-      console.warn('   from:', from);
-      console.warn('   subject:', subject);
-      console.warn('   raw:', result);
-      return {
-        success: false,
-        error: 'Email send response missing message id'
-      };
-    }
-
-    console.log('✅ Email sent successfully via Resend');
+    const messageId = response.data?.messageId;
+    console.log('✅ Email sent successfully via Brevo');
     console.log('📧 Message ID:', messageId);
-
     return { success: true, messageId };
-    
+
   } catch (error) {
-    console.error('❌ Email sending failed:', error.message);
-    console.error('❌ Error details:', error.response?.body || error);
-    return { success: false, error: error.message };
+    const detail = error.response?.data || error.message;
+    console.error('❌ Brevo email failed:', detail);
+    return { success: false, error: JSON.stringify(detail) };
   }
 };
 
