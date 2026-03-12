@@ -256,11 +256,33 @@ const checkEnrollment = async (req, res, next) => {
   }
 };
 
+// Optional auth - attaches req.user if token is valid, but doesn't require it
+const optionalAuth = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    if (!token) return next();
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const currentUser = await User.findById(decoded.id);
+    if (currentUser && currentUser.isActive) {
+      req.user = currentUser;
+    }
+    next();
+  } catch {
+    // Token invalid - just continue without user
+    next();
+  }
+};
+
 module.exports = {
   protect,
   protectWithoutEmailVerification,
   requireAdmin,
   requireInstructor,
   requireOwnershipOrAdmin,
-  checkEnrollment
+  checkEnrollment,
+  optionalAuth
 };

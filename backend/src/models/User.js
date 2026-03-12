@@ -58,7 +58,56 @@ const userSchema = new mongoose.Schema({
   createdCourses: [{
     type: mongoose.Schema.ObjectId,
     ref: 'Course'
-  }]
+  }],
+  // Social fields
+  coverImage: {
+    type: String,
+    default: null
+  },
+  website: {
+    type: String,
+    default: null
+  },
+  location: {
+    type: String,
+    maxLength: [100, 'Vị trí không được quá 100 ký tự'],
+    default: null
+  },
+  socialLinks: {
+    facebook: { type: String, default: null },
+    twitter: { type: String, default: null },
+    linkedin: { type: String, default: null },
+    github: { type: String, default: null },
+    youtube: { type: String, default: null },
+    instagram: { type: String, default: null }
+  },
+  followers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  following: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  preferences: {
+    language: { type: String, enum: ['vi', 'en'], default: 'vi' },
+    theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+    notifications: {
+      email: { type: Boolean, default: true },
+      newFollower: { type: Boolean, default: true },
+      newComment: { type: Boolean, default: true },
+      newLike: { type: Boolean, default: true },
+      newMessage: { type: Boolean, default: true },
+      courseUpdates: { type: Boolean, default: true },
+      promotions: { type: Boolean, default: false }
+    },
+    privacy: {
+      profilePublic: { type: Boolean, default: true },
+      showEmail: { type: Boolean, default: false },
+      showPhone: { type: Boolean, default: false },
+      allowMessages: { type: String, enum: ['everyone', 'followers', 'none'], default: 'everyone' }
+    }
+  }
 }, {
   timestamps: true
 });
@@ -99,6 +148,16 @@ userSchema.virtual('totalEnrolledCourses', {
   localField: '_id',
   foreignField: 'user',
   count: true
+});
+
+// Virtual: follower count
+userSchema.virtual('followerCount').get(function () {
+  return this.followers ? this.followers.length : 0;
+});
+
+// Virtual: following count
+userSchema.virtual('followingCount').get(function () {
+  return this.following ? this.following.length : 0;
 });
 
 // Enable virtuals in JSON

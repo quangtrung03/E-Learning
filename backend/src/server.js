@@ -225,6 +225,10 @@ app.use('/api/messages', require('./routes/messageRoutes'));
 app.use('/api/friends', require('./routes/friendRoutes'));
 app.use('/api/sections', require('./routes/sectionRoutes'));
 
+// Social & Search
+app.use('/api/social', require('./routes/socialRoutes'));
+app.use('/api/search', require('./routes/searchRoutes'));
+
 // Content routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/instructors', require('./routes/instructorRoutes'));

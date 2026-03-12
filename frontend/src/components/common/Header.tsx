@@ -1,8 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, BarChart } from "lucide-react";
+import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, BarChart, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
+import GlobalSearch from "./GlobalSearch";
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -63,7 +64,7 @@ const Header = () => {
   return (
     <header className="relative z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-16 gap-4">
           <Link to="/" className="flex-shrink-0">
             <motion.div
               className="flex items-center space-x-3"
@@ -77,6 +78,11 @@ const Header = () => {
               </span>
             </motion.div>
           </Link>
+
+          {/* Search bar — hidden on small, shown on md+ */}
+          <div className="hidden sm:flex flex-1 max-w-xs">
+            <GlobalSearch />
+          </div>
 
           <div className="flex items-center">
             <NavToggleButton isOpen={isNavOpen} />
@@ -102,17 +108,17 @@ const Header = () => {
                 <Home className="w-4 h-4" />
                 <span className="text-sm font-medium text-gray-900">Trang chủ</span>
               </Link>
+              <Link
+                to="/courses"
+                onClick={() => setIsNavOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span className="text-sm font-medium text-gray-900">Khóa học</span>
+              </Link>
 
               {isAuthenticated && (
                 <>
-                  <Link
-                    to="/courses"
-                    onClick={() => setIsNavOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <BookOpen className="w-4 h-4" />
-                    <span className="text-sm font-medium text-gray-900">Khóa học</span>
-                  </Link>
                   <Link
                     to="/dashboard"
                     onClick={() => setIsNavOpen(false)}
@@ -120,6 +126,30 @@ const Header = () => {
                   >
                     <Award className="w-4 h-4" />
                     <span className="text-sm font-medium text-gray-900">Bảng điều khiển</span>
+                  </Link>
+                  <Link
+                    to="/my-courses"
+                    onClick={() => setIsNavOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <BookOpen className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-gray-900">Khóa học của tôi</span>
+                  </Link>
+                  <Link
+                    to="/analytics"
+                    onClick={() => setIsNavOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <BarChart className="w-4 h-4" />
+                    <span className="text-sm font-medium text-gray-900">Phân tích</span>
+                  </Link>
+                  <Link
+                    to="/my-certificates"
+                    onClick={() => setIsNavOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <Certificate className="w-4 h-4 text-yellow-500" />
+                    <span className="text-sm font-medium text-gray-900">Chứng chỉ</span>
                   </Link>
                   <Link
                     to="/messages"
@@ -138,17 +168,46 @@ const Header = () => {
                     <span className="text-sm font-medium text-gray-900">Nhóm học</span>
                   </Link>
                   <Link
-                    to="/analytics"
+                    to="/feed"
                     onClick={() => setIsNavOpen(false)}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    <BarChart className="w-4 h-4" />
-                    <span className="text-sm font-medium text-gray-900">Phân tích</span>
+                    <Rss className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-medium text-gray-900">Bảng tin</span>
                   </Link>
                 </>
               )}
 
-              <div className="pt-3 mt-3 border-t border-gray-200 space-y-1">
+              {/* Divider: Khám phá */}
+              <div className="pt-3 pb-1 px-3">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Khám phá</span>
+              </div>
+              <Link
+                to="/about"
+                onClick={() => setIsNavOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <Info className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-900">Về chúng tôi</span>
+              </Link>
+              <Link
+                to="/faq"
+                onClick={() => setIsNavOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <HelpCircle className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-900">Câu hỏi thường gặp</span>
+              </Link>
+              <Link
+                to="/sitemap"
+                onClick={() => setIsNavOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <Map className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-900">Sơ đồ trang</span>
+              </Link>
+
+              <div className="pt-3 mt-1 border-t border-gray-200 space-y-1">
                 {isAuthenticated ? (
                   <>
                     <Link
@@ -159,13 +218,29 @@ const Header = () => {
                       <User className="w-4 h-4" />
                       <span className="text-sm font-medium text-gray-900">Hồ sơ</span>
                     </Link>
+                    <Link
+                      to="/settings"
+                      onClick={() => setIsNavOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <Settings className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-900">Cài đặt</span>
+                    </Link>
+                    <Link
+                      to="/payment/history"
+                      onClick={() => setIsNavOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <CreditCard className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-medium text-gray-900">Lịch sử thanh toán</span>
+                    </Link>
                     {user?.isAdmin && (
                       <Link
                         to="/admin"
                         onClick={() => setIsNavOpen(false)}
                         className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                       >
-                        <span className="text-sm font-medium text-gray-900">Quản trị</span>
+                        <span className="text-sm font-semibold text-blue-700">⚙ Quản trị</span>
                       </Link>
                     )}
                     <button

@@ -216,7 +216,7 @@ const Home = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.map((cat, index) => (
-              <Link key={index} to="/courses">
+              <Link key={index} to={`/courses?category=${cat.slug || cat.name.toLowerCase()}`}>
                 <div className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white border-gray-200 hover:border-blue-400 cursor-pointer shadow-lg hover:shadow-2xl">
                   <div className="h-48 relative overflow-hidden bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center">
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -431,7 +431,8 @@ const Home = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {instructors.map((instructor, idx) => (
-              <div key={idx} className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400 shadow-lg hover:shadow-2xl">
+              <Link key={idx} to={`/instructors/${instructor._id}`} className="block">
+              <div className="group backdrop-blur-sm border rounded-2xl overflow-hidden transition-all duration-500 hover:scale-105 bg-white/90 border-gray-200 hover:border-blue-400 shadow-lg hover:shadow-2xl">
                 <div className={`h-64 bg-gradient-to-br ${instructor.gradient} flex items-center justify-center relative overflow-hidden`}>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="text-white text-5xl font-bold">{instructor.name.charAt(0)}</div>
@@ -454,6 +455,7 @@ const Home = () => {
                   </div>
                 </div>
               </div>
+              </Link>
             ))}
           </div>
         </div>

@@ -496,4 +496,76 @@ export const healthAPI = {
   check: () => api.get('/health'),
 };
 
+// ─── Search API ───────────────────────────────────────────
+export const searchAPI = {
+  global: (params: { q: string; type?: 'all' | 'courses' | 'users' | 'posts' | 'categories'; page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get('/search', { params }),
+  suggestions: (q: string): Promise<AxiosResponse<any>> =>
+    api.get('/search/suggestions', { params: { q } }),
+};
+
+// ─── Social API ───────────────────────────────────────────
+export const socialAPI = {
+  // Feed
+  getFeed: (params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get('/social/feed', { params }),
+  getExplorePosts: (params?: { page?: number; limit?: number; tag?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/social/posts/explore', { params }),
+  getSavedPosts: (params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get('/social/saved', { params }),
+
+  // Posts
+  createPost: (data: { content: string; images?: any[]; type?: string; tags?: string[]; visibility?: string; relatedCourse?: string; relatedCertificate?: string }): Promise<AxiosResponse<any>> =>
+    api.post('/social/posts', data),
+  getPost: (id: string): Promise<AxiosResponse<any>> =>
+    api.get(`/social/posts/${id}`),
+  updatePost: (id: string, data: any): Promise<AxiosResponse<any>> =>
+    api.put(`/social/posts/${id}`, data),
+  deletePost: (id: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/social/posts/${id}`),
+  toggleLike: (postId: string): Promise<AxiosResponse<any>> =>
+    api.post(`/social/posts/${postId}/like`),
+  toggleSave: (postId: string): Promise<AxiosResponse<any>> =>
+    api.post(`/social/posts/${postId}/save`),
+  addComment: (postId: string, content: string): Promise<AxiosResponse<any>> =>
+    api.post(`/social/posts/${postId}/comments`, { content }),
+  deleteComment: (postId: string, commentId: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/social/posts/${postId}/comments/${commentId}`),
+  likeComment: (postId: string, commentId: string): Promise<AxiosResponse<any>> =>
+    api.post(`/social/posts/${postId}/comments/${commentId}/like`),
+
+  // Stories
+  getStories: (): Promise<AxiosResponse<any>> =>
+    api.get('/social/stories'),
+  createStory: (data: { mediaUrl: string; mediaPublicId?: string; mediaType?: string; caption?: string; backgroundColor?: string; textOverlay?: string; linkUrl?: string; linkLabel?: string }): Promise<AxiosResponse<any>> =>
+    api.post('/social/stories', data),
+  viewStory: (id: string): Promise<AxiosResponse<any>> =>
+    api.post(`/social/stories/${id}/view`),
+  reactToStory: (id: string, reaction: string): Promise<AxiosResponse<any>> =>
+    api.post(`/social/stories/${id}/react`, { reaction }),
+  deleteStory: (id: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/social/stories/${id}`),
+
+  // Users (social)
+  getUserProfile: (userId: string): Promise<AxiosResponse<any>> =>
+    api.get(`/social/users/${userId}/profile`),
+  getUserPosts: (userId: string, params?: { page?: number; limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get(`/social/users/${userId}/posts`, { params }),
+  toggleFollow: (userId: string): Promise<AxiosResponse<any>> =>
+    api.post(`/social/users/${userId}/follow`),
+  getFollowers: (userId: string): Promise<AxiosResponse<any>> =>
+    api.get(`/social/users/${userId}/followers`),
+  getFollowing: (userId: string): Promise<AxiosResponse<any>> =>
+    api.get(`/social/users/${userId}/following`),
+
+  // Preferences / Settings
+  getPreferences: (): Promise<AxiosResponse<any>> =>
+    api.get('/social/preferences'),
+  updatePreferences: (data: { language?: string; theme?: string; notifications?: Record<string, boolean>; privacy?: Record<string, any> }): Promise<AxiosResponse<any>> =>
+    api.put('/social/preferences', data),
+  updateSocialProfile: (data: { name?: string; bio?: string; phone?: string; avatar?: string; coverImage?: string; website?: string; location?: string; socialLinks?: Record<string, string> }): Promise<AxiosResponse<any>> =>
+    api.put('/social/profile', data),
+};
+
 export default api;
+

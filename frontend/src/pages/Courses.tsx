@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { courseAPI, uploadAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -33,6 +33,7 @@ interface Course {
 
 const Courses = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const toastContext = useToast();
   const defaultCourseThumbnailUrl = useDefaultCourseThumbnailUrl();
   const fallbackCourseThumbnailUrl = resolveFileUrl(defaultCourseThumbnailUrl || undefined);
@@ -53,7 +54,7 @@ const Courses = () => {
   const [draftsLoading, setDraftsLoading] = useState(false);
   const [filters, setFilters] = useState({
     search: '',
-    category: '',
+    category: searchParams.get('category') || '',
     level: '',
     priceMin: 0,
     priceMax: 10000000,

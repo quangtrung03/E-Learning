@@ -2,6 +2,12 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/common/Layout';
 import Home from './pages/Home';
+import About from './pages/About';
+import Contact from './pages/Contact';
+import FAQ from './pages/FAQ';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Sitemap from './pages/Sitemap';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -52,6 +58,10 @@ const AdminMediaManager = lazy(() => import('./pages/AdminMediaManager'));
 
 const Messages = lazy(() => import('./pages/MessagesEnhanced'));
 const TestimonialProfile = lazy(() => import('./pages/TestimonialProfile'));
+const SocialFeed = lazy(() => import('./pages/SocialFeed'));
+const UserProfile = lazy(() => import('./pages/UserProfile'));
+const Settings = lazy(() => import('./pages/Settings'));
+const SearchResults = lazy(() => import('./pages/SearchResults'));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -106,6 +116,13 @@ function App() {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/faq" element={<FAQ />} />
+            <Route path="/help" element={<FAQ />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/sitemap" element={<Sitemap />} />
             <Route 
               path="/courses" 
               element={
@@ -433,6 +450,26 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Social Routes */}
+          <Route
+            path="/feed"
+            element={
+              <ProtectedRoute>
+                <SocialFeed />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/users/:id" element={<UserProfile />} />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/search" element={<SearchResults />} />
 
           {/* Public Routes */}
           <Route path="/certificates/verify/:hash" element={<CertificateVerification />} />
