@@ -9,8 +9,29 @@ interface User {
   name: string;
   email: string;
   avatar?: string;
+  coverImage?: string;
   phone?: string;
   bio?: string;
+  location?: string;
+  website?: string;
+  socialLinks?: {
+    facebook?: string;
+    twitter?: string;
+    linkedin?: string;
+    github?: string;
+    youtube?: string;
+    instagram?: string;
+  };
+  followers?: string[];
+  following?: string[];
+  followerCount?: number;
+  followingCount?: number;
+  preferences?: {
+    language?: 'vi' | 'en';
+    theme?: 'light' | 'dark' | 'system';
+    notifications?: Record<string, boolean>;
+    privacy?: Record<string, any>;
+  };
   isActive: boolean;
   isAdmin?: boolean;
   enrolledCourses: Array<{
