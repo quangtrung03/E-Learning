@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, BarChart, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
-import GlobalSearch from "./GlobalSearch";
+
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -64,7 +64,7 @@ const Header = () => {
   return (
     <header className="relative z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 gap-4">
+          <div className="flex justify-between items-center h-16">
           <Link to="/" className="flex-shrink-0">
             <motion.div
               className="flex items-center space-x-3"
@@ -78,11 +78,6 @@ const Header = () => {
               </span>
             </motion.div>
           </Link>
-
-          {/* Search bar — hidden on small, shown on md+ */}
-          <div className="hidden sm:flex flex-1 max-w-xs">
-            <GlobalSearch />
-          </div>
 
           <div className="flex items-center">
             <NavToggleButton isOpen={isNavOpen} />

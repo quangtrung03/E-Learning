@@ -12,7 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Courses from './pages/Courses';
-import MyCourses from './pages/MyCourses';
+// MyCourses merged into Dashboard
 import Profile from './pages/Profile';
 import EmailVerification from './pages/EmailVerification';
 import ForgotPassword from './pages/ForgotPassword';
@@ -42,7 +42,7 @@ import { useAuth } from './context/AuthContext';
 const LessonManagement = lazy(() => import('./pages/LessonManagement'));
 
 const CourseDetail = lazy(() => import('./pages/CourseDetail'));
-const LearningAnalytics = lazy(() => import('./pages/LearningAnalytics'));
+// LearningAnalytics merged into Dashboard
 
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminUsersList = lazy(() => import('./pages/AdminUsersList'));
@@ -167,11 +167,7 @@ function App() {
             />
             <Route 
               path="/my-courses" 
-              element={
-                <ProtectedRoute>
-                  <MyCourses />
-                </ProtectedRoute>
-              } 
+              element={<Navigate to="/dashboard" replace />} 
             />
             <Route 
               path="/profile" 
@@ -341,11 +337,7 @@ function App() {
           />
           <Route 
             path="/analytics" 
-            element={
-              <ProtectedRoute>
-                <LearningAnalytics />
-              </ProtectedRoute>
-            } 
+            element={<Navigate to="/dashboard" replace />} 
           />
           
           {/* Payment Routes */}
