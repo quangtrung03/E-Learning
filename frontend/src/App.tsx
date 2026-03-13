@@ -43,6 +43,7 @@ const LessonManagement = lazy(() => import('./pages/LessonManagement'));
 
 const CourseDetail = lazy(() => import('./pages/CourseDetail'));
 // LearningAnalytics merged into Dashboard
+const StudySchedule = lazy(() => import('./pages/StudySchedule'));
 
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminUsersList = lazy(() => import('./pages/AdminUsersList'));
@@ -338,6 +339,14 @@ function App() {
           <Route 
             path="/analytics" 
             element={<Navigate to="/dashboard" replace />} 
+          />
+          <Route
+            path="/schedule"
+            element={
+              <ProtectedRoute>
+                <StudySchedule />
+              </ProtectedRoute>
+            }
           />
           
           {/* Payment Routes */}

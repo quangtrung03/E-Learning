@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, BarChart, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings } from "lucide-react";
+import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings, CalendarDays } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -123,20 +123,12 @@ const Header = () => {
                     <span className="text-sm font-medium text-gray-900">Bảng điều khiển</span>
                   </Link>
                   <Link
-                    to="/my-courses"
+                    to="/schedule"
                     onClick={() => setIsNavOpen(false)}
                     className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
                   >
-                    <BookOpen className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-gray-900">Khóa học của tôi</span>
-                  </Link>
-                  <Link
-                    to="/analytics"
-                    onClick={() => setIsNavOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    <BarChart className="w-4 h-4" />
-                    <span className="text-sm font-medium text-gray-900">Phân tích</span>
+                    <CalendarDays className="w-4 h-4 text-indigo-500" />
+                    <span className="text-sm font-medium text-gray-900">Lịch học</span>
                   </Link>
                   <Link
                     to="/my-certificates"

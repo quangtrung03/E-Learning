@@ -22,6 +22,7 @@
     "backup": "node scripts/backup-database.js",
     "seed:demo": "node scripts/seed-demo.js",
     "seed:rich": "node scripts/seed-rich.js",
+    "seed:oer:university": "node scripts/seed-oer-university.js",
     "seed:rich:reset": "cross-env SEED_RESET=true SEED_CONFIRM=YES node scripts/seed-rich.js",
     "seed:rich:reset:cloudinary": "cross-env SEED_RESET=true SEED_CONFIRM=YES SEED_CLOUDINARY_IMAGES=true SEED_CLOUDINARY_VIDEOS=true node scripts/seed-rich.js",
     "cloudinary:purge:elearning": "node scripts/cloudinary-purge-elearning.js",

@@ -28,6 +28,8 @@ const listResources = async (req, res) => {
     const folder = req.query.folder || 'elearning';
     const nextCursor = req.query.next_cursor || undefined;
     const maxResults = Math.min(parseInt(req.query.max_results) || 30, 100);
+    const requestedType = (req.query.resource_type || 'image').toString();
+    const resourceType = requestedType === 'video' ? 'video' : 'image';
 
     const result = await cloudinary.api.resources({
       type: 'upload',
@@ -36,7 +38,7 @@ const listResources = async (req, res) => {
       next_cursor: nextCursor,
       context: true,
       metadata: true,
-      resource_type: 'image',
+      resource_type: resourceType,
     });
 
     res.json({
@@ -92,9 +94,11 @@ const deleteFolder = async (req, res) => {
 const deleteResource = async (req, res) => {
   try {
     const { publicId } = req.body;
+    const requestedType = (req.body.resourceType || req.query.resource_type || 'image').toString();
+    const resourceType = requestedType === 'video' ? 'video' : 'image';
     if (!publicId) return res.status(400).json({ success: false, message: 'publicId is required' });
 
-    const result = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
     if (result.result === 'ok' || result.result === 'not found') {
       return res.json({ success: true, result: result.result });
     }
@@ -113,10 +117,16 @@ const getUploadSignature = async (req, res) => {
   try {
     const folder = req.body.folder || 'elearning';
     const publicId = req.body.publicId || undefined;
+    const requestedType = (req.body.resourceType || 'image').toString();
+    const resourceType = requestedType === 'video' ? 'video' : 'image';
+    const overwrite = req.body.overwrite === true || req.body.overwrite === 'true';
+    const invalidate = req.body.invalidate === true || req.body.invalidate === 'true';
 
     const timestamp = Math.round(Date.now() / 1000);
     const paramsToSign = { folder, timestamp };
     if (publicId) paramsToSign.public_id = publicId;
+    if (overwrite) paramsToSign.overwrite = 'true';
+    if (invalidate) paramsToSign.invalidate = 'true';
 
     const signature = cloudinary.utils.api_sign_request(
       paramsToSign,
@@ -129,7 +139,9 @@ const getUploadSignature = async (req, res) => {
       timestamp,
       cloudName: process.env.CLOUDINARY_CLOUD_NAME,
       apiKey: process.env.CLOUDINARY_API_KEY,
-      folder
+      folder,
+      resourceType,
+      ...(publicId && { publicId })
     });
   } catch (err) {
     console.error('getUploadSignature error:', err);

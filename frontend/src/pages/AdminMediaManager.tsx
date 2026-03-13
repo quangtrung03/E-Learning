@@ -20,6 +20,8 @@ interface CloudinaryResource {
   resource_type: string;
 }
 
+type MediaType = 'image' | 'video';
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const fmtBytes = (b: number) => {
@@ -88,6 +90,7 @@ const AdminMediaManager = () => {
   // Folder tree state
   const [rootFolders, setRootFolders] = useState<CloudinaryFolder[]>([]);
   const [selectedFolder, setSelectedFolder] = useState('elearning');
+  const [selectedType, setSelectedType] = useState<MediaType>('image');
   const [foldersLoading, setFoldersLoading] = useState(true);
 
   // Resources state
@@ -107,6 +110,12 @@ const AdminMediaManager = () => {
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
+
+  const mediaLabel = selectedType === 'video' ? 'video' : 'ảnh';
+  const mediaIcon = selectedType === 'video' ? '🎬' : '🖼️';
+  const uploadEndpoint = selectedType === 'video' ? 'video/upload' : 'image/upload';
+  const mediaAccept = selectedType === 'video' ? 'video/*' : 'image/*';
 
   // ── Toast helper ────────────────────────────────────────────────────────────
   const showToast = (msg: string, ok = true) => {
@@ -137,6 +146,7 @@ const AdminMediaManager = () => {
     try {
       const params: Record<string, string> = { folder, max_results: '30' };
       if (cursor) params.next_cursor = cursor;
+      params.resource_type = selectedType;
       const res = await api.get('/admin/media/resources', { params });
       const incoming: CloudinaryResource[] = res.data.resources ?? [];
       setResources((prev) => cursor ? [...prev, ...incoming] : incoming);
@@ -144,15 +154,16 @@ const AdminMediaManager = () => {
       setHasMore(!!res.data.next_cursor);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
-      showToast(err?.response?.data?.message ?? 'Không tải được ảnh', false);
+      showToast(err?.response?.data?.message ?? `Không tải được ${mediaLabel}`, false);
     } finally {
       setResourcesLoading(false);
     }
-  }, []);
+  }, [mediaLabel, selectedType]);
 
   useEffect(() => {
     setResources([]);
     setNextCursor(null);
+    setSelectedImage(null);
     loadResources(selectedFolder);
   }, [selectedFolder, loadResources]);
 
@@ -165,7 +176,10 @@ const AdminMediaManager = () => {
       setBusyMsg(`Đang tải lên ${i + 1}/${files.length}: ${file.name}`);
       try {
         // 1. Get server signature
-        const sigRes = await api.post('/admin/media/upload-signature', { folder: selectedFolder });
+        const sigRes = await api.post('/admin/media/upload-signature', {
+          folder: selectedFolder,
+          resourceType: selectedType,
+        });
         const { signature, timestamp, cloudName, apiKey, folder } = sigRes.data;
 
         // 2. Upload directly to Cloudinary
@@ -177,7 +191,7 @@ const AdminMediaManager = () => {
         form.append('folder', folder);
 
         const cdnRes = await fetch(
-          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+          `https://api.cloudinary.com/v1_1/${cloudName}/${uploadEndpoint}`,
           { method: 'POST', body: form }
         );
         if (cdnRes.ok) uploaded++;
@@ -193,7 +207,7 @@ const AdminMediaManager = () => {
     setUploading(false);
     setBusyMsg('');
     if (uploaded > 0) {
-      showToast(`Đã tải lên ${uploaded} ảnh`);
+      showToast(`Đã tải lên ${uploaded} ${mediaLabel}`);
       loadResources(selectedFolder);
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -236,15 +250,77 @@ const AdminMediaManager = () => {
   // ── Delete resource ──────────────────────────────────────────────────────────
   const execDeleteResource = async (publicId: string) => {
     try {
-      await api.delete('/admin/media/resource', { data: { publicId } });
-      showToast('Đã xóa ảnh');
+      await api.delete('/admin/media/resource', { data: { publicId, resourceType: selectedType } });
+      showToast(`Đã xóa ${mediaLabel}`);
       setResources((prev) => prev.filter((r) => r.public_id !== publicId));
       setConfirmDelete(null);
       setSelectedImage(null);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
-      showToast(err?.response?.data?.message ?? 'Xóa ảnh thất bại', false);
+      showToast(err?.response?.data?.message ?? `Xóa ${mediaLabel} thất bại`, false);
       setConfirmDelete(null);
+    }
+  };
+
+  // ── Replace Image ────────────────────────────────────────────────────────────
+  const handleReplaceImage = async (file: File) => {
+    if (!selectedImage) return;
+    setUploading(true);
+    setBusyMsg(`Đang thay thế ${mediaLabel}...`);
+    try {
+      const fileNameOnly = selectedImage.public_id.split('/').pop()!;
+      const sigRes = await api.post('/admin/media/upload-signature', {
+        folder: selectedFolder,
+        publicId: fileNameOnly,
+        resourceType: selectedType,
+        overwrite: true,
+        invalidate: true,
+      });
+      const { signature, timestamp, cloudName, apiKey, folder } = sigRes.data;
+
+      const form = new FormData();
+      form.append('file', file);
+      form.append('api_key', apiKey);
+      form.append('timestamp', String(timestamp));
+      form.append('signature', signature);
+      form.append('folder', folder);
+      form.append('public_id', fileNameOnly);
+      form.append('overwrite', 'true');
+      form.append('invalidate', 'true');
+
+      const cdnRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/${uploadEndpoint}`,
+        { method: 'POST', body: form }
+      );
+
+      if (cdnRes.ok) {
+        const data = await cdnRes.json();
+        // Append cache-busting query so the browser reloads the image
+        const freshUrl = data.secure_url + '?v=' + Date.now();
+        const updated: CloudinaryResource = {
+          ...selectedImage,
+          secure_url: freshUrl,
+          bytes: data.bytes,
+          width: data.width,
+          height: data.height,
+          format: data.format,
+        };
+        setResources(prev =>
+          prev.map(r => r.public_id === selectedImage.public_id ? { ...r, secure_url: freshUrl } : r)
+        );
+        setSelectedImage(updated);
+        showToast(`Đã thay thế ${mediaLabel} thành công`);
+      } else {
+        const err = await cdnRes.json();
+        showToast(`Lỗi: ${err.error?.message ?? 'Thay thế thất bại'}`, false);
+      }
+    } catch {
+      showToast('Thay thế ảnh thất bại', false);
+    } finally {
+      setUploading(false);
+      setBusyMsg('');
+      // Reset input so same file can be selected again
+      if (replaceFileInputRef.current) replaceFileInputRef.current.value = '';
     }
   };
 
@@ -266,6 +342,20 @@ const AdminMediaManager = () => {
           <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">Cloudinary</span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg">
+            <button
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${selectedType === 'image' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}
+              onClick={() => setSelectedType('image')}
+            >
+              Ảnh
+            </button>
+            <button
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${selectedType === 'video' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}
+              onClick={() => setSelectedType('video')}
+            >
+              Video
+            </button>
+          </div>
           <button
             className="flex items-center gap-1 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 transition-colors"
             onClick={() => setShowNewFolder(true)}
@@ -277,12 +367,12 @@ const AdminMediaManager = () => {
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
           >
-            {uploading ? '⏳ ' + busyMsg : '⬆️ Tải lên ảnh'}
+            {uploading ? '⏳ ' + busyMsg : `⬆️ Tải lên ${mediaLabel}`}
           </button>
           <input
             type="file"
             multiple
-            accept="image/*"
+            accept={mediaAccept}
             className="hidden"
             ref={fileInputRef}
             onChange={(e) => e.target.files && handleUploadFiles(e.target.files)}
@@ -350,7 +440,7 @@ const AdminMediaManager = () => {
                 </button>
               </span>
             ))}
-            <span className="text-gray-400 ml-1">({resources.length}{hasMore ? '+' : ''} ảnh)</span>
+            <span className="text-gray-400 ml-1">({resources.length}{hasMore ? '+' : ''} {mediaLabel})</span>
           </div>
 
           {resourcesLoading && resources.length === 0 ? (
@@ -359,13 +449,13 @@ const AdminMediaManager = () => {
             </div>
           ) : resources.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-              <span className="text-5xl mb-3">🖼️</span>
-              <p className="text-sm">Chưa có ảnh nào trong thư mục này</p>
+              <span className="text-5xl mb-3">{mediaIcon}</span>
+              <p className="text-sm">Chưa có {mediaLabel} nào trong thư mục này</p>
               <button
                 className="mt-3 text-sm text-blue-600 hover:underline"
                 onClick={() => fileInputRef.current?.click()}
               >
-                Tải ảnh lên ngay →
+                Tải {mediaLabel} lên ngay →
               </button>
             </div>
           ) : (
@@ -378,12 +468,21 @@ const AdminMediaManager = () => {
                     onClick={() => setSelectedImage(r)}
                   >
                     <div className="aspect-square bg-gray-100 overflow-hidden">
-                      <img
-                        src={r.secure_url}
-                        alt={r.public_id}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                        loading="lazy"
-                      />
+                      {selectedType === 'video' ? (
+                        <video
+                          src={r.secure_url}
+                          className="w-full h-full object-cover"
+                          muted
+                          preload="metadata"
+                        />
+                      ) : (
+                        <img
+                          src={r.secure_url}
+                          alt={r.public_id}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                          loading="lazy"
+                        />
+                      )}
                     </div>
                     <div className="p-1.5">
                       <p className="text-xs text-gray-600 truncate" title={r.public_id}>
@@ -396,7 +495,7 @@ const AdminMediaManager = () => {
                       className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs
                         opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
                       onClick={(e) => { e.stopPropagation(); setConfirmDelete(r.public_id); }}
-                      title="Xóa ảnh"
+                      title={`Xóa ${mediaLabel}`}
                     >
                       ✕
                     </button>
@@ -419,7 +518,7 @@ const AdminMediaManager = () => {
         </div>
       </div>
 
-      {/* ── Image Detail Modal ─────────────────────────────────────────────────── */}
+      {/* ── Resource Detail Modal ──────────────────────────────────────────────── */}
       {selectedImage && (
         <div
           className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
@@ -434,11 +533,19 @@ const AdminMediaManager = () => {
               <button className="text-gray-400 hover:text-gray-600 text-xl" onClick={() => setSelectedImage(null)}>✕</button>
             </div>
             <div className="p-4">
-              <img
-                src={selectedImage.secure_url}
-                alt={selectedImage.public_id}
-                className="w-full rounded-lg object-contain max-h-72 bg-gray-50"
-              />
+              {selectedType === 'video' ? (
+                <video
+                  src={selectedImage.secure_url}
+                  controls
+                  className="w-full rounded-lg max-h-72 bg-black"
+                />
+              ) : (
+                <img
+                  src={selectedImage.secure_url}
+                  alt={selectedImage.public_id}
+                  className="w-full rounded-lg object-contain max-h-72 bg-gray-50"
+                />
+              )}
               <div className="mt-4 space-y-2 text-sm">
                 <div className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                   <span className="text-gray-500 font-medium">Public ID</span>
@@ -461,7 +568,7 @@ const AdminMediaManager = () => {
                   <span className="text-gray-800">{new Date(selectedImage.created_at).toLocaleString('vi-VN')}</span>
                 </div>
               </div>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex gap-2 flex-wrap">
                 <button
                   className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors text-sm"
                   onClick={() => copyUrl(selectedImage.secure_url)}
@@ -476,6 +583,20 @@ const AdminMediaManager = () => {
                 >
                   🔗 Mở gốc
                 </a>
+                <button
+                  className="flex-1 flex items-center justify-center gap-1 px-4 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg hover:bg-green-100 transition-colors text-sm disabled:opacity-60"
+                  onClick={() => replaceFileInputRef.current?.click()}
+                  disabled={uploading}
+                >
+                  {uploading && busyMsg.startsWith('Đang thay thế') ? '⏳ Đang thay thế...' : '🔄 Cập nhật ảnh'}
+                </button>
+                <input
+                  type="file"
+                  accept={mediaAccept}
+                  className="hidden"
+                  ref={replaceFileInputRef}
+                  onChange={(e) => e.target.files?.[0] && handleReplaceImage(e.target.files[0])}
+                />
                 <button
                   className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm"
                   onClick={() => { setConfirmDelete(selectedImage.public_id); }}
@@ -492,10 +613,10 @@ const AdminMediaManager = () => {
       {confirmDelete && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-            <h3 className="font-bold text-gray-900 mb-2">Xác nhận xóa ảnh</h3>
+            <h3 className="font-bold text-gray-900 mb-2">Xác nhận xóa {mediaLabel}</h3>
             <p className="text-sm text-gray-600 mb-1">Bạn có chắc muốn xóa:</p>
             <p className="text-xs font-mono bg-gray-100 rounded px-2 py-1 break-all mb-4">{confirmDelete}</p>
-            <p className="text-xs text-red-500 mb-4">⚠️ Hành động này không thể hoàn tác và sẽ xóa ảnh khỏi Cloudinary.</p>
+            <p className="text-xs text-red-500 mb-4">⚠️ Hành động này không thể hoàn tác và sẽ xóa {mediaLabel} khỏi Cloudinary.</p>
             <div className="flex gap-3">
               <button
                 className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm"

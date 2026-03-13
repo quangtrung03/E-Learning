@@ -228,6 +228,7 @@ app.use('/api/sections', require('./routes/sectionRoutes'));
 // Social & Search
 app.use('/api/social', require('./routes/socialRoutes'));
 app.use('/api/search', require('./routes/searchRoutes'));
+app.use('/api/schedule', require('./routes/scheduleRoutes'));
 
 // Content routes
 app.use('/api/categories', require('./routes/categoryRoutes'));

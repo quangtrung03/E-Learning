@@ -130,6 +130,28 @@ const Dashboard = () => {
   // ── Student: filter ──
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'all'>('week');
 
+  // ── Quick note modal ──
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteContent, setNoteContent] = useState('');
+  const [noteTargetCourse, setNoteTargetCourse] = useState('');
+
+  const saveQuickNote = () => {
+    if (!noteContent.trim()) return;
+    const notes: any[] = JSON.parse(localStorage.getItem('quick_notes') || '[]');
+    notes.unshift({
+      id: Date.now(),
+      content: noteContent.trim(),
+      courseId: noteTargetCourse,
+      courseTitle: enrolledCourses.find(c => c._id === noteTargetCourse)?.title || '',
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem('quick_notes', JSON.stringify(notes.slice(0, 100)));
+    setNoteContent('');
+    setNoteTargetCourse('');
+    setShowNoteModal(false);
+    toast.showToast({ type: 'success', title: 'Đã lưu ghi chú!' });
+  };
+
   // ── Instructor: course status filter ──
   const [createdStatusFilter, setCreatedStatusFilter] = useState<'all' | 'draft' | 'pending' | 'approved' | 'rejected'>('all');
 
@@ -758,30 +780,67 @@ const Dashboard = () => {
         {activeRole === 'student' ? renderStudentView() : renderInstructorView()}
 
         {/* Quick Actions */}
-        <section className="mt-12 mb-4">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">🚀 Hành động nhanh</h2>
+        <section className="mt-8 mb-4">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">⚡ Hành động nhanh</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link to="/courses" className="group">
-              <Card className="p-5 hover:shadow-lg transition-all group-hover:scale-[1.02]">
-                <div className="text-3xl mb-2">🔍</div>
-                <h3 className="font-semibold text-gray-900 mb-1">Tìm khóa học</h3>
-                <p className="text-gray-500 text-sm">Khám phá hàng ngàn khóa học chất lượng</p>
+
+            {/* Tiếp tục bài học */}
+            {(() => {
+              const recentCourse = [...enrolledCourses]
+                .filter(c => c.lastLessonId)
+                .sort((a, b) => new Date(b.lastAccessedAt || 0).getTime() - new Date(a.lastAccessedAt || 0).getTime())[0];
+              return recentCourse ? (
+                <Link
+                  to={`/courses/${recentCourse._id}/learn/${recentCourse.lastLessonId}`}
+                  className="group"
+                >
+                  <Card className="p-5 hover:shadow-lg transition-all group-hover:scale-[1.02] h-full border-l-4 border-primary-500">
+                    <div className="text-3xl mb-2">▶️</div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Tiếp tục bài học</h3>
+                    <p className="text-primary-600 text-sm font-medium line-clamp-1">{recentCourse.title}</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {recentCourse.lastAccessedAt
+                        ? `Lần cuối: ${new Date(recentCourse.lastAccessedAt).toLocaleDateString('vi-VN')}`
+                        : 'Tiếp tục học ngay →'
+                      }
+                    </p>
+                  </Card>
+                </Link>
+              ) : (
+                <Link to="/courses" className="group">
+                  <Card className="p-5 hover:shadow-lg transition-all group-hover:scale-[1.02] h-full border-l-4 border-gray-200">
+                    <div className="text-3xl mb-2">▶️</div>
+                    <h3 className="font-semibold text-gray-900 mb-1">Tiếp tục bài học</h3>
+                    <p className="text-gray-400 text-sm">Chưa có bài học nào gần đây. Đăng ký khóa học để bắt đầu!</p>
+                  </Card>
+                </Link>
+              );
+            })()}
+
+            {/* Ghi chú mới */}
+            <div
+              className="group cursor-pointer"
+              onClick={() => setShowNoteModal(true)}
+              role="button"
+              tabIndex={0}
+              onKeyPress={e => e.key === 'Enter' && setShowNoteModal(true)}
+            >
+              <Card className="p-5 hover:shadow-lg transition-all group-hover:scale-[1.02] h-full border-l-4 border-yellow-400">
+                <div className="text-3xl mb-2">📝</div>
+                <h3 className="font-semibold text-gray-900 mb-1">Ghi chú mới</h3>
+                <p className="text-gray-500 text-sm">Tạo nhanh ghi chú cho khóa học đang theo dõi</p>
+              </Card>
+            </div>
+
+            {/* Xem lịch học */}
+            <Link to="/schedule" className="group">
+              <Card className="p-5 hover:shadow-lg transition-all group-hover:scale-[1.02] h-full border-l-4 border-indigo-500">
+                <div className="text-3xl mb-2">📅</div>
+                <h3 className="font-semibold text-gray-900 mb-1">Lịch học</h3>
+                <p className="text-gray-500 text-sm">Đánh dấu và ghi chú các buổi học theo khung giờ</p>
               </Card>
             </Link>
-            <Link to="/courses" className="group">
-              <Card className="p-5 hover:shadow-lg transition-all group-hover:scale-[1.02]">
-                <div className="text-3xl mb-2">✨</div>
-                <h3 className="font-semibold text-gray-900 mb-1">Tạo khóa học</h3>
-                <p className="text-gray-500 text-sm">Chia sẻ kiến thức với cộng đồng</p>
-              </Card>
-            </Link>
-            <Link to="/profile" className="group">
-              <Card className="p-5 hover:shadow-lg transition-all group-hover:scale-[1.02]">
-                <div className="text-3xl mb-2">👤</div>
-                <h3 className="font-semibold text-gray-900 mb-1">Cập nhật hồ sơ</h3>
-                <p className="text-gray-500 text-sm">Chỉnh sửa thông tin cá nhân</p>
-              </Card>
-            </Link>
+
           </div>
         </section>
       </div>
@@ -975,6 +1034,48 @@ const Dashboard = () => {
           )}
         </div>
       </Modal>
+
+      {/* ── Quick Note Modal ───────────────────────────────────────────── */}
+      {showNoteModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowNoteModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900">📝 Ghi chú nhanh</h3>
+              <button onClick={() => setShowNoteModal(false)} className="text-gray-400 hover:text-gray-600">×</button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Khóa học liên kết</label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  value={noteTargetCourse}
+                  onChange={e => setNoteTargetCourse(e.target.value)}
+                >
+                  <option value="">— Không liên kết —</option>
+                  {enrolledCourses.map(c => (
+                    <option key={c._id} value={c._id}>{c.title}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nội dung ghi chú</label>
+                <textarea
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+                  rows={4}
+                  placeholder="Viết ghi chú của bạn..."
+                  value={noteContent}
+                  onChange={e => setNoteContent(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <Button variant="outline" className="flex-1" onClick={() => setShowNoteModal(false)}>Hủy</Button>
+              <Button className="flex-1" onClick={saveQuickNote} disabled={!noteContent.trim()}>Lưu ghi chú</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

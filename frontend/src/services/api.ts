@@ -567,5 +567,17 @@ export const socialAPI = {
     api.put('/social/profile', data),
 };
 
+// Study Schedule API
+export const scheduleAPI = {
+  getSchedule: (params?: { month?: string; date?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/schedule', { params }),
+  createEvent: (data: { title: string; courseId?: string; date: string; startTime?: string; endTime?: string; color?: string; note?: string }): Promise<AxiosResponse<any>> =>
+    api.post('/schedule', data),
+  updateEvent: (id: string, data: Partial<{ title: string; courseId: string; date: string; startTime: string; endTime: string; color: string; note: string; completed: boolean }>): Promise<AxiosResponse<any>> =>
+    api.put(`/schedule/${id}`, data),
+  deleteEvent: (id: string): Promise<AxiosResponse<any>> =>
+    api.delete(`/schedule/${id}`),
+};
+
 export default api;
 
