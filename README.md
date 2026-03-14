@@ -1,45 +1,80 @@
-# 🎓 E-Learning Platform
+# E-Learning Platform
 
-Nền tảng LMS full-stack với quản lý khóa học, học bài/assignment, thanh toán, chứng chỉ và analytics.
+Nen tang LMS full-stack voi quan ly khoa hoc, bai hoc, bai tap, thanh toan, chung chi va phan tich hoc tap.
 
-**Cập nhật:** 03/03/2026
+## Tong quan
 
----
+- Kien truc: Monorepo gom backend API va frontend web app.
+- Muc tieu: Ho tro day/hoc truc tuyen cho 3 vai tro Student, Instructor, Admin.
+- Trang thai: Core features san sang van hanh, co tai lieu QA va CI.
 
-## 📋 Tài liệu
+## Tai lieu lien quan
 
-- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — Tình trạng dự án / tính năng
-- [DOCS.md](./DOCS.md) — Guide + Email (Resend) + Cloudinary
+- PROJECT_STATUS.md: Tinh trang tinh nang, roadmap va tong ket tien do.
+- DOCS.md: Huong dan setup dich vu, seed/clean du lieu, audit cac loi nghiem trong.
+- QA_TEST_FLOWS.md: Bo kich ban test end-to-end theo role va module.
 
----
+## Tech stack
 
-## 🧰 Tech stack
+### Backend
 
-- Backend: Node.js + Express + MongoDB/Mongoose
-- Frontend: React + TypeScript + Vite
-- Real-time: Socket.IO
-- Storage: GridFS (video), Cloudinary (images)
-- Email: Resend
-- Payments: Stripe, VNPay, MoMo
+- Node.js, Express.js
+- MongoDB, Mongoose
+- JWT auth, express-validator, helmet, cors, rate limiting
+- Swagger (dev), Socket.IO
+- Cloudinary, Resend
+- Payment gateways: Stripe, VNPay, MoMo
 
----
+### Frontend
 
-## 🚀 Quick start (local)
+- React + TypeScript + Vite
+- React Router
+- Tailwind CSS
+- Axios, Socket.IO client
+- Sentry (optional)
 
-### Yêu cầu hệ thống
+## Cau truc du an
 
-- Node.js 18.0.0+
-- MongoDB 7.0+
-- npm hoặc yarn
-
-### 1. Clone repository
-
-```bash
-git clone <repository-url>
-cd E-Learning
+```text
+E-Learning/
+|- backend/
+|  |- src/
+|  |  |- config/
+|  |  |- controllers/
+|  |  |- middleware/
+|  |  |- models/
+|  |  |- routes/
+|  |  |- services/
+|  |  |- utils/
+|  |  \- server.js
+|  |- scripts/
+|  |- tests/
+|  \- uploads/
+|- frontend/
+|  |- src/
+|  |  |- components/
+|  |  |- context/
+|  |  |- hooks/
+|  |  |- pages/
+|  |  |- services/
+|  |  |- types/
+|  |  \- utils/
+|  \- public/
+|- DOCS.md
+|- PROJECT_STATUS.md
+|- QA_TEST_FLOWS.md
+\- README.md
 ```
 
-### 2. Cài đặt dependencies
+## Yeu cau he thong
+
+- Node.js 18+ (CI dang chay Node.js 20)
+- npm
+- MongoDB local hoac MongoDB Atlas
+
+## Chay nhanh local
+
+### 1) Cai dat dependencies
 
 ```bash
 cd backend
@@ -49,242 +84,240 @@ cd ../frontend
 npm install
 ```
 
-### 3. Cấu hình môi trường
+### 2) Tao file env
 
-**Backend** — tạo `backend/.env` (có thể copy từ `backend/.env.example`):
+Backend:
 
-```env
-PORT=5000
-NODE_ENV=development
-MONGODB_URI=mongodb://localhost:27017/elearning
+- Copy backend/.env.example thanh backend/.env
+- Dien cac bien bat buoc (toi thieu):
+  - MONGODB_URI
+  - JWT_SECRET
+  - JWT_REFRESH_SECRET
+  - CORS_ORIGIN
+  - FRONTEND_URL
 
-JWT_SECRET=your_super_secret_jwt_key_change_this_in_production_must_be_32_chars_long
-JWT_EXPIRES_IN=7d
+Frontend:
 
-# Email (Resend)
-RESEND_API_KEY=re_your_api_key_here_get_from_resend_dashboard
-RESEND_FROM_EMAIL=E-Learning Platform <onboarding@resend.dev>
+- Copy frontend/.env.example thanh frontend/.env
+- Dien toi thieu:
+  - VITE_API_URL=http://localhost:5000
 
-# URLs
-FRONTEND_URL=http://localhost:5173
-CORS_ORIGIN=http://localhost:5173
+### 3) Chay ung dung
 
-# Storage (Cloudinary)
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-
-# Payments (tuỳ chọn khi dev)
-STRIPE_SECRET_KEY=sk_test_...
-VNPAY_TMN_CODE=your_tmn_code
-VNPAY_HASH_SECRET=your_hash_secret
-MOMO_PARTNER_CODE=your_partner_code
-MOMO_ACCESS_KEY=your_access_key
-MOMO_SECRET_KEY=your_secret_key
-```
-
-> 📝 Setup dịch vụ: xem [DOCS.md](./DOCS.md)
-
-**Frontend** - Tạo `frontend/.env`:
-
-```env
-VITE_API_URL=http://localhost:5000
-VITE_SOCKET_URL=http://localhost:5000
-VITE_STRIPE_PUBLIC_KEY=pk_test_...
-```
-
-### 4. Khởi chạy
+Terminal 1:
 
 ```bash
-# Terminal 1 - Backend
 cd backend
 npm run dev
-# → http://localhost:5000
-
-# Terminal 2 - Frontend
-cd frontend  
-npm run dev
-# → http://localhost:5173
 ```
 
----
+Terminal 2:
 
-## 📚 API documentation
+```bash
+cd frontend
+npm run dev
+```
 
-**Swagger UI:** http://localhost:5000/api-docs (khi backend chạy)
+Mac dinh:
 
-**Các API endpoint chính:**
-- **Auth:** `/api/auth/*` - Đăng ký, đăng nhập, xác thực email
-- **Courses:** `/api/courses/*` - CRUD khóa học, đăng ký
-- **Lessons:** `/api/lessons/*` - CRUD bài học, đánh dấu hoàn thành
-- **Assignments:** `/api/assignments/*` - CRUD bài tập, nộp bài, chấm điểm
-- **Payments:** `/api/payment/*` - Stripe, VNPay, MoMo
-- **Reviews:** `/api/reviews/*` - Đánh giá khóa học, moderation
-- **Admin:** `/api/admin/*` - Quản lý users, courses, reviews, coupons
-- **Analytics:** `/api/analytics/*` - Thống kê học tập, doanh thu
+- Frontend: http://localhost:5173
+- Backend: http://localhost:5000
+- Healthcheck: http://localhost:5000/api/health
+- Swagger (chi o development): http://localhost:5000/api-docs
 
----
+## Bien moi truong quan trong
 
-## 🚀 Production build
+### Backend
+
+- Core: PORT, NODE_ENV, MONGODB_URI
+- Auth: JWT_SECRET, JWT_EXPIRES_IN, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRE
+- CORS/URL: CORS_ORIGIN, FRONTEND_URL
+- Email: RESEND_API_KEY, RESEND_FROM_EMAIL
+- Cloudinary: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+- Payments:
+  - Stripe: STRIPE_PUBLISHABLE_KEY, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+  - VNPay: VNPAY_TMN_CODE, VNPAY_HASH_SECRET, VNPAY_URL, VNPAY_RETURN_URL, VNPAY_IPN_URL
+  - MoMo: MOMO_PARTNER_CODE, MOMO_ACCESS_KEY, MOMO_SECRET_KEY, MOMO_ENDPOINT, MOMO_RETURN_URL, MOMO_IPN_URL
+- Observability: LOG_LEVEL, SENTRY_DSN
+- Feature flags: ENABLE_CRON, SWAGGER_ENABLED, DEBUG_MODE
+
+### Frontend
+
+- VITE_API_URL
+- VITE_NODE_ENV
+- VITE_APP_URL
+- VITE_APP_NAME
+- VITE_APP_VERSION
+- VITE_SENTRY_DSN (optional)
+- VITE_SENTRY_TRACES_SAMPLE_RATE (optional)
+
+## NPM scripts chinh
 
 ### Backend
 
 ```bash
-cd backend
-npm start
+npm run dev
+npm run dev:cron
+npm run start
+npm run test
+npm run db:clean
+npm run seed
+npm run seed:demo
+npm run seed:rich
+npm run seed:oer:university
+npm run seed:rich:reset
+npm run seed:rich:reset:cloudinary
+npm run cloudinary:purge:elearning:confirm
 ```
 
 ### Frontend
 
 ```bash
-cd frontend
+npm run dev
 npm run build
-# Output: dist/
+npm run preview
+npm run lint
 ```
 
-### Scripts hữu ích
+## API modules (theo route prefix)
+
+- /api/auth
+- /api/courses
+- /api/lessons
+- /api/assignments
+- /api/certificates
+- /api/upload
+- /api/settings
+- /api/payments
+- /api/coupons
+- /api/discussions
+- /api/reviews
+- /api/study-groups
+- /api/analytics
+- /api/messages
+- /api/friends
+- /api/sections
+- /api/social
+- /api/search
+- /api/schedule
+- /api/categories
+- /api/instructors
+- /api/testimonials
+- /api/admin
+
+Luu y:
+
+- Webhook thanh toan: /api/payments/webhook/:provider
+- Swagger docs chi mo trong development mode.
+
+## Vai tro he thong
+
+### Student
+
+- Tim kiem va dang ky khoa hoc
+- Hoc bai, lam bai tap, theo doi tien do
+- Tham gia thao luan, nhom hoc, nhan chung chi
+
+### Instructor
+
+- Tao va quan ly khoa hoc/lesson/section
+- Quan ly hoc vien, bai tap va ket qua
+- Theo doi thong ke khoa hoc/doanh thu
+
+### Admin
+
+- Quan tri user, khoa hoc, review, coupon
+- Dieu phoi duyet noi dung
+- Theo doi analytics he thong
+
+## Seed/Clean du lieu
+
+Tat ca scripts nam o backend/scripts.
 
 ```bash
-# Backend
-npm run dev          # Development với nodemon
-npm run seed         # Seed database với dữ liệu mẫu
-npm run make-admin   # Tạo tài khoản admin
-
-# Frontend
-npm run dev          # Development server
-npm run build        # Production build
-npm run lint         # Lint code
+cd backend
+npm run db:clean
+npm run seed:rich
 ```
 
----
+Neu can reset va seed lai:
 
-## 📁 Cấu trúc dự án
-
-```
-E-Learning/
-├── backend/
-│   ├── src/
-│   │   ├── config/          # Cấu hình (DB, Email, Cloudinary)
-│   │   ├── controllers/     # Business logic (16 controllers)
-│   │   ├── models/          # Mongoose models (20+ models)
-│   │   ├── routes/          # API routes
-│   │   ├── middleware/      # Auth, validation, rate limiting
-│   │   ├── services/        # Business services
-│   │   └── server.js        # Entry point
-│   ├── uploads/             # File storage (GridFS)
-│   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── pages/           # Page components (30 pages)
-│   │   ├── services/        # API clients
-│   │   ├── context/         # React context
-│   │   ├── types/           # TypeScript types
-│   │   └── App.tsx          # Main app component
-│   ├── public/
-│   └── package.json
-│
-└── *.md                     # Docs ở root (README/STATUS/GUIDE)
+```bash
+npm run seed:rich:reset
 ```
 
----
+Neu can reset + dong bo Cloudinary theo prefix elearning/:
 
-## 🎯 Tài liệu quan trọng
-
-- [PROJECT_STATUS.md](./PROJECT_STATUS.md) — Tình trạng dự án, tính năng
-- [DOCS.md](./DOCS.md) — Guide + Email (Resend) + Cloudinary
-- Swagger UI: http://localhost:5000/api-docs
-
----
-
-## 👥 User Roles
-
-### Student (Học viên)
-- Tìm kiếm và đăng ký khóa học
-- Học bài, làm bài tập
-- Tham gia thảo luận, study groups
-- Theo dõi tiến độ học tập
-- Nhận chứng chỉ
-
-### Instructor (Giảng viên)
-- Tạo và quản lý khóa học
-- Upload video bài giảng
-- Tạo bài tập và chấm điểm
-- Quản lý học viên
-- Xem thống kê doanh thu
-
-### Admin (Quản trị viên)
-- Quản lý tất cả users
-- Duyệt khóa học, reviews
-- Quản lý coupons
-- Xem analytics toàn hệ thống
-- Cấp quyền instructor/admin
-
----
-
-## 🔒 Security Features
-
-- ✅ JWT authentication với refresh tokens
-- ✅ Email verification (OTP)
-- ✅ Password hashing (bcrypt)
-- ✅ Rate limiting (brute force protection)
-- ✅ Input validation & sanitization
-- ✅ CORS configuration
-- ✅ Helmet security headers
-- ✅ XSS protection
-
----
-
-## 📞 Support & Contact
-
-**Issues:** Báo lỗi tại GitHub Issues  
-**Documentation:** Xem thêm tại PROJECT_STATUS.md  
-**API Docs:** http://localhost:5000/api-docs
-
----
-
-Xem [PROJECT_STATUS.md](./PROJECT_STATUS.md) để biết chi tiết tính năng.
-
-│   │
-│   ├── scripts/             # Utility scripts
-│   │   ├── seed-production.js
-│   │   ├── create-platform-admin.js
-│   │   └── clean-database.js
-│   │
-│   ├── uploads/             # Local file storage
-│   ├── .env                 # Environment variables
-│   ├── .env.example         # Example env file
-│   └── package.json
-│
-├── frontend/
-│   ├── src/
-│   │   ├── assets/          # Images, fonts, etc.
-│   │   ├── components/      # React components
-│   │   │   ├── common/      # Shared components
-│   │   │   ├── course/      # Course-related components
-│   │   │   ├── layout/      # Layout components
-│   │   │   └── ...
-│   │   │
-│   │   ├── context/         # React Context (Auth, Theme, etc.)
-│   │   ├── pages/           # Page components
-│   │   ├── services/        # API services
-│   │   ├── types/           # TypeScript types
-│   │   ├── utils/           # Helper functions
-│   │   ├── App.tsx          # Main app component
-│   │   └── main.tsx         # Entry point
-│   │
-│   ├── public/              # Static files
-│   ├── .env                 # Environment variables
-│   ├── .env.example         # Example env file
-│   ├── tailwind.config.js   # Tailwind configuration
-│   ├── vite.config.ts       # Vite configuration
-│   └── package.json
-│
-├── README.md                # Tài liệu chính (file này)
-└── copilot-instructions.md  # Hướng dẫn cho AI
+```bash
+npm run seed:rich:reset:cloudinary
 ```
 
----
+## Cloudinary purge an toan
 
-**🎉 Hệ thống đã sẵn sàng cho production! Xem [PROJECT_STATUS.md](./PROJECT_STATUS.md) để biết chi tiết về các tính năng đã hoàn thành.**
+Project co script purge theo prefix de tranh xoa nham tai nguyen.
+
+```bash
+cd backend
+npm run cloudinary:purge:elearning:confirm
+```
+
+Luu y:
+
+- Yeu cau xac nhan qua bien moi truong trong script.
+- Production purge can co co cho phep rieng.
+
+## CI/CD
+
+GitHub Actions dang co 2 jobs:
+
+- Backend tests: npm ci + npm test
+- Frontend build: npm ci + npm run build
+
+Workflow: .github/workflows/ci.yml
+
+## QA va kiem thu
+
+Su dung QA_TEST_FLOWS.md de chay test theo:
+
+- Smoke test
+- Auth
+- Profile/Upload
+- Course/Lesson/Assignment
+- Discussion/Review
+- Payment flow
+- Admin moderation
+
+## Production notes
+
+- Backend can app.set('trust proxy', 1) khi deploy sau reverse proxy.
+- Dat LOG_LEVEL=info neu can structured access logs.
+- Khuyen nghi bat Sentry o backend/frontend de theo doi loi runtime.
+- Frontend da co vercel.json cho SPA rewrite ve index.html.
+
+## Bao mat
+
+- JWT auth + role-based access
+- Email verification
+- Input validation
+- Helmet + CORS
+- Rate limiting
+- Error handling tap trung + request id tracing
+
+## Troubleshooting nhanh
+
+- CORS loi: kiem tra CORS_ORIGIN va FRONTEND_URL trong backend env.
+- Frontend goi sai API: kiem tra VITE_API_URL.
+- Swagger khong hien thi: dam bao NODE_ENV=development.
+- Upload fail: kiem tra thong tin Cloudinary.
+- Payment callback fail: kiem tra VNPAY_IPN_URL/MOMO_IPN_URL/BACKEND_PUBLIC_URL.
+
+## Dong gop
+
+1. Tao branch moi tu main/master.
+2. Commit theo scope ro rang (backend/frontend/docs).
+3. Tao pull request kem mo ta thay doi va cach test.
+
+## Ghi chu
+
+- Tai lieu nay duoc cap nhat dua tren codebase hien tai.
+- Neu co thay doi route, env hoac scripts, hay cap nhat README, DOCS va QA_TEST_FLOWS dong bo.
