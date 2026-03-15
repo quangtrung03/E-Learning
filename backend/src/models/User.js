@@ -59,6 +59,10 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: 'Course'
   }],
+  wishlist: [{
+    type: mongoose.Schema.ObjectId,
+    ref: 'Course'
+  }],
   // Social fields
   coverImage: {
     type: String,

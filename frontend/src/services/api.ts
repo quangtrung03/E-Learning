@@ -579,5 +579,24 @@ export const scheduleAPI = {
     api.delete(`/schedule/${id}`),
 };
 
+// Wishlist API
+export const wishlistAPI = {
+  getWishlist: (): Promise<AxiosResponse<any>> => api.get('/wishlist'),
+  addToWishlist: (courseId: string): Promise<AxiosResponse<any>> => api.post(`/wishlist/${courseId}`),
+  removeFromWishlist: (courseId: string): Promise<AxiosResponse<any>> => api.delete(`/wishlist/${courseId}`),
+  checkWishlist: (courseId: string): Promise<AxiosResponse<any>> => api.get(`/wishlist/${courseId}/check`),
+};
+
+// Announcement API
+export const announcementAPI = {
+  getActiveAnnouncements: (): Promise<AxiosResponse<any>> => api.get('/announcements/active'),
+  getAllAnnouncements: (params?: { page?: number; limit?: number; status?: string }): Promise<AxiosResponse<any>> =>
+    api.get('/announcements', { params }),
+  createAnnouncement: (data: any): Promise<AxiosResponse<any>> => api.post('/announcements', data),
+  updateAnnouncement: (id: string, data: any): Promise<AxiosResponse<any>> => api.put(`/announcements/${id}`, data),
+  toggleAnnouncement: (id: string): Promise<AxiosResponse<any>> => api.put(`/announcements/${id}/toggle`),
+  deleteAnnouncement: (id: string): Promise<AxiosResponse<any>> => api.delete(`/announcements/${id}`),
+};
+
 export default api;
 

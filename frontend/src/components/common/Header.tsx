@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings, CalendarDays } from "lucide-react";
+import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings, CalendarDays, Heart } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
 
@@ -121,6 +121,14 @@ const Header = () => {
                   >
                     <Award className="w-4 h-4" />
                     <span className="text-sm font-medium text-gray-900">Bảng điều khiển</span>
+                  </Link>
+                  <Link
+                    to="/wishlist"
+                    onClick={() => setIsNavOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <Heart className="w-4 h-4 text-red-400" />
+                    <span className="text-sm font-medium text-gray-900">Yêu thích</span>
                   </Link>
                   <Link
                     to="/schedule"

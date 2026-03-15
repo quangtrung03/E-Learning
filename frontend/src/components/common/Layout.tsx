@@ -1,6 +1,7 @@
 
 import Header from "./Header";
 import Footer from "./Footer";
+import AnnouncementBanner from "./AnnouncementBanner";
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,6 +23,7 @@ const Layout: React.FC<LayoutProps> = ({
   return (
     <div className={`min-h-screen flex flex-col ${bgClass} text-gray-800`}>
       <Header />
+      <AnnouncementBanner />
       <main className={`flex-1 ${className}`}>
         {fullWidth ? (
           children

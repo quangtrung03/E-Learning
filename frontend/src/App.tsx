@@ -56,6 +56,8 @@ const AdminCouponManagement = lazy(() => import('./pages/AdminCouponManagement')
 const AdminPaymentManagement = lazy(() => import('./pages/AdminPaymentManagement'));
 const AdminDefaultThumbnails = lazy(() => import('./pages/AdminDefaultThumbnails'));
 const AdminMediaManager = lazy(() => import('./pages/AdminMediaManager'));
+const AdminAnnouncementManagement = lazy(() => import('./pages/AdminAnnouncementManagement'));
+const Wishlist = lazy(() => import('./pages/Wishlist'));
 
 const Messages = lazy(() => import('./pages/MessagesEnhanced'));
 const TestimonialProfile = lazy(() => import('./pages/TestimonialProfile'));
@@ -448,6 +450,27 @@ function App() {
                 <AdminRoute>
                   <AdminMediaManager />
                 </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/announcements"
+            element={
+              <ProtectedRoute>
+                <AdminRoute>
+                  <AdminAnnouncementManagement />
+                </AdminRoute>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Wishlist */}
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <Wishlist />
               </ProtectedRoute>
             }
           />

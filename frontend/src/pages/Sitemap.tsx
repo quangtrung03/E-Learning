@@ -59,6 +59,7 @@ const Sitemap = () => {
     { label: '➕ Tạo nhóm học', path: '/study-groups/create', desc: 'Tạo nhóm, mời thành viên' },
     { label: '🔔 Chi tiết nhóm học', path: '/study-groups/:id', desc: 'Thảo luận, tài nguyên chung, thành viên' },
     { label: '💳 Lịch sử thanh toán', path: '/payment/history', desc: 'Tất cả giao dịch, trạng thái, hóa đơn' },
+    { label: '❤️ Khóa học yêu thích', path: '/wishlist', desc: 'Danh sách khóa học đã lưu để học sau' },
   ];
 
   const coursePages = [
@@ -87,6 +88,7 @@ const Sitemap = () => {
     { label: '📬 Quản lý yêu cầu', path: '/admin/requests', desc: 'Duyệt đơn trở thành giảng viên/admin' },
     { label: '🗂️ Media Manager', path: '/admin/media', desc: 'Quản lý tài nguyên Cloudinary, dung lượng' },
     { label: '🖼️ Thumbnails mặc định', path: '/admin/settings/thumbnails', desc: 'Cài ảnh bìa mặc định cho khóa học' },
+    { label: '📢 Thông báo hệ thống', path: '/admin/announcements', desc: 'Tạo banner thông báo hiển thị cho người dùng' },
   ];
 
   const flows = [

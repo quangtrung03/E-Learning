@@ -230,6 +230,10 @@ app.use('/api/social', require('./routes/socialRoutes'));
 app.use('/api/search', require('./routes/searchRoutes'));
 app.use('/api/schedule', require('./routes/scheduleRoutes'));
 
+// New features
+app.use('/api/wishlist', require('./routes/wishlistRoutes'));
+app.use('/api/announcements', require('./routes/announcementRoutes'));
+
 // Content routes
 app.use('/api/categories', require('./routes/categoryRoutes'));
 app.use('/api/instructors', require('./routes/instructorRoutes'));
