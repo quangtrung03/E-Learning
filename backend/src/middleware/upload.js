@@ -49,9 +49,29 @@ const documentFilter = (req, file, cb) => {
   }
 };
 
-// File filter for any type (with size limits)
+// File filter for any type (with size limits) – only safe, non-executable MIME types
+const SAFE_MIME_PREFIXES = ['image/', 'video/', 'audio/'];
+const SAFE_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/zip',
+  'application/x-zip-compressed',
+  'text/plain',
+]);
+
 const anyFileFilter = (req, file, cb) => {
-  cb(null, true);
+  const isSafePrefix = SAFE_MIME_PREFIXES.some(prefix => file.mimetype.startsWith(prefix));
+  const isSafeType = SAFE_MIME_TYPES.has(file.mimetype);
+  if (isSafePrefix || isSafeType) {
+    cb(null, true);
+  } else {
+    cb(new Error('Loại file không được phép tải lên!'), false);
+  }
 };
 
 // Configure multer for different file types with Cloudinary free tier limits

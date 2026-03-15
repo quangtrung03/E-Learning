@@ -41,8 +41,8 @@ const registerValidation = [
     .normalizeEmail()
     .withMessage('Vui lòng nhập email hợp lệ'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Mật khẩu phải có ít nhất 6 ký tự')
+    .isLength({ min: 8 })
+    .withMessage('Mật khẩu phải có ít nhất 8 ký tự')
 ];
 
 const loginValidation = [
@@ -67,8 +67,8 @@ const resetPasswordValidation = [
     .notEmpty()
     .withMessage('Token là bắt buộc'),
   body('newPassword')
-    .isLength({ min: 6 })
-    .withMessage('Mật khẩu mới phải có ít nhất 6 ký tự')
+    .isLength({ min: 8 })
+    .withMessage('Mật khẩu mới phải có ít nhất 8 ký tự')
 ];
 
 /**

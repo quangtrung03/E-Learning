@@ -1,4 +1,5 @@
 const socketIO = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 let io;
 const userSockets = new Map(); // userId -> socketId
@@ -12,11 +13,30 @@ const initializeSocket = (server) => {
     }
   });
 
+  // Verify JWT before allowing socket connection
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.verifiedUserId = decoded.id;
+      next();
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Socket.IO JWT verification failed:', err.message);
+      }
+      next(new Error('Invalid or expired token'));
+    }
+  });
+
   io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // User joins with their ID
-    socket.on('user:online', (userId) => {
+    // User joins with their ID – only accept the ID that was verified from the JWT
+    socket.on('user:online', () => {
+      const userId = socket.verifiedUserId;
       userSockets.set(userId, socket.id);
       onlineUsers.add(userId);
       socket.userId = userId;

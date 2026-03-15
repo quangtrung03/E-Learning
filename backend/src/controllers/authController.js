@@ -39,13 +39,9 @@ const createSendToken = (user, statusCode, res) => {
 // @access  Public
 const register = async (req, res, next) => {
   try {
-    console.log('\n🔐 REGISTER ATTEMPT:');
-    console.log('📦 Request Body:', req.body);
-    
     // Kiểm tra validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ Validation Errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Dữ liệu không hợp lệ',
@@ -54,26 +50,20 @@ const register = async (req, res, next) => {
     }
     
     const { name, email, password, requestAdmin } = req.body;
-    console.log('✅ Validation passed');
     
     // Convert requestAdmin from "on" string to boolean
     const isRequestAdmin = requestAdmin === 'on' || requestAdmin === true || requestAdmin === 'true';
-    console.log('👤 User data:', { name, email, requestAdmin, isRequestAdmin });
     
     // Kiểm tra email đã tồn tại
-    console.log('🔍 Checking if email exists...');
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      console.log('❌ Email already exists:', email);
       return res.status(400).json({
         success: false,
         message: 'Email đã được sử dụng'
       });
     }
-    console.log('✅ Email available');
     
     // Tạo user mới (email chưa được xác thực)
-    console.log('🔨 Creating new user...');
     const user = await User.create({
       name,
       email,
@@ -82,30 +72,16 @@ const register = async (req, res, next) => {
       adminRequestPending: isRequestAdmin
     });
     
-    console.log('✅ User created successfully:', user._id);
-    
     // Tạo email verification token
-    console.log('📧 Creating email verification token...');
     const verification = new EmailVerification({
       user: user._id,
       email: email
     });
     
-    // Generate token và OTP manually để debug
-    if (!isProduction) console.log('🎫 Generating token and OTP manually...');
     const { token: verificationToken, otp: verificationOTP } = verification.generateToken();
+    
+    // Only log sensitive verification data in development
     if (!isProduction) {
-      console.log('✅ Token generated:', verificationToken);
-      console.log('✅ OTP generated:', verificationOTP);
-    }
-    
-    await verification.save();
-    console.log('💾 Verification saved to database');
-    
-    // ============================================
-    // 🔐 DEVELOPMENT: VERIFICATION INFO
-    // ============================================
-    if (process.env.NODE_ENV !== 'production') {
       console.log('\n' + '='.repeat(60));
       console.log('🔐 EMAIL VERIFICATION INFO (DEVELOPMENT ONLY)');
       console.log('='.repeat(60));
@@ -116,10 +92,10 @@ const register = async (req, res, next) => {
       console.log('🌐 Verify URL:', `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${verificationToken}`);
       console.log('='.repeat(60) + '\n');
     }
-    // ============================================
+    
+    await verification.save();
     
     // Gửi email xác thực (bao gồm cả link và OTP)
-    console.log('📤 Sending verification email...');
     const emailResult = await emailService.sendVerificationEmail(
       email, 
       verificationToken,
@@ -128,16 +104,12 @@ const register = async (req, res, next) => {
     );
     
     if (emailResult.success) {
-      console.log('✅ Verification email sent successfully');
-      
       // Nếu user yêu cầu làm admin, tạo admin request và gửi email
       if (isRequestAdmin) {
-        console.log('👑 Processing admin request...');
-        
         // Tạo validation token và expiry cho admin request
         const crypto = require('crypto');
         const validationToken = crypto.randomBytes(32).toString('hex');
-        const validationTokenExpires = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
+        const validationTokenExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
         
         const adminRequest = await AdminRequest.create({
           user: user._id,
@@ -148,20 +120,15 @@ const register = async (req, res, next) => {
           reason: 'Yêu cầu quyền quản trị viên khi đăng ký'
         });
         
-        console.log('✅ Admin request created with validation token');
-        
         // GỬI EMAIL CHO USER để điền form chi tiết
-        console.log('📤 Sending validation email to user...');
         const userValidationEmailResult = await emailService.sendAdminRequestValidation({
           userName: name,
           userEmail: email,
           validationToken: validationToken
         });
         
-        if (userValidationEmailResult.success) {
-          console.log('✅ Validation email sent to user successfully');
-        } else {
-          console.log('❌ Failed to send validation email to user:', userValidationEmailResult.error);
+        if (!isProduction && !userValidationEmailResult.success) {
+          console.error('Failed to send validation email:', userValidationEmailResult.error);
         }
         
         // NOTE: Chỉ gửi email cho admin SAU KHI user đã điền form và submit
@@ -185,10 +152,12 @@ const register = async (req, res, next) => {
         }
       });
     } else {
-      console.log('❌ Failed to send verification email:', emailResult.error);
+      if (!isProduction) {
+        console.error('Failed to send verification email:', emailResult.error);
+      }
       
       // In development, guide user to use OTP from console
-      const devMessage = process.env.NODE_ENV !== 'production' 
+      const devMessage = !isProduction
         ? ' (DEV: Sử dụng mã OTP từ console log phía trên để xác thực)'
         : '';
       
@@ -204,7 +173,7 @@ const register = async (req, res, next) => {
           },
           emailSent: false,
           // Include OTP in development mode for testing
-          ...(process.env.NODE_ENV !== 'production' && { 
+          ...(!isProduction && { 
             otp: verificationOTP,
             devNote: 'OTP chỉ hiển thị trong development mode' 
           })
