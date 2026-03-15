@@ -2,11 +2,7 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Category = require('../models/Category');
-
-// Escape special regex characters to prevent NoSQL injection via user-supplied patterns
-function escapeRegex(str) {
-  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-}
+const { escapeRegex } = require('../utils/regexHelpers');
 
 // GET /api/search?q=&type=all|courses|users|posts|categories&page=1&limit=10
 exports.globalSearch = async (req, res) => {

@@ -3,14 +3,10 @@ const Discussion = require('../models/Discussion');
 const Course = require('../models/Course');
 const User = require('../models/User');
 const { isUserEnrolled } = require('../utils/enrollmentHelpers');
+const { escapeRegex } = require('../utils/regexHelpers');
 
 // Allowed sort fields for discussions to prevent NoSQL injection via sortBy
 const ALLOWED_SORT_FIELDS = ['createdAt', 'updatedAt', 'voteCount', 'replyCount', 'viewCount'];
-
-// Escape special regex characters to prevent NoSQL injection via search patterns
-function escapeRegex(str) {
-  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-}
 
 // @desc    Tạo discussion mới
 // @route   POST /api/discussions

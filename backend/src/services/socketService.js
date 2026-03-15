@@ -23,7 +23,10 @@ const initializeSocket = (server) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       socket.verifiedUserId = decoded.id;
       next();
-    } catch {
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('Socket.IO JWT verification failed:', err.message);
+      }
       next(new Error('Invalid or expired token'));
     }
   });
