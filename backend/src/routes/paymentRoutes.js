@@ -270,8 +270,10 @@ router.get('/my-payments', getMyPayments);
 // Get payment by orderId (must be before '/:id' route)
 router.get('/order/:orderId', getPaymentByOrderId);
 
-// Fake payment success endpoint (for demo/testing)
-router.post('/:orderId/fake-success', fakePaymentSuccess);
+// Fake payment success endpoint (for demo/testing – disabled in production)
+if (process.env.NODE_ENV !== 'production') {
+  router.post('/:orderId/fake-success', protect, fakePaymentSuccess);
+}
 
 /**
  * @swagger

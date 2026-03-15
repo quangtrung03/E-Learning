@@ -4,6 +4,14 @@ const Course = require('../models/Course');
 const User = require('../models/User');
 const { isUserEnrolled } = require('../utils/enrollmentHelpers');
 
+// Allowed sort fields for discussions to prevent NoSQL injection via sortBy
+const ALLOWED_SORT_FIELDS = ['createdAt', 'updatedAt', 'voteCount', 'replyCount', 'viewCount'];
+
+// Escape special regex characters to prevent NoSQL injection via search patterns
+function escapeRegex(str) {
+  return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+}
+
 // @desc    Tạo discussion mới
 // @route   POST /api/discussions
 // @access  Private
@@ -120,14 +128,16 @@ const getDiscussionsByCourse = async (req, res) => {
     
     if (category) query.category = category;
     if (search) {
+      const escapedSearch = escapeRegex(search);
       query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { content: { $regex: search, $options: 'i' } }
+        { title: { $regex: escapedSearch, $options: 'i' } },
+        { content: { $regex: escapedSearch, $options: 'i' } }
       ];
     }
 
+    const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy) ? sortBy : 'createdAt';
     const sortOptions = {};
-    sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    sortOptions[safeSortBy] = sortOrder === 'desc' ? -1 : 1;
 
     const discussions = await Discussion.find(query)
       .populate('author', 'name avatar')

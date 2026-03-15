@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Vui lòng nhập mật khẩu'],
-    minLength: [6, 'Mật khẩu phải có ít nhất 6 ký tự'],
+    minLength: [8, 'Mật khẩu phải có ít nhất 8 ký tự'],
     select: false // Không trả về password khi query
   },
   // Simple role system: user (default) or admin

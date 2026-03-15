@@ -108,7 +108,7 @@ const createPaymentIntent = async (req, res) => {
         const canUse = coupon.canUserUse(req.user.id, courseId);
         if (canUse.canUse) {
           discountAmount = coupon.calculateDiscount(originalAmount);
-          finalAmount = originalAmount - discountAmount;
+          finalAmount = Math.max(0, originalAmount - discountAmount);
           appliedCoupon = coupon;
 
           // Cập nhật analytics coupon
