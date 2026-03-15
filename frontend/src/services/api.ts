@@ -487,8 +487,8 @@ export const couponAPI = {
     api.get(`/coupons/${id}/analytics`),
   validateCoupon: (data: { code: string; courseId?: string }): Promise<AxiosResponse<any>> =>
     api.post('/coupons/validate', data),
-  getPublicCoupons: (): Promise<AxiosResponse<any>> =>
-    api.get('/coupons/public'),
+  getPublicCoupons: (courseId?: string): Promise<AxiosResponse<any>> =>
+    api.get('/coupons/public', { params: courseId ? { courseId } : undefined }),
 };
 
 // Health check

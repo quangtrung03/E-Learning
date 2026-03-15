@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CreditCard, ShieldCheck, AlertCircle, CheckCircle, Tag, Loader2, X } from 'lucide-react';
+import { CreditCard, ShieldCheck, AlertCircle, CheckCircle, Tag, Loader2, X, ChevronRight } from 'lucide-react';
 import { courseAPI, paymentAPI, couponAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
 import resolveFileUrl from '../utils/resolveFileUrl';
+import VoucherModal from '../components/VoucherModal';
 
 interface Course {
   _id: string;
@@ -35,6 +36,7 @@ const PaymentCheckout = () => {
   const [couponLoading, setCouponLoading] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number; description?: string } | null>(null);
   const [couponError, setCouponError] = useState('');
+  const [voucherModalOpen, setVoucherModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -230,6 +232,7 @@ const PaymentCheckout = () => {
                 </div>
               ) : (
                 <div className="space-y-2">
+                  {/* Manual input row */}
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -247,6 +250,19 @@ const PaymentCheckout = () => {
                       {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Áp dụng'}
                     </button>
                   </div>
+
+                  {/* Browse vouchers button */}
+                  <button
+                    onClick={() => setVoucherModalOpen(true)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 border border-dashed border-purple-300 rounded-lg text-purple-700 hover:bg-purple-50 transition-colors text-sm font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      Chọn Voucher có sẵn
+                    </span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
                   {couponError && (
                     <p className="text-sm text-red-600 flex items-center gap-1">
                       <AlertCircle className="w-4 h-4" /> {couponError}
@@ -417,6 +433,23 @@ const PaymentCheckout = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Voucher browsing modal */}
+      {course && (
+        <VoucherModal
+          open={voucherModalOpen}
+          onClose={() => setVoucherModalOpen(false)}
+          courseId={course._id}
+          orderAmount={
+            course.price - (course.price * (course.discount || 0)) / 100
+          }
+          appliedCode={appliedCoupon?.code}
+          onApply={(c) => {
+            setAppliedCoupon(c);
+            setCouponError('');
+          }}
+        />
+      )}
     </div>
   );
 };
