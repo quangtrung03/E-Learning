@@ -241,9 +241,9 @@ const createPaymentIntent = async (req, res) => {
           status: 'pending',
           message: 'Thanh toán offline - Vui lòng chuyển khoản theo thông tin bên dưới',
           bankInfo: {
-            bank: 'Vietcombank',
-            accountNumber: '1234567890',
-            accountName: 'CONG TY E-LEARNING',
+            bank: process.env.BANK_NAME || 'Vietcombank',
+            accountNumber: process.env.BANK_ACCOUNT_NUMBER || '1234567890',
+            accountName: process.env.BANK_ACCOUNT_NAME || 'CONG TY E-LEARNING',
             transferNote: `EL${payment.orderId}`,
             qrCode: `${process.env.FRONTEND_URL}/payment/simulate?orderId=${encodeURIComponent(payment.orderId)}&provider=${encodeURIComponent(paymentProvider)}`
           }

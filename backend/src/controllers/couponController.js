@@ -492,36 +492,53 @@ const getCouponByCode = async (req, res) => {
   }
 };
 
-// @desc    Lấy coupons public (đang active và chưa hết hạn)
+// @desc    Lấy coupons public (đang active, chưa hết hạn, còn lượt dùng)
 // @route   GET /api/coupons/public
 // @access  Public
 const getPublicCoupons = async (req, res) => {
   try {
     const { category, courseId } = req.query;
 
-    let query = {
-      status: 'active',
-      'validity.startDate': { $lte: new Date() },
-      'validity.endDate': { $gte: new Date() }
-    };
+    const now = new Date();
 
-    // Filter theo category
+    // Base query: active, within validity window, and still has remaining uses
+    const baseConditions = [
+      { status: 'active' },
+      { 'validity.startDate': { $lte: now } },
+      { 'validity.endDate': { $gte: now } },
+      // usageLimit.total = null means unlimited; otherwise currentUsage must be below the limit
+      {
+        $or: [
+          { 'usageLimit.total': null },
+          { $expr: { $lt: ['$currentUsage.total', '$usageLimit.total'] } }
+        ]
+      }
+    ];
+
     if (category) {
-      query['applicableFor.categories'] = category;
+      baseConditions.push({ 'applicableFor.categories': category });
     }
 
-    // Filter theo course
     if (courseId) {
-      query.$or = [
-        { 'applicableFor.courseIds': courseId },
-        { 'applicableFor.courseIds': { $size: 0 } } // Apply to all courses
-      ];
+      // Coupon must apply to this specific course OR to all courses (empty courseIds array)
+      baseConditions.push({
+        $or: [
+          { 'applicableFor.courseIds': courseId },
+          { 'applicableFor.courseIds': { $size: 0 } }
+        ]
+      });
     }
 
-    const coupons = await Coupon.find(query)
-      .select('code name description type value maxDiscountAmount minOrderAmount validity applicableFor')
+    const coupons = await Coupon.find({ $and: baseConditions })
+      .select('code name description type value maxDiscountAmount minOrderAmount validity applicableFor usageLimit currentUsage')
       .sort({ value: -1 })
-      .limit(10);
+      .limit(20);
+
+    const getRemainingUses = (coupon) => {
+      const totalLimit = coupon.usageLimit?.total ?? null;
+      if (totalLimit === null) return null; // unlimited
+      return Math.max(0, totalLimit - (coupon.currentUsage?.total ?? 0));
+    };
 
     res.status(200).json({
       success: true,
@@ -536,7 +553,8 @@ const getPublicCoupons = async (req, res) => {
           maxDiscountAmount: coupon.maxDiscountAmount,
           minOrderAmount: coupon.minOrderAmount,
           validUntil: coupon.validity.endDate,
-          applicableCategories: coupon.applicableFor.categories
+          applicableCategories: coupon.applicableFor.categories,
+          remainingUses: getRemainingUses(coupon)
         }))
       }
     });

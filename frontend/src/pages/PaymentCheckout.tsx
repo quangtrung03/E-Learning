@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CreditCard, ShieldCheck, AlertCircle, CheckCircle } from 'lucide-react';
-import { courseAPI, paymentAPI } from '../services/api';
+import { CreditCard, ShieldCheck, AlertCircle, CheckCircle, Tag, Loader2, X, ChevronRight } from 'lucide-react';
+import { courseAPI, paymentAPI, couponAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
 import resolveFileUrl from '../utils/resolveFileUrl';
+import VoucherModal from '../components/VoucherModal';
 
 interface Course {
   _id: string;
@@ -31,6 +32,12 @@ const PaymentCheckout = () => {
   const [processing, setProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'momo' | 'zalopay' | 'bank-transfer'>('vnpay');
 
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discountAmount: number; description?: string } | null>(null);
+  const [couponError, setCouponError] = useState('');
+  const [voucherModalOpen, setVoucherModalOpen] = useState(false);
+
   useEffect(() => {
     const fetchCourse = async () => {
       try {
@@ -53,7 +60,44 @@ const PaymentCheckout = () => {
     if (!course) return 0;
     const discountPercent = course.discount || 0;
     const discountAmount = (course.price * discountPercent) / 100;
-    return course.price - discountAmount;
+    const priceAfterCourseDiscount = course.price - discountAmount;
+    return Math.max(0, priceAfterCourseDiscount - (appliedCoupon?.discountAmount || 0));
+  };
+
+  const handleCouponCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCouponCode(e.target.value.toUpperCase());
+    setCouponError('');
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim() || !course) return;
+    setCouponError('');
+    setCouponLoading(true);
+    try {
+      const response = await couponAPI.validateCoupon({ code: couponCode.trim(), courseId: course._id });
+      const data = response.data?.data;
+      if (response.data?.success && data) {
+        const priceAfterCourseDiscount = course.price - (course.price * (course.discount || 0)) / 100;
+        const discountAmount = data.discountAmount ?? 0;
+        setAppliedCoupon({
+          code: couponCode.trim(),
+          discountAmount: Math.min(discountAmount, priceAfterCourseDiscount),
+          description: data.coupon?.name || data.coupon?.description || ''
+        });
+        setCouponCode('');
+      } else {
+        setCouponError(response.data?.message || 'Mã giảm giá không hợp lệ');
+      }
+    } catch (error: any) {
+      setCouponError(error.response?.data?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn');
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError('');
   };
 
   const handlePayment = async () => {
@@ -63,6 +107,7 @@ const PaymentCheckout = () => {
     try {
       const response = await paymentAPI.createPayment({
         courseId: course._id,
+        ...(appliedCoupon ? { couponCode: appliedCoupon.code } : {}),
         paymentMethod: {
           type: paymentMethod,
           provider: paymentMethod
@@ -146,11 +191,85 @@ const PaymentCheckout = () => {
                     <span>-{((course.price * (course.discount || 0)) / 100).toLocaleString('vi-VN')}đ</span>
                   </div>
                 )}
+                {appliedCoupon && (
+                  <div className="flex justify-between text-purple-600">
+                    <span>Mã giảm giá ({appliedCoupon.code}):</span>
+                    <span>-{appliedCoupon.discountAmount.toLocaleString('vi-VN')}đ</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-xl font-bold text-gray-900 pt-3 border-t">
                   <span>Tổng thanh toán:</span>
                   <span className="text-blue-600">{calculateFinalPrice().toLocaleString('vi-VN')}đ</span>
                 </div>
               </div>
+            </div>
+
+            {/* Coupon Code */}
+            <div className="py-6 border-b">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <Tag className="w-5 h-5 text-purple-600" />
+                Mã giảm giá
+              </h3>
+
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <div>
+                    <span className="font-semibold text-purple-800">{appliedCoupon.code}</span>
+                    {appliedCoupon.description && (
+                      <p className="text-sm text-purple-600 mt-0.5">{appliedCoupon.description}</p>
+                    )}
+                    <p className="text-sm text-green-700 mt-0.5">
+                      Giảm {appliedCoupon.discountAmount.toLocaleString('vi-VN')}đ
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleRemoveCoupon}
+                    className="text-gray-400 hover:text-red-500 transition-colors"
+                    title="Xóa mã giảm giá"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {/* Manual input row */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={handleCouponCodeChange}
+                      onKeyDown={(e) => e.key === 'Enter' && handleApplyCoupon()}
+                      placeholder="Nhập mã giảm giá"
+                      className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent text-sm"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim() || couponLoading}
+                      className="px-5 py-2.5 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm"
+                    >
+                      {couponLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Áp dụng'}
+                    </button>
+                  </div>
+
+                  {/* Browse vouchers button */}
+                  <button
+                    onClick={() => setVoucherModalOpen(true)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 border border-dashed border-purple-300 rounded-lg text-purple-700 hover:bg-purple-50 transition-colors text-sm font-medium"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      Chọn Voucher có sẵn
+                    </span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+
+                  {couponError && (
+                    <p className="text-sm text-red-600 flex items-center gap-1">
+                      <AlertCircle className="w-4 h-4" /> {couponError}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Payment Methods */}
@@ -314,6 +433,23 @@ const PaymentCheckout = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Voucher browsing modal */}
+      {course && (
+        <VoucherModal
+          open={voucherModalOpen}
+          onClose={() => setVoucherModalOpen(false)}
+          courseId={course._id}
+          orderAmount={
+            course.price - (course.price * (course.discount || 0)) / 100
+          }
+          appliedCode={appliedCoupon?.code}
+          onApply={(c) => {
+            setAppliedCoupon(c);
+            setCouponError('');
+          }}
+        />
+      )}
     </div>
   );
 };
