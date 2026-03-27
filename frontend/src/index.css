@@ -88,13 +88,7 @@
     @apply inline-flex items-center justify-center px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
   }
   
-  .btn-primary {
-    @apply btn shadow-sm hover:shadow-md;
-    background-color: var(--app-accent);
-    color: var(--app-on-accent);
-    border: 1px solid var(--app-accent);
-  }
-  
+  .btn-primary,
   .btn-secondary {
     @apply btn shadow-sm hover:shadow-md;
     background-color: var(--app-accent);
@@ -102,23 +96,14 @@
     border: 1px solid var(--app-accent);
   }
   
-  .btn-outline {
-    @apply btn border-2;
-    color: var(--app-accent);
-    border-color: var(--app-accent);
-  }
-
-  .btn-outline:hover {
-    background-color: var(--app-accent);
-    color: var(--app-on-accent);
-  }
-  
+  .btn-outline,
   .btn-outline-secondary {
     @apply btn border-2;
     color: var(--app-accent);
     border-color: var(--app-accent);
   }
 
+  .btn-outline:hover,
   .btn-outline-secondary:hover {
     background-color: var(--app-accent);
     color: var(--app-on-accent);
@@ -220,12 +205,7 @@
   }
 
   /* ===== GLASSMORPHISM EFFECTS ===== */
-  .glass {
-    @apply backdrop-blur-sm;
-    background-color: color-mix(in srgb, var(--app-surface) 85%, transparent);
-    border: 1px solid color-mix(in srgb, var(--app-accent) 32%, transparent);
-  }
-  
+  .glass,
   .glass-dark {
     @apply backdrop-blur-sm;
     background-color: color-mix(in srgb, var(--app-surface) 85%, transparent);

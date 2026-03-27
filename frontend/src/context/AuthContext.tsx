@@ -248,8 +248,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const root = document.documentElement;
     const preferredTheme = state.user?.preferences?.theme || 'system';
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
-    const applyTheme = () => {
+    const applyTheme = (isSystemDark?: boolean) => {
       if (preferredTheme === 'dark') {
         root.classList.add('dark');
         return;
@@ -260,12 +261,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const prefersDark = isSystemDark ?? mediaQuery.matches;
       if (prefersDark) root.classList.add('dark');
       else root.classList.remove('dark');
     };
 
     applyTheme();
+    const onSystemThemeChange = (event: MediaQueryListEvent) => applyTheme(event.matches);
+    mediaQuery.addEventListener('change', onSystemThemeChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', onSystemThemeChange);
+    };
   }, [state.user?.preferences?.theme]);
 
   // Load user data on app start
