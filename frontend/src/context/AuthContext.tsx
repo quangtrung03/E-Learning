@@ -245,6 +245,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setSentryUser(state.user);
   }, [state.user]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const preferredTheme = state.user?.preferences?.theme || 'system';
+
+    const applyTheme = () => {
+      if (preferredTheme === 'dark') {
+        root.classList.add('dark');
+        return;
+      }
+
+      if (preferredTheme === 'light') {
+        root.classList.remove('dark');
+        return;
+      }
+
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) root.classList.add('dark');
+      else root.classList.remove('dark');
+    };
+
+    applyTheme();
+  }, [state.user?.preferences?.theme]);
+
   // Load user data on app start
   useEffect(() => {
     const loadUserData = async () => {
