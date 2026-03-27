@@ -211,6 +211,57 @@
     background-color: color-mix(in srgb, var(--app-surface) 85%, transparent);
     border: 1px solid color-mix(in srgb, var(--app-accent) 32%, transparent);
   }
+
+  .app-page {
+    background-color: var(--app-bg);
+    color: var(--app-text);
+  }
+
+  .app-panel {
+    background-color: var(--app-surface);
+    border: 1px solid color-mix(in srgb, var(--app-accent) 30%, transparent);
+    @apply rounded-2xl shadow-sm;
+  }
+
+  .app-panel-soft {
+    background-color: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-accent) 22%, transparent);
+    @apply rounded-2xl;
+  }
+
+  .app-menu-item {
+    @apply w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors;
+    color: var(--app-muted);
+  }
+
+  .app-menu-item:hover {
+    background-color: color-mix(in srgb, var(--app-accent) 8%, var(--app-surface));
+    color: var(--app-text);
+  }
+
+  .app-menu-item-active {
+    background-color: color-mix(in srgb, var(--app-accent) 18%, var(--app-surface));
+    border: 1px solid color-mix(in srgb, var(--app-accent) 48%, transparent);
+    color: var(--app-accent);
+    @apply font-medium;
+  }
+
+  .app-option-card {
+    @apply p-4 rounded-2xl border-2 text-left transition-all;
+    border-color: color-mix(in srgb, var(--app-accent) 22%, transparent);
+    background-color: color-mix(in srgb, var(--app-surface) 96%, transparent);
+  }
+
+  .app-option-card:hover {
+    border-color: color-mix(in srgb, var(--app-accent) 40%, transparent);
+    transform: translateY(-1px);
+  }
+
+  .app-option-card-active {
+    border-color: var(--app-accent);
+    background-color: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--app-accent) 50%, transparent);
+  }
 }
 
 @layer utilities {
