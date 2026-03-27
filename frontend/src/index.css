@@ -5,8 +5,8 @@
 @tailwind utilities;
 
 @layer base {
-  svg {
-    display: none !important;
+  .lucide {
+    display: none;
   }
 
   * {
