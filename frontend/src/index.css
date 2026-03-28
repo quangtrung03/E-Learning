@@ -15,6 +15,8 @@
     --app-accent-strong: #c2410c;
     --app-accent-rgb: 234 88 12;
     --app-on-accent: #ffffff;
+    --app-danger: #dc2626;
+    --app-danger-soft: #fef2f2;
   }
 
   .dark {
@@ -27,6 +29,8 @@
     --app-accent-strong: #16a34a;
     --app-accent-rgb: 34 197 94;
     --app-on-accent: #03120a;
+    --app-danger: #f87171;
+    --app-danger-soft: #1f0b0b;
   }
 
   * {
