@@ -110,6 +110,12 @@ interface ReminderSetupState {
   };
 }
 
+const reminderFrequencyLabel: Record<ReminderFrequency, string> = {
+  daily: 'mỗi ngày',
+  weekdays: 'thứ 2-6',
+  weekends: 'cuối tuần'
+};
+
 const CHART_COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -239,7 +245,7 @@ const Dashboard = () => {
       });
       toast.showToast({ type: 'success', title: 'Đã lưu lộ trình & nhắc nhở học tập' });
       setShowLearningSetupModal(false);
-      setReminderPreview(`Nhắc học ${reminderSetup.frequency === 'daily' ? 'mỗi ngày' : reminderSetup.frequency === 'weekdays' ? 'thứ 2-6' : 'cuối tuần'} lúc ${reminderSetup.time}`);
+      setReminderPreview(`Nhắc học ${reminderFrequencyLabel[reminderSetup.frequency]} lúc ${reminderSetup.time}`);
       fetchAllData();
     } catch (error: any) {
       toast.showToast({ type: 'error', title: error?.response?.data?.message || 'Không thể lưu cài đặt lộ trình' });
@@ -269,7 +275,11 @@ const Dashboard = () => {
       track: learningPath.track || prev.track,
       goal: learningPath.goal || prev.goal,
       weeklyTargetMinutes: learningPath.weeklyTargetMinutes || prev.weeklyTargetMinutes,
-      targetDate: learningPath.targetDate ? new Date(learningPath.targetDate).toISOString().slice(0, 10) : prev.targetDate
+      targetDate: (() => {
+        if (!learningPath.targetDate) return prev.targetDate;
+        const parsed = new Date(learningPath.targetDate);
+        return Number.isNaN(parsed.getTime()) ? prev.targetDate : parsed.toISOString().slice(0, 10);
+      })()
     }));
 
     setReminderSetup((prev) => ({
@@ -283,8 +293,12 @@ const Dashboard = () => {
       }
     }));
 
+    // Server preferences is the source of truth; local storage is only fallback if server data absent.
     const localSeen = localStorage.getItem('dashboard_onboarding_seen') === '1';
-    const shouldShowOnboarding = !(onboarding.completed || onboarding.skipped || localSeen);
+    const hasServerOnboardingState = onboarding.completed !== undefined || onboarding.skipped !== undefined;
+    const shouldShowOnboarding = hasServerOnboardingState
+      ? !(onboarding.completed || onboarding.skipped)
+      : !localSeen;
     if (shouldShowOnboarding) {
       setOnboardingStep(1);
       setShowOnboardingModal(true);

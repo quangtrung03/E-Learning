@@ -114,7 +114,7 @@ const userSchema = new mongoose.Schema({
     onboarding: {
       completed: { type: Boolean, default: false },
       skipped: { type: Boolean, default: false },
-      lastSeenAt: { type: Date, default: null }
+      lastSeenAt: { type: Date }
     },
     learningPath: {
       track: {
@@ -128,7 +128,7 @@ const userSchema = new mongoose.Schema({
         default: 'first_course'
       },
       weeklyTargetMinutes: { type: Number, default: 180, min: 30, max: 3000 },
-      targetDate: { type: Date, default: null }
+      targetDate: { type: Date }
     },
     reminders: {
       enabled: { type: Boolean, default: true },

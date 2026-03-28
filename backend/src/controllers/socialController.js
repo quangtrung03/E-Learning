@@ -669,7 +669,7 @@ exports.updatePreferences = async (req, res) => {
       Object.keys(input || {}).forEach((key) => {
         const value = input[key];
         const nextPrefix = `${prefix}.${key}`;
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
+        if (value && typeof value === 'object' && value !== null && !Array.isArray(value)) {
           flattenToUpdateObj(nextPrefix, value);
         } else {
           updateObj[nextPrefix] = value;
