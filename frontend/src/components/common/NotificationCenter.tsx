@@ -13,7 +13,8 @@ interface NotificationCenterProps {
 const timeAgo = (iso: string) => {
   const parsed = new Date(iso);
   if (Number.isNaN(parsed.getTime())) return 'Vừa xong';
-  const diffMs = Math.max(0, Date.now() - parsed.getTime());
+  if (parsed.getTime() > Date.now()) return 'Sắp diễn ra';
+  const diffMs = Date.now() - parsed.getTime();
   const mins = Math.max(1, Math.floor(diffMs / 60000));
   if (mins < 60) return `${mins} phút trước`;
   const hours = Math.floor(mins / 60);

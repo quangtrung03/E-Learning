@@ -312,7 +312,9 @@ const Dashboard = () => {
       }
     }));
 
-    // Server preferences is source of truth; local storage only supports first-load fallback when server fields are absent.
+    // Precedence: server onboarding state > localStorage flag.
+    // localStorage exists as legacy fallback only for first load when server fields are not present yet.
+    // once server state exists, we clear local fallback to avoid stale cross-tab ambiguity.
     const localSeen = localStorage.getItem('dashboard_onboarding_seen') === '1';
     const hasServerOnboardingState = onboarding.completed !== undefined || onboarding.skipped !== undefined;
     const shouldShowOnboarding = hasServerOnboardingState
@@ -350,7 +352,7 @@ const Dashboard = () => {
     };
     const onScroll = () => {
       if (tourScrollTimerRef.current) window.clearTimeout(tourScrollTimerRef.current);
-      tourScrollTimerRef.current = window.setTimeout(scheduleRect, 60);
+      tourScrollTimerRef.current = window.setTimeout(scheduleRect, 40);
     };
 
     scheduleRect();

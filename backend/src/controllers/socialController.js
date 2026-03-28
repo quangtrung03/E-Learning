@@ -699,6 +699,9 @@ exports.updatePreferences = async (req, res) => {
 
     res.json({ success: true, preferences: user.preferences });
   } catch (err) {
+    if (err?.message === 'Preferences payload is too deeply nested') {
+      return res.status(400).json({ success: false, message: err.message });
+    }
     res.status(500).json({ success: false, message: 'Lỗi cập nhật cài đặt' });
   }
 };
