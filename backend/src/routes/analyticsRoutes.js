@@ -13,7 +13,9 @@ const {
   getLearningPath,
   exportAnalytics,
   getRevenueAnalytics,
-  getPlatformFeeReport
+  getPlatformFeeReport,
+  getUserAchievements,
+  getLeaderboard
 } = require('../controllers/analyticsController');
 const { protect, requireAdmin } = require('../middleware/auth');
 
@@ -396,6 +398,10 @@ router.get('/recommendations/:userId', getRecommendations);
  *         description: Lấy thống kê dashboard thành công
  */
 router.get('/dashboard', getDashboardStats);
+
+// Achievements & Leaderboard
+router.get('/achievements', getUserAchievements);
+router.get('/leaderboard', getLeaderboard);
 
 /**
  * @swagger

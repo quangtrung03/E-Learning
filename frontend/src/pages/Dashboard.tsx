@@ -132,6 +132,7 @@ const toDateInputValueOrFallback = (value: unknown, fallback: string): string =>
 };
 
 const CHART_COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
+const DASHBOARD_TOUR_SELECTORS = ['[data-tour="hero"]', '[data-tour="role-tabs"]', '[data-tour="stats"]', '[data-tour="quick-actions"]'] as const;
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -335,9 +336,8 @@ const Dashboard = () => {
       if (tourFrameRef.current) cancelAnimationFrame(tourFrameRef.current);
       return;
     }
-    const selectors = ['[data-tour="hero"]', '[data-tour="role-tabs"]', '[data-tour="stats"]', '[data-tour="quick-actions"]'];
     const computeRect = () => {
-      const selector = selectors[tourStep] || selectors[0];
+      const selector = DASHBOARD_TOUR_SELECTORS[tourStep] || DASHBOARD_TOUR_SELECTORS[0];
       const el = document.querySelector(selector);
       if (!el) {
         setTourTargetRect(null);

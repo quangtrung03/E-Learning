@@ -23,6 +23,7 @@ import LessonViewer from './pages/LessonViewer';
 import AdminRequestForm from './pages/AdminRequestForm';
 import AssignmentDetail from './pages/AssignmentDetail';
 import MyCertificates from './pages/MyCertificates';
+import Achievements from './pages/Achievements';
 import StudyGroups from './pages/StudyGroups';
 import StudyGroupDetail from './pages/StudyGroupDetail';
 import StudyGroupCreate from './pages/StudyGroupCreate';
@@ -295,6 +296,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DiscussionDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/achievements" 
+            element={
+              <ProtectedRoute>
+                <Achievements />
               </ProtectedRoute>
             } 
           />

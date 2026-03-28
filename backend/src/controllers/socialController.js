@@ -665,8 +665,9 @@ exports.updatePreferences = async (req, res) => {
   try {
     const { language, theme, notifications, privacy, onboarding, learningPath, reminders } = req.body;
     const updateObj = {};
+    const MAX_PREFERENCE_NESTING_DEPTH = 8;
     const flattenToUpdateObj = (prefix, input, depth = 0) => {
-      if (depth > 8) {
+      if (depth > MAX_PREFERENCE_NESTING_DEPTH) {
         throw new Error('Preferences payload is too deeply nested');
       }
       Object.keys(input || {}).forEach((key) => {

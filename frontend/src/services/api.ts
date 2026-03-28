@@ -257,6 +257,10 @@ export const studyGroupAPI = {
 export const analyticsAPI = {
   getUserAnalytics: (courseId?: string): Promise<AxiosResponse<any>> =>
     api.get('/analytics/user', { params: { courseId } }),
+  getAchievements: (): Promise<AxiosResponse<any>> =>
+    api.get('/analytics/achievements'),
+  getLeaderboard: (params?: { limit?: number }): Promise<AxiosResponse<any>> =>
+    api.get('/analytics/leaderboard', { params }),
   getCourseAnalytics: (courseId: string): Promise<AxiosResponse<any>> =>
     api.get(`/analytics/course/${courseId}`),
   updateLearningProgress: (courseId: string, data: any): Promise<AxiosResponse<any>> =>

@@ -8,6 +8,7 @@ export interface UserNotificationItem {
 }
 
 const keyFor = (userId: string) => `user_notifications_v1_${userId}`;
+const MAX_STORED_NOTIFICATIONS = 100;
 let fallbackCounter = 0;
 
 export const getUserNotifications = (userId?: string | null): UserNotificationItem[] => {
@@ -22,7 +23,7 @@ export const getUserNotifications = (userId?: string | null): UserNotificationIt
 };
 
 export const setUserNotifications = (userId: string, items: UserNotificationItem[]) => {
-  localStorage.setItem(keyFor(userId), JSON.stringify(items.slice(0, 100)));
+  localStorage.setItem(keyFor(userId), JSON.stringify(items.slice(0, MAX_STORED_NOTIFICATIONS)));
 };
 
 export const pushUserNotification = (

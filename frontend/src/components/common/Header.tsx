@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings, CalendarDays, Heart, Bell } from "lucide-react";
+import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings, CalendarDays, Heart, Bell, Trophy } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
 import NotificationCenter from "./NotificationCenter";
@@ -185,6 +185,14 @@ const Header = () => {
                   >
                     <CalendarDays className="w-4 h-4 text-indigo-500" />
                     <span className="text-sm font-medium text-gray-900">Lịch học</span>
+                  </Link>
+                  <Link
+                    to="/achievements"
+                    onClick={() => setIsNavOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <Trophy className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-medium text-gray-900">Thành tích</span>
                   </Link>
                   <Link
                     to="/my-certificates"
