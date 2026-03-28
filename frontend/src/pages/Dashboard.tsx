@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { courseAPI, analyticsAPI } from '../services/api';
+import { courseAPI, analyticsAPI, socialAPI } from '../services/api';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import Modal from '../components/ui/Modal';
@@ -89,6 +89,27 @@ interface AnalyticsData {
   studyPatterns: { mostActiveDay: string; mostActiveHour: number; averageSessionDuration: number };
 }
 
+type LearningTrack = 'programming' | 'design' | 'business' | 'marketing' | 'language' | 'science' | 'other';
+type LearningGoal = 'first_course' | 'skill_upgrade' | 'career_switch' | 'certificate' | 'hobby';
+type ReminderFrequency = 'daily' | 'weekdays' | 'weekends';
+
+interface LearningSetupState {
+  track: LearningTrack;
+  goal: LearningGoal;
+  weeklyTargetMinutes: number;
+  targetDate: string;
+}
+
+interface ReminderSetupState {
+  enabled: boolean;
+  time: string;
+  frequency: ReminderFrequency;
+  channels: {
+    inApp: boolean;
+    email: boolean;
+  };
+}
+
 const CHART_COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -134,6 +155,28 @@ const Dashboard = () => {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [noteTargetCourse, setNoteTargetCourse] = useState('');
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [showLearningSetupModal, setShowLearningSetupModal] = useState(false);
+  const [savingSetup, setSavingSetup] = useState(false);
+  const [reminderPreview, setReminderPreview] = useState<string | null>(null);
+
+  const [learningSetup, setLearningSetup] = useState<LearningSetupState>({
+    track: 'programming',
+    goal: 'first_course',
+    weeklyTargetMinutes: 180,
+    targetDate: ''
+  });
+
+  const [reminderSetup, setReminderSetup] = useState<ReminderSetupState>({
+    enabled: true,
+    time: '19:00',
+    frequency: 'daily',
+    channels: {
+      inApp: true,
+      email: false
+    }
+  });
 
   const saveQuickNote = () => {
     if (!noteContent.trim()) return;
@@ -152,6 +195,56 @@ const Dashboard = () => {
     toast.showToast({ type: 'success', title: 'Đã lưu ghi chú!' });
   };
 
+  const persistPreferenceUpdates = async (payload: {
+    onboarding?: Record<string, unknown>;
+    learningPath?: Partial<LearningSetupState>;
+    reminders?: Partial<ReminderSetupState>;
+  }) => {
+    await socialAPI.updatePreferences(payload as any);
+  };
+
+  const completeOnboarding = async (skipped = false) => {
+    try {
+      await persistPreferenceUpdates({
+        onboarding: {
+          completed: !skipped,
+          skipped,
+          lastSeenAt: new Date().toISOString()
+        }
+      });
+    } catch {
+      // keep UX smooth even if api fails; local storage fallback
+    } finally {
+      localStorage.setItem('dashboard_onboarding_seen', '1');
+      setShowOnboardingModal(false);
+      if (!skipped) setShowLearningSetupModal(true);
+    }
+  };
+
+  const saveLearningAndReminderSetup = async () => {
+    try {
+      setSavingSetup(true);
+      const targetDate = learningSetup.targetDate ? new Date(learningSetup.targetDate).toISOString() : null;
+      await persistPreferenceUpdates({
+        learningPath: {
+          track: learningSetup.track,
+          goal: learningSetup.goal,
+          weeklyTargetMinutes: learningSetup.weeklyTargetMinutes,
+          targetDate
+        } as any,
+        reminders: reminderSetup
+      });
+      toast.showToast({ type: 'success', title: 'Đã lưu lộ trình & nhắc nhở học tập' });
+      setShowLearningSetupModal(false);
+      setReminderPreview(`Nhắc học ${reminderSetup.frequency === 'daily' ? 'mỗi ngày' : reminderSetup.frequency === 'weekdays' ? 'thứ 2-6' : 'cuối tuần'} lúc ${reminderSetup.time}`);
+      fetchAllData();
+    } catch (error: any) {
+      toast.showToast({ type: 'error', title: error?.response?.data?.message || 'Không thể lưu cài đặt lộ trình' });
+    } finally {
+      setSavingSetup(false);
+    }
+  };
+
   // ── Instructor: course status filter ──
   const [createdStatusFilter, setCreatedStatusFilter] = useState<'all' | 'draft' | 'pending' | 'approved' | 'rejected'>('all');
 
@@ -159,6 +252,40 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchAllData();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const prefs = (user as any)?.preferences || {};
+    const onboarding = prefs.onboarding || {};
+    const learningPath = prefs.learningPath || {};
+    const reminders = prefs.reminders || {};
+
+    setLearningSetup((prev) => ({
+      ...prev,
+      track: learningPath.track || prev.track,
+      goal: learningPath.goal || prev.goal,
+      weeklyTargetMinutes: learningPath.weeklyTargetMinutes || prev.weeklyTargetMinutes,
+      targetDate: learningPath.targetDate ? new Date(learningPath.targetDate).toISOString().slice(0, 10) : prev.targetDate
+    }));
+
+    setReminderSetup((prev) => ({
+      ...prev,
+      enabled: reminders.enabled ?? prev.enabled,
+      time: reminders.time || prev.time,
+      frequency: reminders.frequency || prev.frequency,
+      channels: {
+        inApp: reminders.channels?.inApp ?? prev.channels.inApp,
+        email: reminders.channels?.email ?? prev.channels.email
+      }
+    }));
+
+    const localSeen = localStorage.getItem('dashboard_onboarding_seen') === '1';
+    const shouldShowOnboarding = !(onboarding.completed || onboarding.skipped || localSeen);
+    if (shouldShowOnboarding) {
+      setOnboardingStep(1);
+      setShowOnboardingModal(true);
+    }
   }, [user]);
 
   const fetchAllData = async () => {
@@ -779,6 +906,34 @@ const Dashboard = () => {
         {/* Role Content */}
         {activeRole === 'student' ? renderStudentView() : renderInstructorView()}
 
+        {/* Beginner onboarding + learning path helpers */}
+        {activeRole === 'student' && (
+          <section className="mt-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card className="p-5 lg:col-span-2 border-l-4 border-primary-500">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-bold text-gray-900 mb-1">🚀 Hướng dẫn bắt đầu cho người mới</h3>
+                    <p className="text-sm text-gray-600">
+                      Tham quan nhanh các tính năng chính, chọn lộ trình phù hợp và bật nhắc học để duy trì thói quen.
+                    </p>
+                  </div>
+                  <Button size="sm" variant="outline" onClick={() => { setOnboardingStep(1); setShowOnboardingModal(true); }}>
+                    Xem hướng dẫn
+                  </Button>
+                </div>
+              </Card>
+              <Card className="p-5 border-l-4 border-indigo-500">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">🔔 Trạng thái nhắc học</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  {reminderPreview || `${reminderSetup.enabled ? 'Đang bật' : 'Đang tắt'} nhắc học lúc ${reminderSetup.time}`}
+                </p>
+                <Button size="sm" onClick={() => setShowLearningSetupModal(true)}>Thiết lập</Button>
+              </Card>
+            </div>
+          </section>
+        )}
+
         {/* Quick Actions */}
         <section className="mt-8 mb-4">
           <h2 className="text-lg font-bold text-gray-900 mb-4">⚡ Hành động nhanh</h2>
@@ -1076,6 +1231,192 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* ── New User Onboarding Tour Modal ─────────────────────────────── */}
+      <Modal
+        isOpen={showOnboardingModal}
+        onClose={() => completeOnboarding(true)}
+        title="Chào mừng! Hãy cùng tham quan nhanh"
+        size="lg"
+      >
+        <div className="space-y-5">
+          {onboardingStep === 1 && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-700">
+                Đây là Dashboard học tập của bạn: theo dõi tiến độ, xem khóa học đang học và nhận gợi ý cải thiện.
+              </p>
+              <div className="rounded-lg border border-primary-200 bg-primary-50 p-3 text-sm text-primary-800">
+                Mẹo: ưu tiên học đều mỗi ngày thay vì dồn vào cuối tuần để tăng tỷ lệ hoàn thành khóa.
+              </div>
+            </div>
+          )}
+          {onboardingStep === 2 && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-700">
+                Tiếp theo, bạn có thể chọn lộ trình phù hợp mục tiêu (nâng kỹ năng, chuyển nghề, lấy chứng chỉ...).
+              </p>
+              <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800">
+                Chúng tôi sẽ dùng thông tin này để gợi ý khóa học và nhắc nhở học tập tốt hơn.
+              </div>
+            </div>
+          )}
+          {onboardingStep === 3 && (
+            <div className="space-y-3">
+              <p className="text-sm text-gray-700">
+                Bật nhắc học theo giờ bạn rảnh để giữ nhịp học ổn định, không bỏ lỡ mục tiêu tuần.
+              </p>
+              <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                Hoàn tất bước này để cá nhân hóa trải nghiệm học tập dành cho bạn.
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-between pt-2">
+            <span className="text-xs text-gray-500">{onboardingStep} / 3</span>
+            <div className="flex gap-2">
+              {onboardingStep > 1 && (
+                <Button variant="outline" size="sm" onClick={() => setOnboardingStep((s) => Math.max(1, s - 1))}>
+                  Quay lại
+                </Button>
+              )}
+              {onboardingStep < 3 ? (
+                <Button size="sm" onClick={() => setOnboardingStep((s) => Math.min(3, s + 1))}>
+                  Tiếp theo
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => completeOnboarding(false)}>
+                  Bắt đầu thiết lập
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ── Learning Path & Reminder Setup Modal ─────────────────────── */}
+      <Modal
+        isOpen={showLearningSetupModal}
+        onClose={() => setShowLearningSetupModal(false)}
+        title="Thiết lập lộ trình học tập cho người mới"
+        size="xl"
+      >
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lộ trình muốn theo</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={learningSetup.track}
+                onChange={(e) => setLearningSetup((p) => ({ ...p, track: e.target.value as LearningTrack }))}
+              >
+                <option value="programming">Lập trình</option>
+                <option value="design">Thiết kế</option>
+                <option value="business">Kinh doanh</option>
+                <option value="marketing">Marketing</option>
+                <option value="language">Ngôn ngữ</option>
+                <option value="science">Khoa học</option>
+                <option value="other">Khác</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mục tiêu chính</label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={learningSetup.goal}
+                onChange={(e) => setLearningSetup((p) => ({ ...p, goal: e.target.value as LearningGoal }))}
+              >
+                <option value="first_course">Hoàn thành khóa đầu tiên</option>
+                <option value="skill_upgrade">Nâng cấp kỹ năng</option>
+                <option value="career_switch">Chuyển nghề</option>
+                <option value="certificate">Lấy chứng chỉ</option>
+                <option value="hobby">Học theo sở thích</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mục tiêu phút học / tuần</label>
+              <input
+                type="number"
+                min={30}
+                max={3000}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={learningSetup.weeklyTargetMinutes}
+                onChange={(e) => setLearningSetup((p) => ({ ...p, weeklyTargetMinutes: Number(e.target.value || 180) }))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mốc thời gian mục tiêu</label>
+              <input
+                type="date"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                value={learningSetup.targetDate}
+                onChange={(e) => setLearningSetup((p) => ({ ...p, targetDate: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-gray-900">Nhắc nhở & thông báo học tập</h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={reminderSetup.enabled}
+                  onChange={(e) => setReminderSetup((p) => ({ ...p, enabled: e.target.checked }))}
+                />
+                Bật nhắc học
+              </label>
+              <input
+                type="time"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                value={reminderSetup.time}
+                onChange={(e) => setReminderSetup((p) => ({ ...p, time: e.target.value }))}
+                disabled={!reminderSetup.enabled}
+              />
+              <select
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                value={reminderSetup.frequency}
+                onChange={(e) => setReminderSetup((p) => ({ ...p, frequency: e.target.value as ReminderFrequency }))}
+                disabled={!reminderSetup.enabled}
+              >
+                <option value="daily">Mỗi ngày</option>
+                <option value="weekdays">Thứ 2 - Thứ 6</option>
+                <option value="weekends">Cuối tuần</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-5">
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={reminderSetup.channels.inApp}
+                  onChange={(e) =>
+                    setReminderSetup((p) => ({ ...p, channels: { ...p.channels, inApp: e.target.checked } }))
+                  }
+                />
+                Thông báo trong ứng dụng
+              </label>
+              <label className="flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={reminderSetup.channels.email}
+                  onChange={(e) =>
+                    setReminderSetup((p) => ({ ...p, channels: { ...p.channels, email: e.target.checked } }))
+                  }
+                />
+                Email nhắc học
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowLearningSetupModal(false)}>Để sau</Button>
+            <Button loading={savingSetup} onClick={saveLearningAndReminderSetup}>
+              Lưu thiết lập
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

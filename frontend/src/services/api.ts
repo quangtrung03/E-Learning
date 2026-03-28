@@ -561,7 +561,15 @@ export const socialAPI = {
   // Preferences / Settings
   getPreferences: (): Promise<AxiosResponse<any>> =>
     api.get('/social/preferences'),
-  updatePreferences: (data: { language?: string; theme?: string; notifications?: Record<string, boolean>; privacy?: Record<string, any> }): Promise<AxiosResponse<any>> =>
+  updatePreferences: (data: {
+    language?: string;
+    theme?: string;
+    notifications?: Record<string, boolean>;
+    privacy?: Record<string, any>;
+    onboarding?: Record<string, any>;
+    learningPath?: Record<string, any>;
+    reminders?: Record<string, any>;
+  }): Promise<AxiosResponse<any>> =>
     api.put('/social/preferences', data),
   updateSocialProfile: (data: { name?: string; bio?: string; phone?: string; avatar?: string; coverImage?: string; website?: string; location?: string; socialLinks?: Record<string, string> }): Promise<AxiosResponse<any>> =>
     api.put('/social/profile', data),
@@ -599,4 +607,3 @@ export const announcementAPI = {
 };
 
 export default api;
-

@@ -660,10 +660,10 @@ exports.updateSocialProfile = async (req, res) => {
   }
 };
 
-// PUT /api/social/preferences  - update preferences (language, theme, notifications, privacy)
+// PUT /api/social/preferences  - update preferences (language, theme, notifications, privacy, onboarding, learningPath, reminders)
 exports.updatePreferences = async (req, res) => {
   try {
-    const { language, theme, notifications, privacy } = req.body;
+    const { language, theme, notifications, privacy, onboarding, learningPath, reminders } = req.body;
     const updateObj = {};
 
     if (language) updateObj['preferences.language'] = language;
@@ -676,6 +676,28 @@ exports.updatePreferences = async (req, res) => {
     if (privacy) {
       Object.keys(privacy).forEach(k => {
         updateObj[`preferences.privacy.${k}`] = privacy[k];
+      });
+    }
+    if (onboarding) {
+      Object.keys(onboarding).forEach(k => {
+        updateObj[`preferences.onboarding.${k}`] = onboarding[k];
+      });
+    }
+    if (learningPath) {
+      Object.keys(learningPath).forEach(k => {
+        updateObj[`preferences.learningPath.${k}`] = learningPath[k];
+      });
+    }
+    if (reminders) {
+      Object.keys(reminders).forEach(k => {
+        const value = reminders[k];
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          Object.keys(value).forEach(subKey => {
+            updateObj[`preferences.reminders.${k}.${subKey}`] = value[subKey];
+          });
+        } else {
+          updateObj[`preferences.reminders.${k}`] = value;
+        }
       });
     }
 
