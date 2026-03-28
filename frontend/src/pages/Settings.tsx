@@ -52,7 +52,7 @@ const Toggle: React.FC<{ checked: boolean; onChange: (v: boolean) => void; disab
     type="button"
     onClick={() => !disabled && onChange(!checked)}
     disabled={disabled}
-    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 ${checked ? 'bg-[var(--app-accent)]' : 'bg-gray-300 dark:bg-gray-600'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 ${checked ? 'bg-[var(--app-accent)]' : 'bg-[color:color-mix(in_srgb,var(--app-accent)_22%,var(--app-surface-soft))]'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
   >
     <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
   </button>
@@ -369,10 +369,10 @@ export default function Settings() {
                     <div>
                       <label className="block text-sm font-medium text-[var(--app-text)] mb-1">Xác nhận mật khẩu mới</label>
                       <input type="password" value={pwForm.confirmPassword} onChange={e => setPwForm(p => ({ ...p, confirmPassword: e.target.value }))} required
-                        className={`w-full px-3 py-2.5 border rounded-xl focus:ring-2 bg-[var(--app-surface)] text-[var(--app-text)] text-sm ${pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword ? 'border-red-400 focus:ring-red-500' : 'focus:ring-[var(--app-accent)] border-[color:color-mix(in_srgb,var(--app-accent)_28%,transparent)]'}`}
+                        className={`w-full px-3 py-2.5 border rounded-xl focus:ring-2 bg-[var(--app-surface)] text-[var(--app-text)] text-sm ${pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword ? 'border-[color:color-mix(in_srgb,#ef4444_68%,transparent)] focus:ring-[color:color-mix(in_srgb,#ef4444_70%,transparent)]' : 'focus:ring-[var(--app-accent)] border-[color:color-mix(in_srgb,var(--app-accent)_28%,transparent)]'}`}
                         placeholder="Nhập lại mật khẩu mới" />
                       {pwForm.confirmPassword && pwForm.newPassword !== pwForm.confirmPassword && (
-                        <p className="text-red-500 text-xs mt-1">Mật khẩu không khớp</p>
+                        <p className="text-[color:color-mix(in_srgb,#ef4444_88%,var(--app-text))] text-xs mt-1">Mật khẩu không khớp</p>
                       )}
                     </div>
                     <button type="submit" disabled={pwLoading}
@@ -403,16 +403,16 @@ export default function Settings() {
                 </div>
 
                 {/* Danger zone */}
-                <div className="app-panel-soft p-6 border-red-300/60 dark:border-red-700/60">
-                  <h3 className="text-base font-semibold text-red-600 dark:text-red-400 mb-1">⚠️ Vùng nguy hiểm</h3>
-                  <p className="text-sm text-red-500 dark:text-red-400 mb-4">Các hành động dưới đây không thể hoàn tác. Hãy cẩn thận.</p>
+                <div className="app-panel-soft p-6 border-[color:color-mix(in_srgb,#ef4444_40%,transparent)]">
+                  <h3 className="text-base font-semibold text-[color:color-mix(in_srgb,#ef4444_82%,var(--app-text))] mb-1">⚠️ Vùng nguy hiểm</h3>
+                  <p className="text-sm text-[color:color-mix(in_srgb,#ef4444_72%,var(--app-text))] mb-4">Các hành động dưới đây không thể hoàn tác. Hãy cẩn thận.</p>
                   <button
                     onClick={() => {
                       if (confirm('Bạn có chắc muốn xóa tài khoản? Hành động này không thể hoàn tác.')) {
                         showToast({ type: 'error', title: 'Tính năng xóa tài khoản cần xác nhận qua email. Vui lòng liên hệ hỗ trợ.' });
                       }
                     }}
-                    className="px-4 py-2 border border-red-400 text-red-600 dark:text-red-400 rounded-xl text-sm font-medium hover:bg-red-100/70 dark:hover:bg-red-900/30 transition-colors">
+                    className="px-4 py-2 border rounded-xl text-sm font-medium transition-colors border-[color:color-mix(in_srgb,#ef4444_55%,transparent)] text-[color:color-mix(in_srgb,#ef4444_86%,var(--app-text))] hover:bg-[color:color-mix(in_srgb,#ef4444_18%,var(--app-surface))]">
                     🗑️ Xóa tài khoản
                   </button>
                 </div>
