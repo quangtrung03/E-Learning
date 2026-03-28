@@ -25,6 +25,15 @@ interface Preferences {
     showPhone: boolean;
     allowMessages: 'everyone' | 'followers' | 'none';
   };
+  reminders?: {
+    enabled?: boolean;
+    time?: string;
+    frequency?: 'daily' | 'weekdays' | 'weekends';
+    channels?: {
+      inApp?: boolean;
+      email?: boolean;
+    };
+  };
 }
 
 const defaultPreferences: Preferences = {
@@ -44,6 +53,15 @@ const defaultPreferences: Preferences = {
     showEmail: false,
     showPhone: false,
     allowMessages: 'everyone'
+  },
+  reminders: {
+    enabled: true,
+    time: '19:00',
+    frequency: 'daily',
+    channels: {
+      inApp: true,
+      email: false
+    }
   }
 };
 
@@ -119,6 +137,19 @@ export default function Settings() {
     const updated = { ...prefs.notifications, [key]: val };
     setPrefs(prev => ({ ...prev, notifications: updated }));
     savePreferences({ notifications: updated });
+  };
+
+  const handleReminderChange = (updates: Partial<NonNullable<Preferences['reminders']>>) => {
+    const updated = {
+      ...prefs.reminders,
+      ...updates,
+      channels: {
+        ...prefs.reminders?.channels,
+        ...(updates.channels || {})
+      }
+    };
+    setPrefs(prev => ({ ...prev, reminders: updated }));
+    savePreferences({ reminders: updated });
   };
 
   const handlePrivacyChange = (key: keyof Preferences['privacy'], val: any) => {
@@ -272,6 +303,69 @@ export default function Settings() {
                       />
                     </div>
                   ))}
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-[color:color-mix(in_srgb,var(--app-accent)_16%,transparent)]">
+                  <h3 className="text-base font-semibold text-[var(--app-text)] mb-1">⏰ Nhắc học tập thông minh</h3>
+                  <p className="text-xs text-[var(--app-muted)] mb-3">Cài đặt giờ nhắc học, tần suất và kênh thông báo cho lộ trình của bạn</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-[var(--app-text)] text-sm">Bật nhắc học</p>
+                        <p className="text-xs text-[var(--app-muted)]">Gửi nhắc nhở theo lịch đã đặt</p>
+                      </div>
+                      <Toggle
+                        checked={Boolean(prefs.reminders?.enabled)}
+                        onChange={(val) => handleReminderChange({ enabled: val })}
+                        disabled={saving}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs text-[var(--app-muted)] mb-1">Giờ nhắc</label>
+                        <input
+                          type="time"
+                          value={prefs.reminders?.time || '19:00'}
+                          onChange={(e) => handleReminderChange({ time: e.target.value })}
+                          className="w-full border rounded-xl px-3 py-2 text-sm bg-[var(--app-surface)] text-[var(--app-text)] border-[color:color-mix(in_srgb,var(--app-accent)_28%,transparent)]"
+                          disabled={saving || !prefs.reminders?.enabled}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-[var(--app-muted)] mb-1">Tần suất</label>
+                        <select
+                          value={prefs.reminders?.frequency || 'daily'}
+                          onChange={(e) => handleReminderChange({ frequency: e.target.value as 'daily' | 'weekdays' | 'weekends' })}
+                          className="w-full border rounded-xl px-3 py-2 text-sm bg-[var(--app-surface)] text-[var(--app-text)] border-[color:color-mix(in_srgb,var(--app-accent)_28%,transparent)]"
+                          disabled={saving || !prefs.reminders?.enabled}
+                        >
+                          <option value="daily">Mỗi ngày</option>
+                          <option value="weekdays">Thứ 2 - Thứ 6</option>
+                          <option value="weekends">Cuối tuần</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <label className="flex items-center gap-2 text-sm text-[var(--app-text)]">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(prefs.reminders?.channels?.inApp)}
+                          onChange={(e) => handleReminderChange({ channels: { inApp: e.target.checked } })}
+                          disabled={saving || !prefs.reminders?.enabled}
+                        />
+                        Trong ứng dụng
+                      </label>
+                      <label className="flex items-center gap-2 text-sm text-[var(--app-text)]">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(prefs.reminders?.channels?.email)}
+                          onChange={(e) => handleReminderChange({ channels: { email: e.target.checked } })}
+                          disabled={saving || !prefs.reminders?.enabled}
+                        />
+                        Email
+                      </label>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

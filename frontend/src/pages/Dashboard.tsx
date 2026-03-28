@@ -9,6 +9,7 @@ import Modal from '../components/ui/Modal';
 import useDefaultCourseThumbnailUrl from '../hooks/useDefaultCourseThumbnailUrl';
 import resolveFileUrl from '../utils/resolveFileUrl';
 import { useToast } from '../context/ToastContext';
+import { pushUserNotification } from '../utils/userNotifications';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -87,6 +88,8 @@ interface AnalyticsData {
   }>;
   weeklyGoal: { target: number; achieved: number; percentage: number };
   studyPatterns: { mostActiveDay: string; mostActiveHour: number; averageSessionDuration: number };
+  currentStreak?: number;
+  longestStreak?: number;
 }
 
 type LearningTrack = 'programming' | 'design' | 'business' | 'marketing' | 'language' | 'science' | 'other';
@@ -174,10 +177,11 @@ const Dashboard = () => {
   const [noteContent, setNoteContent] = useState('');
   const [noteTargetCourse, setNoteTargetCourse] = useState('');
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(1);
+  const [tourStep, setTourStep] = useState(0);
   const [showLearningSetupModal, setShowLearningSetupModal] = useState(false);
   const [savingSetup, setSavingSetup] = useState(false);
   const [reminderPreview, setReminderPreview] = useState<string | null>(null);
+  const [tourTargetRect, setTourTargetRect] = useState<DOMRect | null>(null);
 
   const [learningSetup, setLearningSetup] = useState<LearningSetupState>({
     track: 'programming',
@@ -235,6 +239,7 @@ const Dashboard = () => {
     } finally {
       localStorage.setItem('dashboard_onboarding_seen', '1');
       setShowOnboardingModal(false);
+      setTourStep(0);
       if (!skipped) setShowLearningSetupModal(true);
     }
   };
@@ -255,6 +260,13 @@ const Dashboard = () => {
       toast.showToast({ type: 'success', title: 'Đã lưu lộ trình & nhắc nhở học tập' });
       setShowLearningSetupModal(false);
       setReminderPreview(`Nhắc học ${reminderFrequencyLabel[reminderSetup.frequency]} lúc ${reminderSetup.time}`);
+      if (user?._id) {
+        pushUserNotification(user._id, {
+          type: 'reminder',
+          title: 'Đã cập nhật nhắc học',
+          message: `Nhắc học ${reminderFrequencyLabel[reminderSetup.frequency]} lúc ${reminderSetup.time}`
+        });
+      }
       fetchAllData();
     } catch (error: any) {
       toast.showToast({ type: 'error', title: error?.response?.data?.message || 'Không thể lưu cài đặt lộ trình' });
@@ -305,10 +317,25 @@ const Dashboard = () => {
       ? !(onboarding.completed || onboarding.skipped)
       : !localSeen;
     if (shouldShowOnboarding) {
-      setOnboardingStep(1);
+      setTourStep(0);
       setShowOnboardingModal(true);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!showOnboardingModal) {
+      setTourTargetRect(null);
+      return;
+    }
+    const selectors = ['[data-tour="hero"]', '[data-tour="role-tabs"]', '[data-tour="stats"]', '[data-tour="quick-actions"]'];
+    const selector = selectors[tourStep] || selectors[0];
+    const el = document.querySelector(selector);
+    if (!el) {
+      setTourTargetRect(null);
+      return;
+    }
+    setTourTargetRect((el as HTMLElement).getBoundingClientRect());
+  }, [showOnboardingModal, tourStep, activeRole, enrolledCourses.length, analytics?.coursesInProgress]);
 
   const fetchAllData = async () => {
     if (!user) return;
@@ -355,7 +382,9 @@ const Dashboard = () => {
             mostActiveDay: '—',
             mostActiveHour: 0,
             averageSessionDuration: 0
-          }
+          },
+          currentStreak: d.overallStats?.currentStreak || 0,
+          longestStreak: d.overallStats?.longestStreak || 0
         });
       } else {
         setAnalytics(generateSampleAnalytics());
@@ -390,7 +419,9 @@ const Dashboard = () => {
       dailyActivity,
       courseProgress: [],
       weeklyGoal: { target: 600, achieved: 0, percentage: 0 },
-      studyPatterns: { mostActiveDay: '—', mostActiveHour: 0, averageSessionDuration: 0 }
+      studyPatterns: { mostActiveDay: '—', mostActiveHour: 0, averageSessionDuration: 0 },
+      currentStreak: 0,
+      longestStreak: 0
     };
   };
 
@@ -881,7 +912,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Header */}
-      <div className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white">
+      <div className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white" data-tour="hero">
         <div className="container-custom py-12">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">
             Xin chào, {user?.name || 'Bạn'}! 👋
@@ -894,7 +925,7 @@ const Dashboard = () => {
 
       <div className="container-custom py-8">
         {/* Role Tab Switcher */}
-        <div className="flex gap-2 mb-8 border-b border-gray-200 pb-0">
+        <div className="flex gap-2 mb-8 border-b border-gray-200 pb-0" data-tour="role-tabs">
           <button
             onClick={() => setActiveRole('student')}
             className={`flex items-center gap-2 px-6 py-3 font-semibold text-sm border-b-2 transition-colors -mb-px ${
@@ -940,24 +971,27 @@ const Dashboard = () => {
                       Tham quan nhanh các tính năng chính, chọn lộ trình phù hợp và bật nhắc học để duy trì thói quen.
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => { setOnboardingStep(1); setShowOnboardingModal(true); }}>
+                  <Button size="sm" variant="outline" onClick={() => { setTourStep(0); setShowOnboardingModal(true); }}>
                     Xem hướng dẫn
                   </Button>
                 </div>
               </Card>
-              <Card className="p-5 border-l-4 border-indigo-500">
+              <Card className="p-5 border-l-4 border-indigo-500" data-tour="stats">
                 <h3 className="text-base font-semibold text-gray-900 mb-1">🔔 Trạng thái nhắc học</h3>
                 <p className="text-sm text-gray-600 mb-3">
                   {reminderPreview || `${reminderSetup.enabled ? 'Đang bật' : 'Đang tắt'} nhắc học lúc ${reminderSetup.time}`}
                 </p>
                 <Button size="sm" onClick={() => setShowLearningSetupModal(true)}>Thiết lập</Button>
+                <p className="text-xs text-gray-500 mt-3">
+                  🔥 Chuỗi học hiện tại: <strong>{analytics?.currentStreak || 0}</strong> ngày • Kỷ lục: <strong>{analytics?.longestStreak || 0}</strong> ngày
+                </p>
               </Card>
             </div>
           </section>
         )}
 
         {/* Quick Actions */}
-        <section className="mt-8 mb-4">
+        <section className="mt-8 mb-4" data-tour="quick-actions">
           <h2 className="text-lg font-bold text-gray-900 mb-4">⚡ Hành động nhanh</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
@@ -1254,65 +1288,60 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ── New User Onboarding Tour Modal ─────────────────────────────── */}
-      <Modal
-        isOpen={showOnboardingModal}
-        onClose={() => completeOnboarding(true)}
-        title="Chào mừng! Hãy cùng tham quan nhanh"
-        size="lg"
-      >
-        <div className="space-y-5">
-          {onboardingStep === 1 && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-700">
-                Đây là Dashboard học tập của bạn: theo dõi tiến độ, xem khóa học đang học và nhận gợi ý cải thiện.
-              </p>
-              <div className="rounded-lg border border-primary-200 bg-primary-50 p-3 text-sm text-primary-800">
-                Mẹo: ưu tiên học đều mỗi ngày thay vì dồn vào cuối tuần để tăng tỷ lệ hoàn thành khóa.
-              </div>
-            </div>
+      {/* ── Guided Highlight Tour ───────────────────────────────────────── */}
+      {showOnboardingModal && (
+        <>
+          <div className="fixed inset-0 bg-black/60 z-50" onClick={() => completeOnboarding(true)} />
+          {tourTargetRect && (
+            <div
+              className="fixed z-[55] rounded-xl ring-4 ring-orange-400/90 pointer-events-none"
+              style={{
+                top: Math.max(8, tourTargetRect.top - 8),
+                left: Math.max(8, tourTargetRect.left - 8),
+                width: Math.min(window.innerWidth - 16, tourTargetRect.width + 16),
+                height: Math.min(window.innerHeight - 16, tourTargetRect.height + 16),
+                boxShadow: '0 0 0 9999px rgba(0,0,0,0.45)'
+              }}
+            />
           )}
-          {onboardingStep === 2 && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-700">
-                Tiếp theo, bạn có thể chọn lộ trình phù hợp mục tiêu (nâng kỹ năng, chuyển nghề, lấy chứng chỉ...).
-              </p>
-              <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-800">
-                Chúng tôi sẽ dùng thông tin này để gợi ý khóa học và nhắc nhở học tập tốt hơn.
+          <div className="fixed z-[60] inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-xl rounded-xl bg-white shadow-2xl border border-gray-200 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="text-3xl font-bold text-orange-600 leading-snug">
+                  {tourStep === 0 && 'Chào mừng! Hãy cùng tham quan nhanh các tính năng chính.'}
+                  {tourStep === 1 && 'Đây là nơi chuyển vai trò học viên / giảng viên.'}
+                  {tourStep === 2 && 'Khu vực này giúp theo dõi nhắc học và chuỗi học tập.'}
+                  {tourStep === 3 && 'Đây là các hành động nhanh để bắt đầu học ngay.'}
+                </h3>
+                <button onClick={() => completeOnboarding(true)} className="text-gray-400 hover:text-gray-700">✕</button>
               </div>
-            </div>
-          )}
-          {onboardingStep === 3 && (
-            <div className="space-y-3">
-              <p className="text-sm text-gray-700">
-                Bật nhắc học theo giờ bạn rảnh để giữ nhịp học ổn định, không bỏ lỡ mục tiêu tuần.
+              <p className="text-xl text-gray-600 mt-3">
+                {tourStep === 0 && 'Chúng tôi sẽ làm nổi bật từng khu vực để bạn bắt đầu dễ dàng hơn.'}
+                {tourStep === 1 && 'Bạn có thể chuyển nhanh giữa theo dõi tiến độ học và quản lý khóa học đã tạo.'}
+                {tourStep === 2 && 'Thiết lập nhắc học, xem mục tiêu và duy trì chuỗi học mỗi ngày.'}
+                {tourStep === 3 && 'Tiếp tục bài học, ghi chú nhanh và quản lý lịch học ngay tại đây.'}
               </p>
-              <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                Hoàn tất bước này để cá nhân hóa trải nghiệm học tập dành cho bạn.
+              <div className="mt-6 flex items-center justify-between">
+                <span className="text-orange-600 font-medium">{tourStep + 1} of 4</span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setTourStep((s) => Math.max(0, s - 1))} disabled={tourStep === 0}>
+                    Quay lại
+                  </Button>
+                  {tourStep < 3 ? (
+                    <Button size="sm" onClick={() => setTourStep((s) => Math.min(3, s + 1))}>
+                      Tiếp theo
+                    </Button>
+                  ) : (
+                    <Button size="sm" onClick={() => completeOnboarding(false)}>
+                      Hoàn tất & thiết lập
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-xs text-gray-500">{onboardingStep} / 3</span>
-            <div className="flex gap-2">
-              {onboardingStep > 1 && (
-                <Button variant="outline" size="sm" onClick={() => setOnboardingStep((s) => Math.max(1, s - 1))}>
-                  Quay lại
-                </Button>
-              )}
-              {onboardingStep < 3 ? (
-                <Button size="sm" onClick={() => setOnboardingStep((s) => Math.min(3, s + 1))}>
-                  Tiếp theo
-                </Button>
-              ) : (
-                <Button size="sm" onClick={() => completeOnboarding(false)}>
-                  Bắt đầu thiết lập
-                </Button>
-              )}
             </div>
           </div>
-        </div>
-      </Modal>
+        </>
+      )}
 
       {/* ── Learning Path & Reminder Setup Modal ─────────────────────── */}
       <Modal

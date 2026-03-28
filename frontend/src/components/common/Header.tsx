@@ -1,14 +1,19 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings, CalendarDays, Heart } from "lucide-react";
+import { BookOpen, User, LogOut, Home, Award, MessageCircle, Users, Info, HelpCircle, Map, CreditCard, Award as Certificate, Rss, Settings, CalendarDays, Heart, Bell } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useEffect, useState } from "react";
+import NotificationCenter from "./NotificationCenter";
+import { getUserNotifications, markAllNotificationsRead, markNotificationRead } from "../../utils/userNotifications";
+import type { UserNotificationItem } from "../../utils/userNotifications";
 
 
 const Header = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<UserNotificationItem[]>([]);
 
   const handleLogout = () => {
     logout();
@@ -27,6 +32,27 @@ const Header = () => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [isNavOpen]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user?._id) {
+      setNotifications([]);
+      return;
+    }
+
+    const load = () => setNotifications(getUserNotifications(user._id));
+    load();
+
+    const onNotifUpdated = () => load();
+    window.addEventListener('user-notifications-updated', onNotifUpdated as EventListener);
+    window.addEventListener('focus', onNotifUpdated as EventListener);
+
+    return () => {
+      window.removeEventListener('user-notifications-updated', onNotifUpdated as EventListener);
+      window.removeEventListener('focus', onNotifUpdated as EventListener);
+    };
+  }, [isAuthenticated, user?._id]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const NavToggleButton = ({ isOpen }: { isOpen: boolean }) => {
     const barBase =
@@ -79,8 +105,30 @@ const Header = () => {
             </motion.div>
           </Link>
 
-          <div className="flex items-center">
+          <div className="flex items-center gap-2 relative">
+            {isAuthenticated && (
+              <button
+                type="button"
+                aria-label="Mở trung tâm thông báo"
+                onClick={() => setIsNotifOpen((v) => !v)}
+                className="relative w-10 h-10 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors"
+              >
+                <Bell className="w-5 h-5 text-gray-700" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
             <NavToggleButton isOpen={isNavOpen} />
+            <NotificationCenter
+              isOpen={isNotifOpen}
+              items={notifications}
+              onClose={() => setIsNotifOpen(false)}
+              onMarkRead={(id) => user?._id && markNotificationRead(user._id, id)}
+              onMarkAllRead={() => user?._id && markAllNotificationsRead(user._id)}
+            />
           </div>
         </div>
       </div>
