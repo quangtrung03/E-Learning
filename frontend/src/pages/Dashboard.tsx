@@ -116,6 +116,18 @@ const reminderFrequencyLabel: Record<ReminderFrequency, string> = {
   weekends: 'cuối tuần'
 };
 
+const toIsoDateOrNull = (value?: string | null): string | null => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+};
+
+const toDateInputValueOrFallback = (value: unknown, fallback: string): string => {
+  if (!value || typeof value !== 'string') return fallback;
+  const iso = toIsoDateOrNull(value);
+  return iso ? iso.slice(0, 10) : fallback;
+};
+
 const CHART_COLORS = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'];
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -230,10 +242,7 @@ const Dashboard = () => {
   const saveLearningAndReminderSetup = async () => {
     try {
       setSavingSetup(true);
-      const parsedTargetDate = learningSetup.targetDate ? new Date(learningSetup.targetDate) : null;
-      const targetDate = parsedTargetDate && !Number.isNaN(parsedTargetDate.getTime())
-        ? parsedTargetDate.toISOString()
-        : null;
+      const targetDate = toIsoDateOrNull(learningSetup.targetDate);
       await persistPreferenceUpdates({
         learningPath: {
           track: learningSetup.track,
@@ -275,11 +284,7 @@ const Dashboard = () => {
       track: learningPath.track || prev.track,
       goal: learningPath.goal || prev.goal,
       weeklyTargetMinutes: learningPath.weeklyTargetMinutes || prev.weeklyTargetMinutes,
-      targetDate: (() => {
-        if (!learningPath.targetDate) return prev.targetDate;
-        const parsed = new Date(learningPath.targetDate);
-        return Number.isNaN(parsed.getTime()) ? prev.targetDate : parsed.toISOString().slice(0, 10);
-      })()
+      targetDate: toDateInputValueOrFallback(learningPath.targetDate, prev.targetDate)
     }));
 
     setReminderSetup((prev) => ({
