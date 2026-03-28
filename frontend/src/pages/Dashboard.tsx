@@ -224,7 +224,10 @@ const Dashboard = () => {
   const saveLearningAndReminderSetup = async () => {
     try {
       setSavingSetup(true);
-      const targetDate = learningSetup.targetDate ? new Date(learningSetup.targetDate).toISOString() : null;
+      const parsedTargetDate = learningSetup.targetDate ? new Date(learningSetup.targetDate) : null;
+      const targetDate = parsedTargetDate && !Number.isNaN(parsedTargetDate.getTime())
+        ? parsedTargetDate.toISOString()
+        : null;
       await persistPreferenceUpdates({
         learningPath: {
           track: learningSetup.track,

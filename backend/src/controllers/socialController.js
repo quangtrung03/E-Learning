@@ -665,41 +665,25 @@ exports.updatePreferences = async (req, res) => {
   try {
     const { language, theme, notifications, privacy, onboarding, learningPath, reminders } = req.body;
     const updateObj = {};
+    const flattenToUpdateObj = (prefix, input) => {
+      Object.keys(input || {}).forEach((key) => {
+        const value = input[key];
+        const nextPrefix = `${prefix}.${key}`;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          flattenToUpdateObj(nextPrefix, value);
+        } else {
+          updateObj[nextPrefix] = value;
+        }
+      });
+    };
 
     if (language) updateObj['preferences.language'] = language;
     if (theme) updateObj['preferences.theme'] = theme;
-    if (notifications) {
-      Object.keys(notifications).forEach(k => {
-        updateObj[`preferences.notifications.${k}`] = notifications[k];
-      });
-    }
-    if (privacy) {
-      Object.keys(privacy).forEach(k => {
-        updateObj[`preferences.privacy.${k}`] = privacy[k];
-      });
-    }
-    if (onboarding) {
-      Object.keys(onboarding).forEach(k => {
-        updateObj[`preferences.onboarding.${k}`] = onboarding[k];
-      });
-    }
-    if (learningPath) {
-      Object.keys(learningPath).forEach(k => {
-        updateObj[`preferences.learningPath.${k}`] = learningPath[k];
-      });
-    }
-    if (reminders) {
-      Object.keys(reminders).forEach(k => {
-        const value = reminders[k];
-        if (value && typeof value === 'object' && !Array.isArray(value)) {
-          Object.keys(value).forEach(subKey => {
-            updateObj[`preferences.reminders.${k}.${subKey}`] = value[subKey];
-          });
-        } else {
-          updateObj[`preferences.reminders.${k}`] = value;
-        }
-      });
-    }
+    if (notifications) flattenToUpdateObj('preferences.notifications', notifications);
+    if (privacy) flattenToUpdateObj('preferences.privacy', privacy);
+    if (onboarding) flattenToUpdateObj('preferences.onboarding', onboarding);
+    if (learningPath) flattenToUpdateObj('preferences.learningPath', learningPath);
+    if (reminders) flattenToUpdateObj('preferences.reminders', reminders);
 
     const user = await User.findByIdAndUpdate(req.user._id, { $set: updateObj }, { new: true })
       .select('preferences');
