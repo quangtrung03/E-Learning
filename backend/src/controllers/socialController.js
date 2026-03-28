@@ -660,30 +660,49 @@ exports.updateSocialProfile = async (req, res) => {
   }
 };
 
-// PUT /api/social/preferences  - update preferences (language, theme, notifications, privacy)
+// PUT /api/social/preferences  - update preferences (language, theme, notifications, privacy, onboarding, learningPath, reminders)
 exports.updatePreferences = async (req, res) => {
   try {
-    const { language, theme, notifications, privacy } = req.body;
+    const { language, theme, notifications, privacy, onboarding, learningPath, reminders } = req.body;
     const updateObj = {};
+    const MAX_PREFERENCE_NESTING_DEPTH = 8;
+    const flattenToUpdateObj = (prefix, input, depth = 0) => {
+      if (depth > MAX_PREFERENCE_NESTING_DEPTH) {
+        throw new Error('Preferences payload is too deeply nested');
+      }
+      Object.keys(input || {}).forEach((key) => {
+        const value = input[key];
+        const nextPrefix = `${prefix}.${key}`;
+        if (
+          value &&
+          typeof value === 'object' &&
+          value !== null &&
+          !Array.isArray(value) &&
+          !(value instanceof Date)
+        ) {
+          flattenToUpdateObj(nextPrefix, value, depth + 1);
+        } else {
+          updateObj[nextPrefix] = value;
+        }
+      });
+    };
 
     if (language) updateObj['preferences.language'] = language;
     if (theme) updateObj['preferences.theme'] = theme;
-    if (notifications) {
-      Object.keys(notifications).forEach(k => {
-        updateObj[`preferences.notifications.${k}`] = notifications[k];
-      });
-    }
-    if (privacy) {
-      Object.keys(privacy).forEach(k => {
-        updateObj[`preferences.privacy.${k}`] = privacy[k];
-      });
-    }
+    if (notifications) flattenToUpdateObj('preferences.notifications', notifications);
+    if (privacy) flattenToUpdateObj('preferences.privacy', privacy);
+    if (onboarding) flattenToUpdateObj('preferences.onboarding', onboarding);
+    if (learningPath) flattenToUpdateObj('preferences.learningPath', learningPath);
+    if (reminders) flattenToUpdateObj('preferences.reminders', reminders);
 
     const user = await User.findByIdAndUpdate(req.user._id, { $set: updateObj }, { new: true })
       .select('preferences');
 
     res.json({ success: true, preferences: user.preferences });
   } catch (err) {
+    if (err?.message === 'Preferences payload is too deeply nested') {
+      return res.status(400).json({ success: false, message: err.message });
+    }
     res.status(500).json({ success: false, message: 'Lỗi cập nhật cài đặt' });
   }
 };

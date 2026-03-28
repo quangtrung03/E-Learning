@@ -10,6 +10,18 @@ const Payment = require('../models/Payment');
 const Submission = require('../models/Submission');
 const { getUserEnrollment } = require('../utils/enrollmentHelpers');
 
+const ACHIEVEMENT_STREAK = {
+  MAX_HINT_DAYS: 30,
+  MINUTES_PER_DAY: 120
+};
+
+const LEADERBOARD_XP_WEIGHTS = {
+  COMPLETED_COURSE: 120,
+  CERTIFICATE: 80,
+  TIME_SPENT_DIVISOR: 8,
+  AVG_PROGRESS: 2
+};
+
 // @desc    Lấy analytics của user
 // @route   GET /api/analytics/user
 // @access  Private
@@ -2044,6 +2056,175 @@ const exportAnalytics = async (req, res) => {
   }
 };
 
+// @desc    Get achievements summary for current user
+// @route   GET /api/analytics/achievements
+// @access  Private
+const getUserAchievements = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const [enrollments, certificates] = await Promise.all([
+      Enrollment.find({ user: userId, status: { $in: ['active', 'completed'] } })
+        .select('progress status totalTimeSpent createdAt completedAt')
+        .lean(),
+      Certificate.find({ user: userId, status: 'active' })
+        .select('_id')
+        .lean()
+    ]);
+
+    const completedCourses = enrollments.filter((e) => e.status === 'completed' || (e.progress || 0) >= 100).length;
+    const inProgressCourses = enrollments.filter((e) => (e.progress || 0) > 0 && (e.progress || 0) < 100).length;
+    const totalTimeSpent = enrollments.reduce((sum, e) => sum + (e.totalTimeSpent || 0), 0);
+    const certificateCount = certificates.length;
+    const totalEnrollments = enrollments.length;
+    const avgProgress = totalEnrollments > 0
+      ? Math.round(enrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / totalEnrollments)
+      : 0;
+
+    const streakHint = Math.min(
+      ACHIEVEMENT_STREAK.MAX_HINT_DAYS,
+      Math.max(0, Math.round(totalTimeSpent / ACHIEVEMENT_STREAK.MINUTES_PER_DAY))
+    );
+
+    const catalog = [
+      { id: 'first-enroll', title: 'Khởi động học tập', description: 'Đăng ký khóa học đầu tiên', rarity: 'common', xpReward: 20, progress: totalEnrollments, target: 1, icon: '🚀' },
+      { id: 'first-completion', title: 'Hoàn thành đầu tiên', description: 'Hoàn thành 1 khóa học', rarity: 'common', xpReward: 35, progress: completedCourses, target: 1, icon: '✅' },
+      { id: 'triple-completion', title: 'Học viên kiên trì', description: 'Hoàn thành 3 khóa học', rarity: 'rare', xpReward: 80, progress: completedCourses, target: 3, icon: '📘' },
+      { id: 'certificate-collector', title: 'Sưu tầm chứng chỉ', description: 'Nhận 3 chứng chỉ', rarity: 'epic', xpReward: 120, progress: certificateCount, target: 3, icon: '🏅' },
+      { id: 'study-marathon', title: 'Marathon học tập', description: 'Tích lũy 600 phút học', rarity: 'rare', xpReward: 90, progress: totalTimeSpent, target: 600, icon: '⏱️' },
+      { id: 'focus-master', title: 'Bậc thầy tập trung', description: 'Tích lũy 1800 phút học', rarity: 'legendary', xpReward: 200, progress: totalTimeSpent, target: 1800, icon: '🔥' },
+      { id: 'momentum', title: 'Duy trì nhịp học', description: 'Chuỗi học giả lập đạt 7 ngày', rarity: 'epic', xpReward: 130, progress: streakHint, target: 7, icon: '⚡' },
+      { id: 'active-learner', title: 'Học viên năng động', description: 'Có ít nhất 2 khóa đang học', rarity: 'common', xpReward: 40, progress: inProgressCourses, target: 2, icon: '📚' }
+    ];
+
+    const achievements = catalog.map((a) => ({
+      ...a,
+      unlocked: a.progress >= a.target,
+      progressPercent: Math.min(100, Math.round((a.progress / a.target) * 100))
+    }));
+
+    const unlockedCount = achievements.filter((a) => a.unlocked).length;
+    const totalXP = achievements.filter((a) => a.unlocked).reduce((sum, a) => sum + a.xpReward, 0);
+
+    const rarityCounts = achievements.reduce((acc, a) => {
+      if (a.unlocked) acc[a.rarity] = (acc[a.rarity] || 0) + 1;
+      return acc;
+    }, { legendary: 0, epic: 0, rare: 0, common: 0 });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalAchievements: achievements.length,
+          unlockedCount,
+          lockedCount: achievements.length - unlockedCount,
+          completionRate: achievements.length > 0 ? Math.round((unlockedCount / achievements.length) * 100) : 0,
+          totalXP,
+          totalTimeSpent,
+          avgProgress,
+          rarityCounts
+        },
+        achievements
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy thành tích',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get leaderboard
+// @route   GET /api/analytics/leaderboard
+// @access  Private
+const getLeaderboard = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 5), 50);
+
+    const aggregates = await Enrollment.aggregate([
+      { $match: { status: { $in: ['active', 'completed'] } } },
+      {
+        $group: {
+          _id: '$user',
+          completedCourses: {
+            $sum: {
+              $cond: [
+                { $or: [{ $eq: ['$status', 'completed'] }, { $gte: ['$progress', 100] }] },
+                1,
+                0
+              ]
+            }
+          },
+          totalTimeSpent: { $sum: { $ifNull: ['$totalTimeSpent', 0] } },
+          avgProgress: { $avg: { $ifNull: ['$progress', 0] } }
+        }
+      }
+    ]);
+
+    const certAgg = await Certificate.aggregate([
+      { $match: { status: 'active' } },
+      { $group: { _id: '$user', certificates: { $sum: 1 } } }
+    ]);
+    const certMap = new Map(certAgg.map((x) => [String(x._id), x.certificates]));
+
+    const users = await User.find({ _id: { $in: aggregates.map((a) => a._id) } })
+      .select('_id name avatar')
+      .lean();
+    const userMap = new Map(users.map((u) => [String(u._id), u]));
+
+    const scored = aggregates
+      .map((a) => {
+        const uid = String(a._id);
+        const certificates = certMap.get(uid) || 0;
+        const xp = Math.round(
+          (a.completedCourses * LEADERBOARD_XP_WEIGHTS.COMPLETED_COURSE) +
+          (certificates * LEADERBOARD_XP_WEIGHTS.CERTIFICATE) +
+          ((a.totalTimeSpent || 0) / LEADERBOARD_XP_WEIGHTS.TIME_SPENT_DIVISOR) +
+          ((a.avgProgress || 0) * LEADERBOARD_XP_WEIGHTS.AVG_PROGRESS)
+        );
+        return {
+          userId: uid,
+          name: userMap.get(uid)?.name || 'Người dùng',
+          avatar: userMap.get(uid)?.avatar || null,
+          completedCourses: a.completedCourses || 0,
+          certificates,
+          totalTimeSpent: Math.round(a.totalTimeSpent || 0),
+          avgProgress: Math.round(a.avgProgress || 0),
+          xp
+        };
+      })
+      .sort((a, b) => b.xp - a.xp);
+
+    const leaderboard = scored.slice(0, limit).map((item, idx) => ({
+      rank: idx + 1,
+      ...item
+    }));
+
+    const myIndex = scored.findIndex((x) => x.userId === String(userId));
+    const myRank = myIndex >= 0
+      ? { rank: myIndex + 1, ...scored[myIndex] }
+      : null;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        leaderboard,
+        myRank,
+        totalParticipants: scored.length
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Lỗi server khi lấy bảng xếp hạng',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getUserAnalytics,
   getCourseAnalytics,
@@ -2059,5 +2240,7 @@ module.exports = {
   updateLearningProgress,
   setLearningGoals,
   getRevenueAnalytics,
-  getPlatformFeeReport
+  getPlatformFeeReport,
+  getUserAchievements,
+  getLeaderboard
 };

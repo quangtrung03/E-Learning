@@ -110,6 +110,34 @@ const userSchema = new mongoose.Schema({
       showEmail: { type: Boolean, default: false },
       showPhone: { type: Boolean, default: false },
       allowMessages: { type: String, enum: ['everyone', 'followers', 'none'], default: 'everyone' }
+    },
+    onboarding: {
+      completed: { type: Boolean, default: false },
+      skipped: { type: Boolean, default: false },
+      lastSeenAt: { type: Date }
+    },
+    learningPath: {
+      track: {
+        type: String,
+        enum: ['programming', 'design', 'business', 'marketing', 'language', 'science', 'other'],
+        default: 'programming'
+      },
+      goal: {
+        type: String,
+        enum: ['first_course', 'skill_upgrade', 'career_switch', 'certificate', 'hobby'],
+        default: 'first_course'
+      },
+      weeklyTargetMinutes: { type: Number, default: 180, min: 30, max: 3000 },
+      targetDate: { type: Date }
+    },
+    reminders: {
+      enabled: { type: Boolean, default: true },
+      time: { type: String, default: '19:00' },
+      frequency: { type: String, enum: ['daily', 'weekdays', 'weekends'], default: 'daily' },
+      channels: {
+        inApp: { type: Boolean, default: true },
+        email: { type: Boolean, default: false }
+      }
     }
   }
 }, {
