@@ -1,5 +1,5 @@
 ﻿// ===== UNIFIED DASHBOARD (Dashboard + MyCourses + LearningAnalytics) =====
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseAPI, analyticsAPI, socialAPI } from '../services/api';
@@ -182,6 +182,7 @@ const Dashboard = () => {
   const [savingSetup, setSavingSetup] = useState(false);
   const [reminderPreview, setReminderPreview] = useState<string | null>(null);
   const [tourTargetRect, setTourTargetRect] = useState<DOMRect | null>(null);
+  const tourFrameRef = useRef<number | null>(null);
 
   const [learningSetup, setLearningSetup] = useState<LearningSetupState>({
     track: 'programming',
@@ -316,6 +317,9 @@ const Dashboard = () => {
     const shouldShowOnboarding = hasServerOnboardingState
       ? !(onboarding.completed || onboarding.skipped)
       : !localSeen;
+    if (hasServerOnboardingState && localSeen) {
+      localStorage.removeItem('dashboard_onboarding_seen');
+    }
     if (shouldShowOnboarding) {
       setTourStep(0);
       setShowOnboardingModal(true);
@@ -325,17 +329,34 @@ const Dashboard = () => {
   useEffect(() => {
     if (!showOnboardingModal) {
       setTourTargetRect(null);
+      if (tourFrameRef.current) cancelAnimationFrame(tourFrameRef.current);
       return;
     }
     const selectors = ['[data-tour="hero"]', '[data-tour="role-tabs"]', '[data-tour="stats"]', '[data-tour="quick-actions"]'];
-    const selector = selectors[tourStep] || selectors[0];
-    const el = document.querySelector(selector);
-    if (!el) {
-      setTourTargetRect(null);
-      return;
-    }
-    setTourTargetRect((el as HTMLElement).getBoundingClientRect());
-  }, [showOnboardingModal, tourStep, activeRole, enrolledCourses.length, analytics?.coursesInProgress]);
+    const computeRect = () => {
+      const selector = selectors[tourStep] || selectors[0];
+      const el = document.querySelector(selector);
+      if (!el) {
+        setTourTargetRect(null);
+        return;
+      }
+      setTourTargetRect((el as HTMLElement).getBoundingClientRect());
+    };
+
+    const scheduleRect = () => {
+      if (tourFrameRef.current) cancelAnimationFrame(tourFrameRef.current);
+      tourFrameRef.current = requestAnimationFrame(computeRect);
+    };
+
+    scheduleRect();
+    window.addEventListener('resize', scheduleRect);
+    window.addEventListener('scroll', scheduleRect, true);
+    return () => {
+      window.removeEventListener('resize', scheduleRect);
+      window.removeEventListener('scroll', scheduleRect, true);
+      if (tourFrameRef.current) cancelAnimationFrame(tourFrameRef.current);
+    };
+  }, [showOnboardingModal, tourStep]);
 
   const fetchAllData = async () => {
     if (!user) return;

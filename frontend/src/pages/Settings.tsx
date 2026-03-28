@@ -84,6 +84,7 @@ export default function Settings() {
   const [prefs, setPrefs] = useState<Preferences>(defaultPreferences);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [reminderSaveTimer, setReminderSaveTimer] = useState<number | null>(null);
 
   // Change password state
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -149,8 +150,18 @@ export default function Settings() {
       }
     };
     setPrefs(prev => ({ ...prev, reminders: updated }));
-    savePreferences({ reminders: updated });
+    if (reminderSaveTimer) window.clearTimeout(reminderSaveTimer);
+    const timer = window.setTimeout(() => {
+      savePreferences({ reminders: updated });
+    }, 350);
+    setReminderSaveTimer(timer);
   };
+
+  useEffect(() => {
+    return () => {
+      if (reminderSaveTimer) window.clearTimeout(reminderSaveTimer);
+    };
+  }, [reminderSaveTimer]);
 
   const handlePrivacyChange = (key: keyof Preferences['privacy'], val: any) => {
     const updated = { ...prefs.privacy, [key]: val };

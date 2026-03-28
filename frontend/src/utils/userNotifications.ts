@@ -29,9 +29,12 @@ export const pushUserNotification = (
   data: Omit<UserNotificationItem, 'id' | 'createdAt' | 'read'>
 ) => {
   const items = getUserNotifications(userId);
+  const generatedId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
   const next: UserNotificationItem = {
     ...data,
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: generatedId,
     createdAt: new Date().toISOString(),
     read: false
   };
@@ -51,4 +54,3 @@ export const markAllNotificationsRead = (userId: string) => {
   setUserNotifications(userId, items);
   window.dispatchEvent(new CustomEvent('user-notifications-updated', { detail: { userId } }));
 };
-
