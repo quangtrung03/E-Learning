@@ -183,6 +183,7 @@ const Dashboard = () => {
   const [reminderPreview, setReminderPreview] = useState<string | null>(null);
   const [tourTargetRect, setTourTargetRect] = useState<DOMRect | null>(null);
   const tourFrameRef = useRef<number | null>(null);
+  const tourScrollTimerRef = useRef<number | null>(null);
 
   const [learningSetup, setLearningSetup] = useState<LearningSetupState>({
     track: 'programming',
@@ -311,7 +312,7 @@ const Dashboard = () => {
       }
     }));
 
-    // Server preferences is the source of truth; local storage is only fallback if server data absent.
+    // Server preferences is source of truth; local storage only supports first-load fallback when server fields are absent.
     const localSeen = localStorage.getItem('dashboard_onboarding_seen') === '1';
     const hasServerOnboardingState = onboarding.completed !== undefined || onboarding.skipped !== undefined;
     const shouldShowOnboarding = hasServerOnboardingState
@@ -347,13 +348,18 @@ const Dashboard = () => {
       if (tourFrameRef.current) cancelAnimationFrame(tourFrameRef.current);
       tourFrameRef.current = requestAnimationFrame(computeRect);
     };
+    const onScroll = () => {
+      if (tourScrollTimerRef.current) window.clearTimeout(tourScrollTimerRef.current);
+      tourScrollTimerRef.current = window.setTimeout(scheduleRect, 60);
+    };
 
     scheduleRect();
     window.addEventListener('resize', scheduleRect);
-    window.addEventListener('scroll', scheduleRect, true);
+    window.addEventListener('scroll', onScroll, true);
     return () => {
       window.removeEventListener('resize', scheduleRect);
-      window.removeEventListener('scroll', scheduleRect, true);
+      window.removeEventListener('scroll', onScroll, true);
+      if (tourScrollTimerRef.current) window.clearTimeout(tourScrollTimerRef.current);
       if (tourFrameRef.current) cancelAnimationFrame(tourFrameRef.current);
     };
   }, [showOnboardingModal, tourStep]);

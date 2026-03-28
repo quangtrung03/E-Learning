@@ -8,6 +8,7 @@ export interface UserNotificationItem {
 }
 
 const keyFor = (userId: string) => `user_notifications_v1_${userId}`;
+let fallbackCounter = 0;
 
 export const getUserNotifications = (userId?: string | null): UserNotificationItem[] => {
   if (!userId) return [];
@@ -31,7 +32,7 @@ export const pushUserNotification = (
   const items = getUserNotifications(userId);
   const generatedId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
-    : `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    : `${Date.now()}_${++fallbackCounter}_${Math.random().toString(36).slice(2, 10)}`;
   const next: UserNotificationItem = {
     ...data,
     id: generatedId,

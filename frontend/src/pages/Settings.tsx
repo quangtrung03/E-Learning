@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -84,7 +84,7 @@ export default function Settings() {
   const [prefs, setPrefs] = useState<Preferences>(defaultPreferences);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [reminderSaveTimer, setReminderSaveTimer] = useState<number | null>(null);
+  const reminderSaveTimerRef = useRef<number | null>(null);
 
   // Change password state
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -150,18 +150,18 @@ export default function Settings() {
       }
     };
     setPrefs(prev => ({ ...prev, reminders: updated }));
-    if (reminderSaveTimer) window.clearTimeout(reminderSaveTimer);
+    if (reminderSaveTimerRef.current) window.clearTimeout(reminderSaveTimerRef.current);
     const timer = window.setTimeout(() => {
       savePreferences({ reminders: updated });
     }, 350);
-    setReminderSaveTimer(timer);
+    reminderSaveTimerRef.current = timer;
   };
 
   useEffect(() => {
     return () => {
-      if (reminderSaveTimer) window.clearTimeout(reminderSaveTimer);
+      if (reminderSaveTimerRef.current) window.clearTimeout(reminderSaveTimerRef.current);
     };
-  }, [reminderSaveTimer]);
+  }, []);
 
   const handlePrivacyChange = (key: keyof Preferences['privacy'], val: any) => {
     const updated = { ...prefs.privacy, [key]: val };

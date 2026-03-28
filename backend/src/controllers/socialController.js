@@ -665,7 +665,10 @@ exports.updatePreferences = async (req, res) => {
   try {
     const { language, theme, notifications, privacy, onboarding, learningPath, reminders } = req.body;
     const updateObj = {};
-    const flattenToUpdateObj = (prefix, input) => {
+    const flattenToUpdateObj = (prefix, input, depth = 0) => {
+      if (depth > 8) {
+        throw new Error('Preferences payload is too deeply nested');
+      }
       Object.keys(input || {}).forEach((key) => {
         const value = input[key];
         const nextPrefix = `${prefix}.${key}`;
@@ -676,7 +679,7 @@ exports.updatePreferences = async (req, res) => {
           !Array.isArray(value) &&
           !(value instanceof Date)
         ) {
-          flattenToUpdateObj(nextPrefix, value);
+          flattenToUpdateObj(nextPrefix, value, depth + 1);
         } else {
           updateObj[nextPrefix] = value;
         }
